@@ -16,6 +16,7 @@ import { registerLocateInSourceTool } from './locate-in-source.js';
 import { registerFindDefinitionTool } from './find-definition.js';
 import { registerFindReferencesTool } from './find-references.js';
 import { registerListMembersTool } from './list-members.js';
+import { registerGetSymbolInfoTool } from './get-symbol-info.js';
 
 export function registerAllTools(server: McpServer): void {
 	registerEchoTool(server);
@@ -35,4 +36,5 @@ export function registerAllTools(server: McpServer): void {
 	registerFindDefinitionTool(server);
 	registerFindReferencesTool(server);
 	registerListMembersTool(server);
+	registerGetSymbolInfoTool(server);
 }
