@@ -147,7 +147,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 08-01-PLAN.md — Pure cascading regex domain module with types, flag prefix parsing, offset tracking, and unit tests
+- [x] 08-01-PLAN.md — Pure cascading regex domain module with types, flag prefix parsing, offset tracking, and unit tests
 - [ ] 08-02-PLAN.md — locate_in_source MCP tool with multi-jar search, results/failures split, and tool registration
 
 ### Phase 9: Version Comparison

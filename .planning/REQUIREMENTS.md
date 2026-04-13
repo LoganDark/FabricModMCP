@@ -58,10 +58,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Cascading Regex
 
-- [ ] **CREG-01**: User can provide an array of regex patterns where each pattern searches within the text matched by the previous pattern
-- [ ] **CREG-02**: The cascading regex resolves to a precise character position (offset) in a source file
+- [x] **CREG-01**: User can provide an array of regex patterns where each pattern searches within the text matched by the previous pattern
+- [x] **CREG-02**: The cascading regex resolves to a precise character position (offset) in a source file
 - [ ] **CREG-03**: Cascading regex works across any source (jar or mod source) in any loaded project
-- [ ] **CREG-04**: Error reporting is clear when a pattern in the chain fails to match (which step failed, what text was being searched)
+- [x] **CREG-04**: Error reporting is clear when a pattern in the chain fails to match (which step failed, what text was being searched)
 
 ### Navigation
 
@@ -145,10 +145,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SRCH-03 | Phase 7 | Complete |
 | SRCH-04 | Phase 7 | Complete |
 | SRCH-05 | Phase 7 | Complete |
-| CREG-01 | Phase 8 | Pending |
-| CREG-02 | Phase 8 | Pending |
+| CREG-01 | Phase 8 | Complete |
+| CREG-02 | Phase 8 | Complete |
 | CREG-03 | Phase 8 | Pending |
-| CREG-04 | Phase 8 | Pending |
+| CREG-04 | Phase 8 | Complete |
 | COMP-01 | Phase 9 | Pending |
 | COMP-02 | Phase 9 | Pending |
 | COMP-03 | Phase 9 | Pending |
