@@ -50,11 +50,11 @@ Plans:
   2. Server parses gradle.properties to extract minecraft_version and yarn_mappings (or detects unobfuscated era)
   3. Server resolves the correct Loom cache path and locates the Minecraft sources jar on disk
   4. Server correctly distinguishes Yarn-mapped projects (MC <=1.21.11) from unobfuscated projects (MC >=26.1) and handles both cache path structures
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md -- Types, test fixtures, Gradle parser, Loom cache resolver, fabric.mod.json parser with tests
+- [ ] 02-02-PLAN.md -- Project loader orchestrator, project store, CLI wiring, server startup integration
 
 ### Phase 3: Dependency Discovery and Jar Registry
 **Goal**: Server discovers all dependency source jars for a loaded project and can read individual entries from any jar on demand without extracting to disk
@@ -190,7 +190,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Server Bootstrap | 0/2 | Planning complete | - |
-| 2. Project Discovery | 0/2 | Not started | - |
+| 2. Project Discovery | 0/2 | Planning complete | - |
 | 3. Dependency Discovery and Jar Registry | 0/2 | Not started | - |
 | 4. Multi-Project Sessions | 0/2 | Not started | - |
 | 5. Project Metadata | 0/2 | Not started | - |
