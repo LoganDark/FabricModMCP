@@ -1,3 +1,5 @@
+import type { JdtLsSession } from '../jdtls/types.js';
+
 export type MappingEra = 'yarn' | 'unobfuscated';
 
 export interface DependencyCoordinate {
@@ -61,4 +63,5 @@ export interface LoadedProject {
 	fabricMod: FabricModJson;
 	dependencyJars: Map<string, DependencyEntry>;
 	filterConfig: FilterConfig;
+	jdtls?: JdtLsSession;
 }

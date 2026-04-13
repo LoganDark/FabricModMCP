@@ -5,6 +5,9 @@ import { projectStore, ProjectStore } from '../state/project-store.js';
 import { loadProject } from '../project/loader.js';
 import { jarReader } from './shared-jar-reader.js';
 import { logger } from '../logging/logger.js';
+import { detectJava, findJdtLs, startJdtLs } from '../jdtls/client.js';
+import { extractSourcesToTemp } from '../jdtls/workspace.js';
+import type { JdtLsSession } from '../jdtls/types.js';
 
 export function registerLoadProjectTool(server: McpServer): void {
 	server.registerTool(
@@ -46,12 +49,68 @@ export function registerLoadProjectTool(server: McpServer): void {
 				}
 				jarReader.registerProject(projectName, jarPaths);
 
+				// Initialize JDT LS (eager, per user decision)
+				const javaResult = detectJava();
+				const jdtlsResult = findJdtLs();
+
+				if (javaResult.javaPath === null) {
+					project.jdtls = {
+						available: false,
+						failureReason: javaResult.error,
+						tempDir: '',
+						dataDir: '',
+						jarIdToDirName: new Map(),
+					};
+					logger.info(`JDT LS unavailable for ${projectName}: ${javaResult.error}`);
+				} else if (jdtlsResult.jdtlsHome === null) {
+					project.jdtls = {
+						available: false,
+						failureReason: jdtlsResult.error,
+						tempDir: '',
+						dataDir: '',
+						jarIdToDirName: new Map(),
+					};
+					logger.info(`JDT LS unavailable for ${projectName}: ${jdtlsResult.error}`);
+				} else {
+					try {
+						const extraction = await extractSourcesToTemp(
+							project.dependencyJars,
+							project.rootPath,
+							jarReader,
+						);
+						const lspResult = await startJdtLs(
+							javaResult.javaPath,
+							jdtlsResult.jdtlsHome,
+							extraction.tempDir,
+						);
+						project.jdtls = {
+							available: true,
+							tempDir: extraction.tempDir,
+							dataDir: lspResult.dataDir,
+							jarIdToDirName: extraction.jarIdToDirNameMap,
+							client: lspResult.client,
+							process: lspResult.process,
+						};
+						logger.info(`JDT LS initialized for ${projectName}`);
+					} catch (err) {
+						project.jdtls = {
+							available: false,
+							failureReason: `JDT LS initialization failed: ${err instanceof Error ? err.message : String(err)}`,
+							tempDir: '',
+							dataDir: '',
+							jarIdToDirName: new Map(),
+						};
+						logger.warn(`JDT LS failed for ${projectName}: ${project.jdtls.failureReason}`);
+					}
+				}
+
 				const envelope = makeSuccess({
 					name: projectName,
 					rootPath: project.rootPath,
 					minecraftVersion: project.gradleConfig.minecraftVersion,
 					mappingEra: project.gradleConfig.mappingEra,
 					dependencyCount: project.dependencyJars.size,
+					jdtlsAvailable: project.jdtls?.available ?? false,
 				}, {
 					provenance: { tool: 'load_project', project: projectName },
 				});
