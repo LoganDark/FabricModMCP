@@ -26,7 +26,7 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - [x] Browse decompiled source — list packages, list classes in a package, read full source of a class (Validated in Phase 6: Source Browsing)
 - [x] Search by name — find classes by glob pattern across all sources with scoping and pagination (Validated in Phase 7: Search)
 - [x] Find definition — given a cascading regex pattern array (each regex narrows within the previous match), locate the definition site in source (Validated in Phase 8: Cascading Regex Engine)
-- [ ] Find references/usages — given a cascading regex pattern array to identify a symbol position, find all places that reference it across all sources
+- [x] Find references/usages — given a cascading regex pattern array to identify a symbol position, find all places that reference it across all sources (Validated in Phase 9: Semantic Navigation)
 - [x] ~~Version comparison~~ — Deferred to v2 (only useful for unmapped sources, not needed for v1)
 - [ ] Strongly typed tool interfaces — every MCP tool has precise parameter types and rich return types, erring on the side of providing more information rather than less
 - [ ] Performant and optimized — fast jar reading, efficient search, minimal memory footprint
@@ -62,7 +62,7 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 |----------|-----------|---------|
 | Cascading regex for position identification | Avoids fragile line numbers; each pattern narrows within previous match to locate precise position in source | Validated — Phase 8 |
 | Direct jar reading, no extraction cache | User preference for minimal caching; keeps disk usage low and avoids stale cache issues | — Pending |
-| Java LSP integration for find-by-reference | Full semantic navigation requires type-aware tooling beyond regex; LSP provides this | — Pending |
+| Java LSP integration for find-by-reference | Full semantic navigation requires type-aware tooling beyond regex; LSP provides this | Validated — Phase 9 |
 | Multi-project from the start | Porting use case requires comparing two MC versions side-by-side | — Pending |
 
 ## Evolution
@@ -83,4 +83,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-13 after Phase 8 completion*
+*Last updated: 2026-04-13 after Phase 9 completion*
