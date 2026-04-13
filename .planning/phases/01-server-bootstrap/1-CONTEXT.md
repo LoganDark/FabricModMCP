@@ -41,7 +41,7 @@ Working MCP server over stdio with typed tool framework and stderr-only logging.
 ### Runtime & tooling
 - pnpm for package management
 - TypeScript with ES modules (import/export)
-- ts-node for execution (no compile step)
+- tsx for execution (no compile step) — originally ts-node, switched to tsx per research finding that ts-node has ESM compatibility issues with MCP SDK's .js imports. User approved 2026-04-12.
 - Node.js 22 LTS minimum
 - Zod for parameter validation — schemas auto-generate JSON Schema for MCP tool discovery
 
