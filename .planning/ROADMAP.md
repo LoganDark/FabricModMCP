@@ -162,7 +162,7 @@ Plans:
 
 Plans:
 - [x] 09-01-PLAN.md -- JDT LS types, URI mapper (file URI <-> jar model), context extractor (enclosing semantic unit)
-- [ ] 09-02-PLAN.md -- JDT LS workspace extraction, client lifecycle, project load/unload integration
+- [x] 09-02-PLAN.md -- JDT LS workspace extraction, client lifecycle, project load/unload integration
 - [ ] 09-03-PLAN.md -- find_definition and find_references MCP tools with tool registration
 
 ## Progress
@@ -180,4 +180,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 6. Source Browsing | 0/2 | Planning complete | - |
 | 7. Search | 0/2 | Planning complete | - |
 | 8. Cascading Regex Engine | 0/2 | Planning complete | - |
-| 9. Semantic Navigation | 0/3 | Planning complete | - |
+| 9. Semantic Navigation | 2/3 | In Progress|  |
