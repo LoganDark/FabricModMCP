@@ -96,7 +96,7 @@ describe('createFsAdapter', () => {
 		const adapter = createFsAdapter(testDir);
 		await expect(
 			adapter.readEntry('com/example/DoesNotExist.java'),
-		).rejects.toThrow('SOURCE_FILE_NOT_FOUND');
+		).rejects.toThrow('Source file not found');
 	});
 });
 
@@ -148,6 +148,6 @@ describe('createSourceAdapter', () => {
 			available: false,
 			provenanceChains: [],
 		};
-		expect(() => createSourceAdapter(reader as any, dep, '/project')).toThrow('JAR_NOT_AVAILABLE');
+		expect(() => createSourceAdapter(reader as any, dep, '/project')).toThrow('Sources jar not available');
 	});
 });
