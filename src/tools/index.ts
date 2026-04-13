@@ -7,6 +7,7 @@ import { registerLoadProjectTool } from './load-project.js';
 import { registerUnloadProjectTool } from './unload-project.js';
 import { registerListProjectsTool } from './list-projects.js';
 import { registerSetDefaultProjectTool } from './set-default-project.js';
+import { registerGetProjectMetadataTool } from './get-project-metadata.js';
 
 export function registerAllTools(server: McpServer): void {
 	registerEchoTool(server);
@@ -17,4 +18,5 @@ export function registerAllTools(server: McpServer): void {
 	registerUnloadProjectTool(server);
 	registerListProjectsTool(server);
 	registerSetDefaultProjectTool(server);
+	registerGetProjectMetadataTool(server);
 }
