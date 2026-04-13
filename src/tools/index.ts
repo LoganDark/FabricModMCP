@@ -17,6 +17,8 @@ import { registerFindDefinitionTool } from './find-definition.js';
 import { registerFindReferencesTool } from './find-references.js';
 import { registerListMembersTool } from './list-members.js';
 import { registerGetSymbolInfoTool } from './get-symbol-info.js';
+import { registerFindImplementationsTool } from './find-implementations.js';
+import { registerTypeHierarchyTool } from './type-hierarchy.js';
 
 export function registerAllTools(server: McpServer): void {
 	registerEchoTool(server);
@@ -37,4 +39,6 @@ export function registerAllTools(server: McpServer): void {
 	registerFindReferencesTool(server);
 	registerListMembersTool(server);
 	registerGetSymbolInfoTool(server);
+	registerFindImplementationsTool(server);
+	registerTypeHierarchyTool(server);
 }
