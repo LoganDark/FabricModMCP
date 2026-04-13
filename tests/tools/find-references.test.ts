@@ -1,11 +1,8 @@
-import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
 import { projectStore } from '../../src/state/project-store.js';
 import type { LoadedProject, DependencyEntry } from '../../src/project/types.js';
 import type { JdtLsSession } from '../../src/jdtls/types.js';
-
-// These tests require the tool implementation from Plan 09-03.
-// They will be populated with test cases when find-references.ts is created.
 
 const toolModuleAvailable = await import('../../src/tools/find-references.js').then(() => true).catch(() => false);
 
@@ -21,13 +18,15 @@ vi.mock('../../src/tools/shared-jar-reader.js', () => ({
 	},
 }));
 
+const mockReadFile = vi.fn();
+
 vi.mock('node:fs/promises', async (importOriginal) => {
 	const original = await importOriginal<typeof import('node:fs/promises')>();
 	return {
 		...original,
 		stat: vi.fn().mockResolvedValue({ size: 12345 }),
 		readdir: vi.fn().mockResolvedValue([]),
-		readFile: vi.fn().mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' })),
+		readFile: (...args: any[]) => mockReadFile(...args),
 	};
 });
 
@@ -36,18 +35,44 @@ function parseEnvelope(result: Awaited<ReturnType<TestPair['client']['callTool']
 	return JSON.parse(content[0].text);
 }
 
-const mockReferences = vi.fn();
-const mockDidOpen = vi.fn();
-const mockDidClose = vi.fn();
+const FAKE_SOURCE = `package net.minecraft.client;
 
-const mockJdtlsSession: JdtLsSession = {
-	available: true,
-	tempDir: '/tmp/test-jdtls',
-	jarIdToDirName: new Map([
-		['minecraft', 'minecraft'],
-		['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1'],
-	]),
-};
+public class MinecraftClient {
+	private boolean running;
+
+	public void run() {
+		this.running = true;
+	}
+
+	public void stop() {
+		this.running = false;
+	}
+}
+`;
+
+const FAKE_CALLER_SOURCE = `package net.minecraft.client;
+
+public class Main {
+	public static void main(String[] args) {
+		MinecraftClient client = new MinecraftClient();
+		client.run();
+	}
+}
+`;
+
+const mockDefinition = vi.fn();
+const mockReferences = vi.fn();
+const mockDidOpen = vi.fn().mockResolvedValue(undefined);
+const mockDidClose = vi.fn().mockResolvedValue(undefined);
+
+function makeMockClient() {
+	return {
+		definition: mockDefinition,
+		references: mockReferences,
+		didOpen: mockDidOpen,
+		didClose: mockDidClose,
+	};
+}
 
 function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedProject {
 	const deps = new Map<string, DependencyEntry>();
@@ -102,14 +127,32 @@ function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedProject 
 	};
 }
 
+function makeJdtlsSession(overrides: Partial<JdtLsSession> = {}): JdtLsSession {
+	return {
+		available: true,
+		tempDir: '/tmp/test-jdtls',
+		dataDir: '/tmp/test-jdtls-data',
+		jarIdToDirName: new Map([
+			['minecraft', 'minecraft'],
+			['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1'],
+		]),
+		client: makeMockClient() as any,
+		...overrides,
+	};
+}
+
 describe('find_references', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		projectStore.clear();
+		mockReadEntry.mockResolvedValue(Buffer.from(FAKE_SOURCE));
+		mockReadFile.mockResolvedValue(FAKE_SOURCE);
+	});
+
 	test.skipIf(!toolModuleAvailable)('returns error when JDT LS not available', async () => {
-		// Set up a loaded project with jdtls.available = false
-		// Call find_references tool
-		// Expect JDTLS_NOT_AVAILABLE error in envelope
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject();
+			const fake = makeFakeProject(); // no jdtls property
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
@@ -132,14 +175,33 @@ describe('find_references', () => {
 	});
 
 	test.skipIf(!toolModuleAvailable)('returns reference locations with context snippets', async () => {
-		// Set up a loaded project with mock jdtls session
-		// Mock the LspClient.references() to return Location[]
-		// Mock readFile to return Java source for context extraction
-		// Call find_references tool
-		// Expect results with jar, entryPath, line, column, context for each reference
+		// Mock references returns locations in two different files
+		mockReferences.mockResolvedValue([
+			{
+				uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
+				range: {
+					start: { line: 5, character: 13 },
+					end: { line: 5, character: 16 },
+				},
+			},
+			{
+				uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/Main.java',
+				range: {
+					start: { line: 5, character: 9 },
+					end: { line: 5, character: 12 },
+				},
+			},
+		]);
+
+		// Return different source for the Main.java file
+		mockReadFile.mockImplementation(async (path: string) => {
+			if (path.includes('Main.java')) return FAKE_CALLER_SOURCE;
+			return FAKE_SOURCE;
+		});
+
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject();
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession() });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
@@ -154,7 +216,12 @@ describe('find_references', () => {
 
 			const envelope = parseEnvelope(result);
 			expect(envelope.success).toBe(true);
-			expect(envelope.data).toBeDefined();
+			expect(envelope.data.results).toHaveLength(2);
+			expect(envelope.data.results[0].jar).toBe('minecraft');
+			expect(envelope.data.results[0].context).toBeDefined();
+			expect(envelope.data.results[1].jar).toBe('minecraft');
+			expect(mockDidOpen).toHaveBeenCalledOnce();
+			expect(mockDidClose).toHaveBeenCalledOnce();
 		} finally {
 			await pair.cleanup();
 			projectStore.clear();
@@ -162,11 +229,11 @@ describe('find_references', () => {
 	});
 
 	test.skipIf(!toolModuleAvailable)('returns empty results when no references found', async () => {
-		// Mock client.references() returning empty array
-		// Expect success envelope with empty results
+		mockReferences.mockResolvedValue([]);
+
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject();
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession() });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
@@ -175,12 +242,13 @@ describe('find_references', () => {
 					project: 'test',
 					jar: 'minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
-					patterns: ['someUniqueThing'],
+					patterns: ['public void run\\('],
 				},
 			});
 
 			const envelope = parseEnvelope(result);
-			expect(envelope).toBeDefined();
+			expect(envelope.success).toBe(true);
+			expect(envelope.data.results).toHaveLength(0);
 		} finally {
 			await pair.cleanup();
 			projectStore.clear();
@@ -188,11 +256,9 @@ describe('find_references', () => {
 	});
 
 	test.skipIf(!toolModuleAvailable)('returns error on cascading regex failure', async () => {
-		// Provide patterns that don't match the source
-		// Expect failure in response
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject();
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession() });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
@@ -206,7 +272,10 @@ describe('find_references', () => {
 			});
 
 			const envelope = parseEnvelope(result);
-			expect(envelope).toBeDefined();
+			expect(envelope.success).toBe(true);
+			expect(envelope.data.results).toHaveLength(0);
+			expect(envelope.data.failures).toHaveLength(1);
+			expect(envelope.data.failures[0].failedStep).toBe(1);
 		} finally {
 			await pair.cleanup();
 			projectStore.clear();
@@ -214,11 +283,27 @@ describe('find_references', () => {
 	});
 
 	test.skipIf(!toolModuleAvailable)('returns references across different jars', async () => {
-		// Mock references returning locations from multiple jars
-		// Expect all jars represented in results
+		// References from both minecraft and fabric-api jars
+		mockReferences.mockResolvedValue([
+			{
+				uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
+				range: {
+					start: { line: 2, character: 13 },
+					end: { line: 2, character: 28 },
+				},
+			},
+			{
+				uri: 'file:///tmp/test-jdtls/fabric-api__fabric-networking-api-v1/net/fabricmc/fabric/api/Networking.java',
+				range: {
+					start: { line: 3, character: 4 },
+					end: { line: 3, character: 19 },
+				},
+			},
+		]);
+
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject();
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession() });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
@@ -232,7 +317,41 @@ describe('find_references', () => {
 			});
 
 			const envelope = parseEnvelope(result);
-			expect(envelope).toBeDefined();
+			expect(envelope.success).toBe(true);
+			expect(envelope.data.results).toBeDefined();
+			// First result from minecraft jar
+			const jars = envelope.data.results.map((r: any) => r.jar);
+			if (jars.length >= 2) {
+				expect(jars).toContain('minecraft');
+				expect(jars).toContain('fabric-api:fabric-networking-api-v1');
+			}
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
+
+	test.skipIf(!toolModuleAvailable)('includes includeDeclaration in references request', async () => {
+		mockReferences.mockResolvedValue([]);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession() });
+			projectStore.set('test', fake);
+
+			await pair.client.callTool({
+				name: 'find_references',
+				arguments: {
+					project: 'test',
+					jar: 'minecraft',
+					class: 'net.minecraft.client.MinecraftClient',
+					patterns: ['public void run\\('],
+				},
+			});
+
+			expect(mockReferences).toHaveBeenCalledOnce();
+			const callArgs = mockReferences.mock.calls[0][0];
+			expect(callArgs.context.includeDeclaration).toBe(true);
 		} finally {
 			await pair.cleanup();
 			projectStore.clear();
