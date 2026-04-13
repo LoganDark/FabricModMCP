@@ -66,11 +66,11 @@ Plans:
   3. User can include/exclude specific dependencies from the discovered set
   4. User can manually override any auto-discovered jar path
   5. Individual .java files can be read directly from any jar on demand with no files extracted to disk
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md -- Types, POM parser, source jar finder, three-pronged dependency discovery, loader integration
+- [ ] 03-02-PLAN.md -- Jar reader (node-stream-zip), include/exclude filtering (picomatch), MCP tools
 
 ### Phase 4: Multi-Project Sessions
 **Goal**: Users can work with multiple Fabric projects simultaneously with named sessions, enabling the side-by-side porting workflow
@@ -191,7 +191,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 |-------|----------------|--------|-----------|
 | 1. Server Bootstrap | 0/2 | Planning complete | - |
 | 2. Project Discovery | 2/2 | Complete   | 2026-04-13 |
-| 3. Dependency Discovery and Jar Registry | 0/2 | Not started | - |
+| 3. Dependency Discovery and Jar Registry | 0/2 | Planning complete | - |
 | 4. Multi-Project Sessions | 0/2 | Not started | - |
 | 5. Project Metadata | 0/2 | Not started | - |
 | 6. Source Browsing | 0/3 | Not started | - |
