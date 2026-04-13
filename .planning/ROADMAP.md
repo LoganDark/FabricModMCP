@@ -113,12 +113,11 @@ Plans:
   4. User can read the full decompiled source of any class by fully-qualified name
   5. Mod source (src/main/java/) is browsable using the same interface as jar source
   6. Every browsing result includes source provenance (which jar or source it came from)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 06-01: TBD
-- [ ] 06-02: TBD
-- [ ] 06-03: TBD
+- [ ] 06-01-PLAN.md — Domain logic: entry index builder, class declaration parser, source adapter (jar/filesystem)
+- [ ] 06-02-PLAN.md — Three MCP tools: list_packages, list_classes, read_source with tool registration
 
 ### Phase 7: Search
 **Goal**: Users can find classes, methods, and fields by name or regex pattern across all sources in a project, with scoping, pagination, and rich context
@@ -193,7 +192,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 3. Dependency Discovery and Jar Registry | 0/2 | Planning complete | - |
 | 4. Multi-Project Sessions | 0/2 | Planning complete | - |
 | 5. Project Metadata | 0/2 | Planning complete | - |
-| 6. Source Browsing | 0/3 | Not started | - |
+| 6. Source Browsing | 0/2 | Planning complete | - |
 | 7. Search | 0/2 | Not started | - |
 | 8. Cascading Regex Engine | 0/2 | Not started | - |
 | 9. Version Comparison | 0/2 | Not started | - |
