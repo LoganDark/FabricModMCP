@@ -19,6 +19,7 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - [x] Auto-discover all dependency source jars (Fabric API, libraries, etc.) with include/exclude filtering; Minecraft sources have stable "minecraft" identifier (Validated in Phase 3: Dependency Discovery)
 - [x] Read .java files directly from source jars on demand — no extraction, no caching of extracted files (Validated in Phase 3: Dependency Discovery)
 - [x] Multi-project support — handle multiple Fabric/Loom Gradle projects simultaneously, explicitly supporting the mod-porting use case (comparing two MC versions side-by-side) (Validated in Phase 4: Multi-Project Sessions)
+- [x] Expose structured project metadata via MCP tool — Minecraft version, mappings, mod info, jar inventory with provenance chains (Validated in Phase 5: Project Metadata)
 
 ### Active
 - [ ] Manual path override for sources jar (fallback when auto-discovery fails)
@@ -81,4 +82,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-13 after Phase 4 completion*
+*Last updated: 2026-04-13 after Phase 5 completion*
