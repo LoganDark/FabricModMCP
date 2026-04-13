@@ -116,7 +116,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Domain logic: entry index builder, class declaration parser, source adapter (jar/filesystem)
+- [x] 06-01-PLAN.md — Domain logic: entry index builder, class declaration parser, source adapter (jar/filesystem)
 - [ ] 06-02-PLAN.md — Three MCP tools: list_packages, list_classes, read_source with tool registration
 
 ### Phase 7: Search

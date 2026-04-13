@@ -39,13 +39,13 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Source Browsing
 
-- [ ] **BROW-01**: User can list all top-level packages in any source jar or mod source
-- [ ] **BROW-02**: User can list sub-packages at any depth within a package
-- [ ] **BROW-03**: User can list all classes in a package, including inner classes, enums, records, and interfaces
+- [x] **BROW-01**: User can list all top-level packages in any source jar or mod source
+- [x] **BROW-02**: User can list sub-packages at any depth within a package
+- [x] **BROW-03**: User can list all classes in a package, including inner classes, enums, records, and interfaces
 - [ ] **BROW-04**: User can read the full decompiled source of any class by fully-qualified name
 - [x] **BROW-05**: Source files are read directly from jars on demand — no extraction to disk, no file caching
-- [ ] **BROW-06**: User can browse mod source (src/main/java/) using the same interface as jar source browsing
-- [ ] **BROW-07**: Inner classes, anonymous classes, lambdas, enums, and records are correctly handled (listed, readable, navigable)
+- [x] **BROW-06**: User can browse mod source (src/main/java/) using the same interface as jar source browsing
+- [x] **BROW-07**: Inner classes, anonymous classes, lambdas, enums, and records are correctly handled (listed, readable, navigable)
 - [ ] **BROW-08**: Every source browsing result includes source provenance: which jar/source it came from and its granular dependency chain
 
 ### Search
@@ -133,12 +133,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | META-03 | Phase 5 | Complete |
 | META-04 | Phase 5 | Complete |
 | META-05 | Phase 5 | Complete |
-| BROW-01 | Phase 6 | Pending |
-| BROW-02 | Phase 6 | Pending |
-| BROW-03 | Phase 6 | Pending |
+| BROW-01 | Phase 6 | Complete |
+| BROW-02 | Phase 6 | Complete |
+| BROW-03 | Phase 6 | Complete |
 | BROW-04 | Phase 6 | Pending |
-| BROW-06 | Phase 6 | Pending |
-| BROW-07 | Phase 6 | Pending |
+| BROW-06 | Phase 6 | Complete |
+| BROW-07 | Phase 6 | Complete |
 | BROW-08 | Phase 6 | Pending |
 | SRCH-01 | Phase 7 | Pending |
 | SRCH-02 | Phase 7 | Pending |
