@@ -38,7 +38,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md -- Project scaffolding, core types, server framework, and entry point
+- [x] 01-01-PLAN.md -- Project scaffolding, core types, server framework, and entry point
 - [ ] 01-02-PLAN.md -- Echo tool implementation and comprehensive test suite
 
 ### Phase 2: Project Discovery

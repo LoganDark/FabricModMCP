@@ -9,9 +9,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Server Foundation
 
-- [ ] **SERV-01**: MCP server runs over stdio transport using the official TypeScript MCP SDK
-- [ ] **SERV-02**: Server executes via ts-node (no compile step required for development)
-- [ ] **SERV-03**: All logging goes to stderr only — zero stdout output outside JSON-RPC protocol messages
+- [x] **SERV-01**: MCP server runs over stdio transport using the official TypeScript MCP SDK
+- [x] **SERV-02**: Server executes via ts-node (no compile step required for development)
+- [x] **SERV-03**: All logging goes to stderr only — zero stdout output outside JSON-RPC protocol messages
 - [ ] **SERV-04**: Every MCP tool has a strongly-typed Zod schema for parameters and returns rich, structured response types
 - [ ] **SERV-05**: Tool responses err on the side of providing more information rather than less (include context, metadata, related info)
 
@@ -111,9 +111,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SERV-01 | Phase 1 | Pending |
-| SERV-02 | Phase 1 | Pending |
-| SERV-03 | Phase 1 | Pending |
+| SERV-01 | Phase 1 | Complete |
+| SERV-02 | Phase 1 | Complete |
+| SERV-03 | Phase 1 | Complete |
 | SERV-04 | Phase 1 | Pending |
 | SERV-05 | Phase 1 | Pending |
 | PROJ-01 | Phase 2 | Pending |
