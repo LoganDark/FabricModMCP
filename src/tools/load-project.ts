@@ -89,6 +89,7 @@ export function registerLoadProjectTool(server: McpServer): void {
 							dataDir: lspResult.dataDir,
 							jarIdToDirName: extraction.jarIdToDirNameMap,
 							client: lspResult.client,
+							endpoint: lspResult.endpoint,
 							process: lspResult.process,
 						};
 						logger.info(`JDT LS initialized for ${projectName}`);

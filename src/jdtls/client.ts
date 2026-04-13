@@ -204,6 +204,17 @@ export async function startJdtLs(
 			textDocument: {
 				definition: { dynamicRegistration: false },
 				references: { dynamicRegistration: false },
+				documentSymbol: {
+					hierarchicalDocumentSymbolSupport: true,
+				},
+				hover: {
+					contentFormat: ['markdown', 'plaintext'],
+				},
+				implementation: { dynamicRegistration: false },
+				typeHierarchy: { dynamicRegistration: false },
+			},
+			workspace: {
+				symbol: { dynamicRegistration: false },
 			},
 		},
 		initializationOptions: {

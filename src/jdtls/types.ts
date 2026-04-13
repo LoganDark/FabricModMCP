@@ -1,5 +1,5 @@
 import type { JarCategory } from '../project/types.js';
-import type { LspClient } from 'ts-lsp-client';
+import type { LspClient, JSONRPCEndpoint } from 'ts-lsp-client';
 import type { ChildProcess } from 'node:child_process';
 
 export type SnippetKind = 'method' | 'field' | 'class' | 'fallback';
@@ -29,5 +29,6 @@ export interface JdtLsSession {
 	dataDir: string;                // JDT LS data directory
 	jarIdToDirName: Map<string, string>;  // jar ID -> extraction directory name
 	client?: LspClient;             // LSP client (present when available=true)
+	endpoint?: JSONRPCEndpoint;     // Raw JSON-RPC endpoint for direct LSP calls
 	process?: ChildProcess;         // JDT LS JVM process (present when available=true)
 }
