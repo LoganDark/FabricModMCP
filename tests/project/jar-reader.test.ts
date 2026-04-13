@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { writeFile, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -78,5 +78,56 @@ describe('JarReader', () => {
 		await expect(
 			reader.readEntry('/nonexistent/path/fake.jar', 'any/Entry.java'),
 		).rejects.toThrow('Failed to open jar');
+	});
+
+	describe('per-project handle tracking', () => {
+		let trackReader: JarReader;
+
+		beforeEach(() => {
+			trackReader = new JarReader();
+		});
+
+		it('registerProject records jar paths for a project', () => {
+			trackReader.registerProject('proj-a', new Set(['/path/a.jar', '/path/b.jar']));
+			expect(trackReader.getProjectJars('proj-a')).toEqual(new Set(['/path/a.jar', '/path/b.jar']));
+		});
+
+		it('closeProject closes only unshared handles', async () => {
+			// Register two projects with a shared jar
+			trackReader.registerProject('proj-a', new Set([testJarPath, '/unique-a.jar']));
+			trackReader.registerProject('proj-b', new Set([testJarPath, '/unique-b.jar']));
+
+			// Open a handle for the shared jar by reading from it
+			await trackReader.readEntry(testJarPath, 'net/minecraft/Bootstrap.java');
+
+			// Close proj-a -- shared jar should remain open
+			await trackReader.closeProject('proj-a');
+
+			// Shared jar should still work (handle not closed)
+			const buf = await trackReader.readEntry(testJarPath, 'net/minecraft/Bootstrap.java');
+			expect(buf.toString('utf-8')).toContain('Bootstrap');
+		});
+
+		it('closeProject closes shared handle when last project removed', async () => {
+			trackReader.registerProject('proj-a', new Set([testJarPath]));
+			trackReader.registerProject('proj-b', new Set([testJarPath]));
+
+			// Open handle
+			await trackReader.readEntry(testJarPath, 'net/minecraft/Bootstrap.java');
+
+			// Close both projects
+			await trackReader.closeProject('proj-a');
+			await trackReader.closeProject('proj-b');
+
+			// Handle should be closed -- getProjectJars returns undefined
+			expect(trackReader.getProjectJars('proj-a')).toBeUndefined();
+			expect(trackReader.getProjectJars('proj-b')).toBeUndefined();
+		});
+
+		it('closeProject removes project tracking', async () => {
+			trackReader.registerProject('proj-a', new Set([testJarPath]));
+			await trackReader.closeProject('proj-a');
+			expect(trackReader.getProjectJars('proj-a')).toBeUndefined();
+		});
 	});
 });

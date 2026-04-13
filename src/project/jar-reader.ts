@@ -3,6 +3,36 @@ import { DomainError } from '../errors/domain-error.js';
 
 export class JarReader {
 	private handles = new Map<string, StreamZip.StreamZipAsync>();
+	private projectHandles = new Map<string, Set<string>>();
+
+	registerProject(projectName: string, jarPaths: Set<string>): void {
+		this.projectHandles.set(projectName, new Set(jarPaths));
+	}
+
+	getProjectJars(projectName: string): Set<string> | undefined {
+		return this.projectHandles.get(projectName);
+	}
+
+	async closeProject(projectName: string): Promise<void> {
+		const paths = this.projectHandles.get(projectName);
+		if (!paths) return;
+
+		for (const jarPath of paths) {
+			// Check if any other project still references this jar
+			let shared = false;
+			for (const [otherName, otherPaths] of this.projectHandles) {
+				if (otherName !== projectName && otherPaths.has(jarPath)) {
+					shared = true;
+					break;
+				}
+			}
+			if (!shared) {
+				await this.close(jarPath);
+			}
+		}
+
+		this.projectHandles.delete(projectName);
+	}
 
 	async readEntry(jarPath: string, entryPath: string): Promise<Buffer> {
 		const zip = await this.getHandle(jarPath);
