@@ -20,7 +20,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PROJ-01**: User can load a Fabric/Loom Gradle project by providing its root directory path
 - [x] **PROJ-02**: User can assign a human-readable name to a loaded project session (e.g., "debrand-1.21" or "old-version") and refer to it by that name in all subsequent tool calls
 - [x] **PROJ-03**: Multiple projects can be loaded simultaneously with independent state
-- [ ] **PROJ-04**: User can list all loaded projects with their names, MC versions, and status
+- [x] **PROJ-04**: User can list all loaded projects with their names, MC versions, and status
 - [x] **PROJ-05**: User can unload a project to free resources
 - [x] **PROJ-06**: Server auto-discovers the Minecraft sources jar from gradle.properties (minecraft_version, yarn_mappings) and the Loom cache path structure
 - [x] **PROJ-07**: Server auto-discovers dependency source jars (Fabric API, libraries) from Gradle dependency resolution
@@ -126,7 +126,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BROW-05 | Phase 3 | Complete |
 | PROJ-02 | Phase 4 | Complete |
 | PROJ-03 | Phase 4 | Complete |
-| PROJ-04 | Phase 4 | Pending |
+| PROJ-04 | Phase 4 | Complete |
 | PROJ-05 | Phase 4 | Complete |
 | META-01 | Phase 5 | Pending |
 | META-02 | Phase 5 | Pending |
