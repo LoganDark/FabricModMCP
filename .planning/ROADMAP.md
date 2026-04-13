@@ -144,11 +144,11 @@ Plans:
   2. The engine resolves the final match to a precise character offset in the source file
   3. Cascading regex works on any source -- jar entries and mod source files in any loaded project
   4. When a pattern fails to match, the error clearly reports which step failed and what text was being searched
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 08-01: TBD
-- [ ] 08-02: TBD
+- [ ] 08-01-PLAN.md — Pure cascading regex domain module with types, flag prefix parsing, offset tracking, and unit tests
+- [ ] 08-02-PLAN.md — locate_in_source MCP tool with multi-jar search, results/failures split, and tool registration
 
 ### Phase 9: Version Comparison
 **Goal**: Users can compare how a class changed between two loaded projects (different MC versions) with structured output that Claude can reason about
@@ -194,6 +194,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 5. Project Metadata | 0/2 | Planning complete | - |
 | 6. Source Browsing | 0/2 | Planning complete | - |
 | 7. Search | 0/2 | Planning complete | - |
-| 8. Cascading Regex Engine | 0/2 | Not started | - |
+| 8. Cascading Regex Engine | 0/2 | Planning complete | - |
 | 9. Version Comparison | 0/2 | Not started | - |
 | 10. Semantic Navigation | 0/3 | Not started | - |
