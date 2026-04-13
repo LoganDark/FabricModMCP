@@ -13,6 +13,7 @@ import { mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { glob } from 'glob';
 import { JSONRPCEndpoint, LspClient } from 'ts-lsp-client';
+import { logger } from '../logging/logger.js';
 
 export interface JavaDetected {
 	javaPath: string;
@@ -222,8 +223,13 @@ export async function startJdtLs(
 	// Send initialized notification
 	client.initialized();
 
+	// Log stderr for debugging
+	proc.stderr!.on('data', (chunk: Buffer) => {
+		logger.debug('JDT LS stderr', { data: chunk.toString().trimEnd() });
+	});
+
 	// Wait for JDT LS readiness: listen for language/status with ServiceReady
-	await waitForReady(endpoint, 60_000);
+	await waitForReady(endpoint, 120_000);
 
 	return { process: proc, client, endpoint, dataDir };
 }
@@ -235,23 +241,25 @@ export async function startJdtLs(
 async function waitForReady(endpoint: JSONRPCEndpoint, timeoutMs: number): Promise<void> {
 	return new Promise<void>((resolve, reject) => {
 		const timeout = setTimeout(() => {
-			endpoint.removeListener('notification:language/status', handler);
+			endpoint.removeListener('language/status', handler);
 			reject(new Error(`JDT LS did not become ready within ${timeoutMs}ms`));
 		}, timeoutMs);
 
 		function handler(params: any): void {
+			logger.debug('JDT LS language/status', { params });
+
 			const message = typeof params === 'object' && params !== null
 				? (params.message ?? params.type ?? '')
 				: String(params);
 
 			if (String(message).includes('ServiceReady') || String(params?.type).includes('Started')) {
 				clearTimeout(timeout);
-				endpoint.removeListener('notification:language/status', handler);
+				endpoint.removeListener('language/status', handler);
 				resolve();
 			}
 		}
 
-		endpoint.on('notification:language/status', handler);
+		endpoint.on('language/status', handler);
 	});
 }
 

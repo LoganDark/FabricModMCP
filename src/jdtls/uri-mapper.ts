@@ -7,6 +7,8 @@
  * Directory naming rule: Replace `:` with `__` in jar IDs for filesystem safety.
  */
 
+import { realpathSync } from 'node:fs';
+
 export interface UriMapping {
 	jar: string;        // jar ID
 	entryPath: string;  // path within jar (e.g., "net/minecraft/client/MinecraftClient.java")
@@ -54,8 +56,16 @@ export function createUriMapper(tempDir: string, jarIdToDirNameMap: Map<string, 
 		dirNameToJarIdMap.set(dirName, jarId);
 	}
 
+	// Resolve symlinks (macOS /tmp -> /private/var/...) so URIs match JDT LS responses
+	let resolvedTempDir: string;
+	try {
+		resolvedTempDir = realpathSync(tempDir);
+	} catch {
+		resolvedTempDir = tempDir;
+	}
+
 	// Normalize tempDir to not have trailing slash
-	const normalizedTempDir = tempDir.replace(/\/+$/, '');
+	const normalizedTempDir = resolvedTempDir.replace(/\/+$/, '');
 
 	return {
 		toFileUri(jarId: string, entryPath: string): string {
