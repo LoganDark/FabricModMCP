@@ -1,0 +1,180 @@
+import { z } from 'zod';
+import picomatch from 'picomatch';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { makeSuccess, makeError } from '../types/envelope.js';
+import { projectStore } from '../state/project-store.js';
+import { getFilteredDependencies } from '../project/jar-registry.js';
+import { jarReader } from './shared-jar-reader.js';
+import { createSourceAdapter } from '../browsing/source-adapter.js';
+import { EntryIndex } from '../browsing/entry-index.js';
+import { parseClassDeclaration } from '../browsing/class-parser.js';
+import { logger } from '../logging/logger.js';
+import type { SourceAdapter } from '../browsing/source-adapter.js';
+import type { ClassEntry, ClassMetadata, InnerClassEntry } from '../browsing/types.js';
+
+// Reuse the entry index cache from list-packages
+import { clearEntryIndexCache } from './list-packages.js';
+
+// Local cache for this module (same pattern)
+const entryIndexCache = new Map<string, EntryIndex>();
+
+function getOrBuildIndex(entries: string[], cacheKey: string): EntryIndex {
+	const cached = entryIndexCache.get(cacheKey);
+	if (cached) return cached;
+
+	const index = new EntryIndex(entries);
+	entryIndexCache.set(cacheKey, index);
+	return index;
+}
+
+async function readClassMetadata(
+	adapter: SourceAdapter,
+	packageName: string,
+	className: string,
+): Promise<ClassMetadata | null> {
+	const entryPath = packageName
+		? `${packageName.replaceAll('.', '/')}/${className}.java`
+		: `${className}.java`;
+
+	try {
+		const buffer = await adapter.readEntry(entryPath);
+		// Only read first 4KB for performance
+		const head = buffer.subarray(0, 4096).toString('utf-8');
+		const parsed = parseClassDeclaration(head);
+		if (!parsed) return null;
+		return { access: parsed.access, modifiers: parsed.modifiers, type: parsed.type };
+	} catch {
+		return null;
+	}
+}
+
+export function registerListClassesTool(server: McpServer): void {
+	server.registerTool(
+		'list_classes',
+		{
+			title: 'List Classes',
+			description: 'List Java classes in a package with metadata (access, modifiers, type) and nested inner classes. Supports filtering by jar.',
+			inputSchema: {
+				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
+				jars: z.array(z.string()).optional().describe('Jar IDs or glob patterns to scope to (default: all jars)'),
+				package: z.string().describe('Fully-qualified package name to list classes from (required)'),
+				depth: z.number().int().min(1).optional().describe('Include classes from sub-packages up to this depth (default: 1, this package only)'),
+			},
+		},
+		async ({ project, jars, package: packageName, depth }) => {
+			logger.debug('list_classes called', { project, jars, package: packageName, depth });
+
+			let loadedProject;
+			try {
+				loadedProject = projectStore.resolveProject(project);
+			} catch (error) {
+				if (error instanceof Error && 'code' in error) {
+					const de = error as any;
+					const envelope = makeError(de.code, de.message, de.tried ?? [], de.suggestions);
+					return {
+						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						structuredContent: envelope,
+					};
+				}
+				throw error;
+			}
+
+			// Get filtered dependencies
+			let filtered = getFilteredDependencies(loadedProject.dependencyJars, loadedProject.filterConfig);
+
+			// Apply jars parameter if provided
+			if (jars && jars.length > 0) {
+				const isMatch = picomatch(jars);
+				const scoped = new Map<string, typeof filtered extends Map<string, infer V> ? V : never>();
+				for (const [id, entry] of filtered) {
+					if (isMatch(id)) {
+						scoped.set(id, entry);
+					}
+				}
+				filtered = scoped;
+			}
+
+			// Build merged class listings across all matching jars
+			const mergedClasses = new Map<string, ClassEntry>();
+
+			for (const [id, dep] of filtered) {
+				if (!dep.available) continue;
+
+				try {
+					const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
+					const entries = await adapter.listJavaEntries();
+					const cacheKey = dep.sourcesJarPath ?? `fs:${loadedProject.rootPath}:${id}`;
+					const index = getOrBuildIndex(entries, cacheKey);
+
+					// Get packages to scan (just this package, or sub-packages if depth > 1)
+					const packagesToScan = [packageName];
+					if (depth && depth > 1) {
+						const subPackages = index.getPackages(packageName, depth - 1);
+						packagesToScan.push(...subPackages);
+					}
+
+					for (const pkgName of packagesToScan) {
+						const classInfos = index.getClasses(pkgName);
+
+						for (const classInfo of classInfos) {
+							const fqn = pkgName ? `${pkgName}.${classInfo.className}` : classInfo.className;
+
+							// Get metadata for the outer class
+							const metadata = await readClassMetadata(adapter, pkgName, classInfo.className);
+
+							// Build inner class entries
+							const innerClasses: InnerClassEntry[] = [];
+							for (const innerClassName of classInfo.innerClassNames) {
+								const innerMetadata = await readClassMetadata(adapter, pkgName, innerClassName);
+								innerClasses.push({
+									name: innerClassName,
+									fqn: pkgName ? `${pkgName}.${innerClassName}` : innerClassName,
+									metadata: innerMetadata,
+								});
+							}
+
+							const existing = mergedClasses.get(fqn);
+							if (existing) {
+								if (!existing.jars.includes(id)) {
+									existing.jars.push(id);
+								}
+								// Merge inner classes
+								for (const ic of innerClasses) {
+									if (!existing.innerClasses.some(e => e.fqn === ic.fqn)) {
+										existing.innerClasses.push(ic);
+									}
+								}
+							} else {
+								mergedClasses.set(fqn, {
+									name: classInfo.className,
+									fqn,
+									metadata,
+									jars: [id],
+									innerClasses,
+								});
+							}
+						}
+					}
+				} catch {
+					logger.debug(`Skipping jar ${id}: failed to read entries`);
+				}
+			}
+
+			// Sort alphabetically
+			const classes = Array.from(mergedClasses.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+			const envelope = makeSuccess({ classes }, {
+				provenance: {
+					tool: 'list_classes',
+					project: loadedProject.name,
+					package: packageName,
+				},
+			});
+
+			return {
+				content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+				structuredContent: envelope,
+			};
+		},
+	);
+}
