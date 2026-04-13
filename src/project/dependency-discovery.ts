@@ -50,9 +50,16 @@ async function addDependencyEntry(
 	artifact: string,
 	version: string,
 	category: DependencyEntry['category'],
+	chain: string[] = [],
 ): Promise<void> {
 	const id = `${group}:${artifact}`;
-	if (deps.has(id)) return;
+	const existing = deps.get(id);
+	if (existing) {
+		if (chain.length > 0) {
+			existing.provenanceChains.push(chain);
+		}
+		return;
+	}
 
 	const sourcesJarPath = await findSourcesJar(group, artifact, version);
 	deps.set(id, {
@@ -63,6 +70,7 @@ async function addDependencyEntry(
 		category,
 		sourcesJarPath,
 		available: sourcesJarPath !== null,
+		provenanceChains: chain.length > 0 ? [chain] : [],
 	});
 }
 
@@ -73,6 +81,7 @@ async function followTransitiveDeps(
 	version: string,
 	visited: Set<string>,
 	depth: number,
+	chain: string[],
 ): Promise<void> {
 	if (depth > 5) return;
 
@@ -91,8 +100,10 @@ async function followTransitiveDeps(
 			if (dep.scope !== 'compile') continue;
 			if (!dep.version) continue;
 
-			await addDependencyEntry(deps, dep.groupId, dep.artifactId, dep.version, 'library');
-			await followTransitiveDeps(deps, dep.groupId, dep.artifactId, dep.version, visited, depth + 1);
+			const depId = `${dep.groupId}:${dep.artifactId}`;
+			const newChain = [...chain, depId];
+			await addDependencyEntry(deps, dep.groupId, dep.artifactId, dep.version, 'library', newChain);
+			await followTransitiveDeps(deps, dep.groupId, dep.artifactId, dep.version, visited, depth + 1, newChain);
 		}
 	} catch {
 		// Malformed POM or read error -- skip
@@ -115,6 +126,7 @@ export async function discoverDependencies(
 		category: 'minecraft',
 		sourcesJarPath,
 		available: true,
+		provenanceChains: [],
 	});
 
 	deps.set('src', {
@@ -125,6 +137,7 @@ export async function discoverDependencies(
 		category: 'mod-source',
 		sourcesJarPath: null,
 		available: true,
+		provenanceChains: [],
 	});
 
 	// Step 1: Strategy A -- Minecraft Libraries (mojang_minecraft_info.json)
@@ -141,7 +154,7 @@ export async function discoverDependencies(
 			for (const lib of mojangInfo.libraries) {
 				const parts = (lib.name as string).split(':');
 				if (parts.length >= 3) {
-					await addDependencyEntry(deps, parts[0], parts[1], parts[2], 'library');
+					await addDependencyEntry(deps, parts[0], parts[1], parts[2], 'library', ['minecraft']);
 				}
 			}
 		}
@@ -179,7 +192,7 @@ export async function discoverDependencies(
 			const fabricDeps = parsePomDependencies(fabricPomContent);
 			for (const dep of fabricDeps) {
 				if (dep.scope !== 'compile') continue;
-				await addDependencyEntry(deps, dep.groupId, dep.artifactId, dep.version, 'fabric-api');
+				await addDependencyEntry(deps, dep.groupId, dep.artifactId, dep.version, 'fabric-api', ['net.fabricmc.fabric-api:fabric-api']);
 			}
 		} else {
 			// Could not find Fabric API POM -- add single entry
@@ -191,6 +204,7 @@ export async function discoverDependencies(
 				category: 'fabric-api',
 				sourcesJarPath: null,
 				available: false,
+				provenanceChains: [],
 			});
 			logger.warn('Could not find Fabric API POM -- module discovery skipped');
 		}
@@ -205,8 +219,9 @@ export async function discoverDependencies(
 		if (skipConfigurations.has(dep.configuration)) continue;
 		if (skipArtifacts.has(dep.artifact)) continue;
 
-		await addDependencyEntry(deps, dep.group, dep.artifact, dep.version, 'library');
-		await followTransitiveDeps(deps, dep.group, dep.artifact, dep.version, visited, 1);
+		const depId = `${dep.group}:${dep.artifact}`;
+		await addDependencyEntry(deps, dep.group, dep.artifact, dep.version, 'library', [depId]);
+		await followTransitiveDeps(deps, dep.group, dep.artifact, dep.version, visited, 1, [depId]);
 	}
 
 	// Calculate summary (excluding minecraft and src)

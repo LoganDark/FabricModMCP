@@ -45,6 +45,7 @@ export interface DependencyEntry {
 	category: JarCategory;
 	sourcesJarPath: string | null;  // null = sources not available
 	available: boolean;             // true if sourcesJarPath exists on disk
+	provenanceChains: string[][];   // paths of dependency IDs that led to this entry; seed entries have []
 }
 
 export interface FilterConfig {
