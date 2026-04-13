@@ -90,6 +90,7 @@ describe('ProjectStore', () => {
 				depends: {},
 			},
 			dependencyJars: new Map(),
+			filterConfig: { mode: 'include-all' as const, patterns: [] },
 		};
 
 		expect(store.has('test-mod')).toBe(false);
