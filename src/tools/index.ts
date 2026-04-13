@@ -11,6 +11,7 @@ import { registerGetProjectMetadataTool } from './get-project-metadata.js';
 import { registerListPackagesTool } from './list-packages.js';
 import { registerListClassesTool } from './list-classes.js';
 import { registerReadSourceTool } from './read-source.js';
+import { registerSearchClassesTool } from './search-classes.js';
 
 export function registerAllTools(server: McpServer): void {
 	registerEchoTool(server);
@@ -25,4 +26,5 @@ export function registerAllTools(server: McpServer): void {
 	registerListPackagesTool(server);
 	registerListClassesTool(server);
 	registerReadSourceTool(server);
+	registerSearchClassesTool(server);
 }
