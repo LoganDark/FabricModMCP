@@ -35,11 +35,29 @@ export interface ResolvedJar {
 	exists: boolean;
 }
 
+export type JarCategory = 'minecraft' | 'mod-source' | 'fabric-api' | 'library';
+
+export interface DependencyEntry {
+	id: string;           // "minecraft", "src", or "group:artifact"
+	group: string;
+	artifact: string;
+	version: string;
+	category: JarCategory;
+	sourcesJarPath: string | null;  // null = sources not available
+	available: boolean;             // true if sourcesJarPath exists on disk
+}
+
+export interface FilterConfig {
+	mode: 'include-all' | 'exclude-all';
+	patterns: string[];  // glob patterns matching jar IDs
+}
+
 export interface LoadedProject {
 	name: string;
 	rootPath: string;
 	gradleConfig: GradleConfig;
 	sourcesJar: ResolvedJar;
 	fabricMod: FabricModJson;
-	dependencyJars: Map<string, ResolvedJar>;
+	dependencyJars: Map<string, DependencyEntry>;
+	filterConfig: FilterConfig;
 }
