@@ -161,7 +161,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 09-01-PLAN.md -- JDT LS types, URI mapper (file URI <-> jar model), context extractor (enclosing semantic unit)
+- [x] 09-01-PLAN.md -- JDT LS types, URI mapper (file URI <-> jar model), context extractor (enclosing semantic unit)
 - [ ] 09-02-PLAN.md -- JDT LS workspace extraction, client lifecycle, project load/unload integration
 - [ ] 09-03-PLAN.md -- find_definition and find_references MCP tools with tool registration
 
