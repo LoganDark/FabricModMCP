@@ -27,6 +27,7 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - [x] Search by name — find classes by glob pattern across all sources with scoping and pagination (Validated in Phase 7: Search)
 - [x] Find definition — given a cascading regex pattern array (each regex narrows within the previous match), locate the definition site in source (Validated in Phase 8: Cascading Regex Engine)
 - [ ] Find references/usages — given a cascading regex pattern array to identify a symbol position, find all places that reference it across all sources
+- [x] ~~Version comparison~~ — Deferred to v2 (only useful for unmapped sources, not needed for v1)
 - [ ] Strongly typed tool interfaces — every MCP tool has precise parameter types and rich return types, erring on the side of providing more information rather than less
 - [ ] Performant and optimized — fast jar reading, efficient search, minimal memory footprint
 

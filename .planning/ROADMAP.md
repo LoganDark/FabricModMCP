@@ -20,8 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 6: Source Browsing** - Navigate packages, list classes, read full source from jars and mod source
 - [ ] **Phase 7: Search** - Find classes by glob pattern across all sources with scoping and pagination
 - [ ] **Phase 8: Cascading Regex Engine** - Hierarchical pattern matching that resolves to precise character positions in source
-- [ ] **Phase 9: Version Comparison** - Compare class source across two loaded projects with structured diff output
-- [ ] **Phase 10: Semantic Navigation** - Find definition and find references via cascading regex positions and JDT LS
+- [ ] **Phase 9: Semantic Navigation** - Find definition and find references via cascading regex positions and JDT LS
 
 ## Phase Details
 
@@ -150,21 +149,7 @@ Plans:
 - [x] 08-01-PLAN.md — Pure cascading regex domain module with types, flag prefix parsing, offset tracking, and unit tests
 - [x] 08-02-PLAN.md — locate_in_source MCP tool with multi-jar search, results/failures split, and tool registration
 
-### Phase 9: Version Comparison
-**Goal**: Users can compare how a class changed between two loaded projects (different MC versions) with structured output that Claude can reason about
-**Depends on**: Phase 4, Phase 6
-**Requirements**: COMP-01, COMP-02, COMP-03
-**Success Criteria** (what must be TRUE):
-  1. User can compare the source of a class between two loaded projects by specifying project names and class FQN
-  2. Comparison handles the mapping transition -- classes may have different names between Yarn-mapped and unobfuscated eras
-  3. Comparison results are structured (additions, removals, modifications -- not raw unified diff) so Claude can reason about what changed
-**Plans**: TBD
-
-Plans:
-- [ ] 09-01: TBD
-- [ ] 09-02: TBD
-
-### Phase 10: Semantic Navigation
+### Phase 9: Semantic Navigation
 **Goal**: Users can find definitions and references of symbols across all sources using cascading regex for position identification and JDT LS for semantic analysis
 **Depends on**: Phase 8
 **Requirements**: NAV-01, NAV-02, NAV-03, NAV-04
@@ -176,14 +161,14 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 10-01: TBD
-- [ ] 10-02: TBD
-- [ ] 10-03: TBD
+- [ ] 09-01: TBD
+- [ ] 09-02: TBD
+- [ ] 09-03: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -195,5 +180,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 6. Source Browsing | 0/2 | Planning complete | - |
 | 7. Search | 0/2 | Planning complete | - |
 | 8. Cascading Regex Engine | 0/2 | Planning complete | - |
-| 9. Version Comparison | 0/2 | Not started | - |
-| 10. Semantic Navigation | 0/3 | Not started | - |
+| 9. Semantic Navigation | 0/3 | Not started | - |

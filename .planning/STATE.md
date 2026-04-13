@@ -4,9 +4,9 @@ milestone: v1.0
 milestone_name: milestone
 status: unknown
 stopped_at: Completed 08-02-PLAN.md
-last_updated: "2026-04-13T12:15:58.028Z"
+last_updated: "2026-04-13T12:24:13.710Z"
 progress:
-  total_phases: 10
+  total_phases: 9
   completed_phases: 8
   total_plans: 16
   completed_plans: 16
@@ -19,7 +19,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-12)
 
 **Core value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
-**Current focus:** Phase 08 — cascading-regex-engine
+**Current focus:** Phase 09 — semantic-navigation
 
 ## Current Position
 
@@ -72,7 +72,7 @@ Recent decisions affecting current work:
 
 - TypeScript + Node.js 22 LTS with official MCP SDK (from research)
 - node-stream-zip for jar reading (benchmarked: 72ms full scan of 6,622 files)
-- JDT LS deferred to Phase 10 (highest risk, optional -- server useful without it)
+- JDT LS deferred to Phase 9 (highest risk, optional -- server useful without it)
 - [Phase 01]: Added types: [node] to tsconfig.json for Node.js global type resolution with nodenext
 - [Phase 01]: Added pnpm.onlyBuiltDependencies for esbuild to avoid interactive approval prompt
 - [Phase 01]: Echo tool returns both content (text JSON) and structuredContent for universal MCP client compatibility

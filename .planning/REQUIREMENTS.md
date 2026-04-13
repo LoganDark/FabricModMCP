@@ -70,15 +70,15 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **NAV-03**: Find-definition and find-references work across jar boundaries (MC source, dependency source, mod source)
 - [ ] **NAV-04**: Navigation results include source provenance, file path, position, and surrounding context
 
-### Version Comparison
-
-- [ ] **COMP-01**: User can compare the source of a class between two loaded projects (different MC versions)
-- [ ] **COMP-02**: Comparison accounts for the mapping transition — classes may have different names between Yarn-mapped and unobfuscated eras
-- [ ] **COMP-03**: Comparison results are structured (not just raw diff) so Claude can reason about what changed
-
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
+
+### Version Comparison
+
+- **COMP-01**: User can compare the source of a class between two loaded projects (different MC versions)
+- **COMP-02**: Comparison accounts for the mapping transition — classes may have different names between Yarn-mapped and unobfuscated eras
+- **COMP-03**: Comparison results are structured (not just raw diff) so Claude can reason about what changed
 
 ### Mixin Tooling
 
@@ -149,17 +149,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CREG-02 | Phase 8 | Complete |
 | CREG-03 | Phase 8 | Complete |
 | CREG-04 | Phase 8 | Complete |
-| COMP-01 | Phase 9 | Pending |
-| COMP-02 | Phase 9 | Pending |
-| COMP-03 | Phase 9 | Pending |
-| NAV-01 | Phase 10 | Pending |
-| NAV-02 | Phase 10 | Pending |
-| NAV-03 | Phase 10 | Pending |
-| NAV-04 | Phase 10 | Pending |
+| COMP-01 | v2 | Deferred |
+| COMP-02 | v2 | Deferred |
+| COMP-03 | v2 | Deferred |
+| NAV-01 | Phase 9 | Pending |
+| NAV-02 | Phase 9 | Pending |
+| NAV-03 | Phase 9 | Pending |
+| NAV-04 | Phase 9 | Pending |
 
 **Coverage:**
-- v1 requirements: 45 total
-- Mapped to phases: 45
+- v1 requirements: 42 total
+- Mapped to phases: 42
 - Unmapped: 0
 
 ---
