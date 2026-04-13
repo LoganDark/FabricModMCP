@@ -117,7 +117,7 @@ Plans:
 
 Plans:
 - [x] 06-01-PLAN.md — Domain logic: entry index builder, class declaration parser, source adapter (jar/filesystem)
-- [ ] 06-02-PLAN.md — Three MCP tools: list_packages, list_classes, read_source with tool registration
+- [x] 06-02-PLAN.md — Three MCP tools: list_packages, list_classes, read_source with tool registration
 
 ### Phase 7: Search
 **Goal**: Users can find classes, methods, and fields by name or regex pattern across all sources in a project, with scoping, pagination, and rich context

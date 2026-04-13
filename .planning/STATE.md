@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-04-13T09:19:09.066Z"
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-04-13T09:22:01.380Z"
 progress:
   total_phases: 10
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 12
-  completed_plans: 11
+  completed_plans: 12
 ---
 
 # Project State
@@ -57,6 +57,7 @@ Plan: 2 of 2
 | Phase 05 P01 | 1min | 1 tasks | 3 files |
 | Phase 05 P02 | 1min | 2 tasks | 3 files |
 | Phase 06 P01 | 1min | 2 tasks | 7 files |
+| Phase 06 P02 | 2min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,9 @@ Recent decisions affecting current work:
 - [Phase 06]: Anonymous inner class detection uses last $ segment (purely numeric = anonymous)
 - [Phase 06]: Class declaration regex scans first 4KB of source for performance
 - [Phase 06]: SourceAdapter is a plain object with two async methods, not a class
+- [Phase 06]: EntryIndex cached per jar path in module-level Map for repeated call performance
+- [Phase 06]: read_source returns ALL matches when searching all jars, not just first match
+- [Phase 06]: Jar priority ordering: minecraft -> mod-source -> fabric-api -> library
 
 ### Pending Todos
 
@@ -102,6 +106,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-13T09:19:09.064Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-04-13T09:22:01.378Z
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None
