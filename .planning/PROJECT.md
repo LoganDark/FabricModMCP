@@ -23,7 +23,7 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 
 ### Active
 - [ ] Manual path override for sources jar (fallback when auto-discovery fails)
-- [ ] Browse decompiled source — list packages, list classes in a package, read full source of a class
+- [x] Browse decompiled source — list packages, list classes in a package, read full source of a class (Validated in Phase 6: Source Browsing)
 - [ ] Search by name — find classes/methods/fields by name or pattern across MC source, mod source, and dependency sources
 - [ ] Find definition — given a cascading regex pattern array (each regex narrows within the previous match), locate the definition site in source
 - [ ] Find references/usages — given a cascading regex pattern array to identify a symbol position, find all places that reference it across all sources
