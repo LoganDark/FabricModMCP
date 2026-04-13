@@ -176,6 +176,12 @@ Plans:
   3. User can query the type hierarchy (superclasses and implemented interfaces) for any class
   4. User can find all implementations/subtypes of a class or interface across all sources
   5. User can search for symbols (methods, fields, classes) by name across the entire workspace
+**Plans**: 3 plans
+
+Plans:
+- [ ] 10-01-PLAN.md -- Infrastructure (endpoint storage, capabilities, symbol-kind map) + list_members tool
+- [ ] 10-02-PLAN.md -- Shared position resolver, get_symbol_info (hover), find_implementations tools
+- [ ] 10-03-PLAN.md -- type_hierarchy, search_symbols tools + registration wiring
 
 ## Progress
 
@@ -193,4 +199,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 7. Search | 0/2 | Planning complete | - |
 | 8. Cascading Regex Engine | 0/2 | Planning complete | - |
 | 9. Semantic Navigation | 3/3 | Complete | 2026-04-13 |
-| 10. Advanced LSP Browsing | 0/0 | Not started | - |
+| 10. Advanced LSP Browsing | 0/3 | Planning complete | - |
