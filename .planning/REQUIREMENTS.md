@@ -111,13 +111,57 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| *(populated by roadmapper)* | | |
+| SERV-01 | Phase 1 | Pending |
+| SERV-02 | Phase 1 | Pending |
+| SERV-03 | Phase 1 | Pending |
+| SERV-04 | Phase 1 | Pending |
+| SERV-05 | Phase 1 | Pending |
+| PROJ-01 | Phase 2 | Pending |
+| PROJ-06 | Phase 2 | Pending |
+| PROJ-11 | Phase 2 | Pending |
+| PROJ-07 | Phase 3 | Pending |
+| PROJ-08 | Phase 3 | Pending |
+| PROJ-09 | Phase 3 | Pending |
+| PROJ-10 | Phase 3 | Pending |
+| BROW-05 | Phase 3 | Pending |
+| PROJ-02 | Phase 4 | Pending |
+| PROJ-03 | Phase 4 | Pending |
+| PROJ-04 | Phase 4 | Pending |
+| PROJ-05 | Phase 4 | Pending |
+| META-01 | Phase 5 | Pending |
+| META-02 | Phase 5 | Pending |
+| META-03 | Phase 5 | Pending |
+| META-04 | Phase 5 | Pending |
+| META-05 | Phase 5 | Pending |
+| BROW-01 | Phase 6 | Pending |
+| BROW-02 | Phase 6 | Pending |
+| BROW-03 | Phase 6 | Pending |
+| BROW-04 | Phase 6 | Pending |
+| BROW-06 | Phase 6 | Pending |
+| BROW-07 | Phase 6 | Pending |
+| BROW-08 | Phase 6 | Pending |
+| SRCH-01 | Phase 7 | Pending |
+| SRCH-02 | Phase 7 | Pending |
+| SRCH-03 | Phase 7 | Pending |
+| SRCH-04 | Phase 7 | Pending |
+| SRCH-05 | Phase 7 | Pending |
+| CREG-01 | Phase 8 | Pending |
+| CREG-02 | Phase 8 | Pending |
+| CREG-03 | Phase 8 | Pending |
+| CREG-04 | Phase 8 | Pending |
+| COMP-01 | Phase 9 | Pending |
+| COMP-02 | Phase 9 | Pending |
+| COMP-03 | Phase 9 | Pending |
+| NAV-01 | Phase 10 | Pending |
+| NAV-02 | Phase 10 | Pending |
+| NAV-03 | Phase 10 | Pending |
+| NAV-04 | Phase 10 | Pending |
 
 **Coverage:**
-- v1 requirements: 39 total
-- Mapped to phases: 0
-- Unmapped: 39 ⚠️
+- v1 requirements: 45 total
+- Mapped to phases: 45
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-12*
-*Last updated: 2026-04-12 after initial definition*
+*Last updated: 2026-04-12 after roadmap creation*
