@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 7: Search** - Find classes by glob pattern across all sources with scoping and pagination
 - [ ] **Phase 8: Cascading Regex Engine** - Hierarchical pattern matching that resolves to precise character positions in source
 - [ ] **Phase 9: Semantic Navigation** - Find definition and find references via cascading regex positions and JDT LS
-- [ ] **Phase 10: Advanced LSP Browsing** - Structured class member listings, hover info, type hierarchy, and workspace symbol search via JDT LS
+- [x] **Phase 10: Advanced LSP Browsing** - Structured class member listings, hover info, type hierarchy, and workspace symbol search via JDT LS (completed 2026-04-13)
 
 ## Phase Details
 
@@ -181,7 +181,7 @@ Plans:
 Plans:
 - [x] 10-01-PLAN.md -- Infrastructure (endpoint storage, capabilities, symbol-kind map) + list_members tool
 - [x] 10-02-PLAN.md -- Shared position resolver, get_symbol_info (hover), find_implementations tools
-- [ ] 10-03-PLAN.md -- type_hierarchy, search_symbols tools + registration wiring
+- [x] 10-03-PLAN.md -- type_hierarchy, search_symbols tools + registration wiring
 
 ## Progress
 
@@ -199,4 +199,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 7. Search | 0/2 | Planning complete | - |
 | 8. Cascading Regex Engine | 0/2 | Planning complete | - |
 | 9. Semantic Navigation | 3/3 | Complete | 2026-04-13 |
-| 10. Advanced LSP Browsing | 2/3 | In Progress|  |
+| 10. Advanced LSP Browsing | 3/3 | Complete   | 2026-04-13 |
