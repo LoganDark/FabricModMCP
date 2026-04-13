@@ -1,0 +1,16 @@
+{
+	"schemaVersion": 1,
+	"id": "testmod",
+	"version": "${version}",
+	"name": "Test Mod",
+	"description": "A test mod for fixtures",
+	"authors": ["TestAuthor"],
+	"contact": {},
+	"license": "MIT",
+	"environment": "*",
+	"mixins": ["testmod.mixins.json"],
+	"depends": {
+		"minecraft": "1.21.11",
+		"fabricloader": ">=0.18.6"
+	}
+}
