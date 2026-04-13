@@ -1,4 +1,5 @@
 import { parseArgs } from 'node:util';
+import { resolve } from 'node:path';
 import type { LogLevel } from '../logging/logger.js';
 
 export interface CliArgs {
@@ -43,7 +44,7 @@ export function parseCli(argv: string[]): CliArgs {
 	}
 
 	return {
-		project: values.project,
+		project: values.project ? resolve(values.project) : undefined,
 		logLevel,
 	};
 }
