@@ -70,7 +70,7 @@ Plans:
 
 Plans:
 - [x] 03-01-PLAN.md -- Types, POM parser, source jar finder, three-pronged dependency discovery, loader integration
-- [ ] 03-02-PLAN.md -- Jar reader (node-stream-zip), include/exclude filtering (picomatch), MCP tools
+- [x] 03-02-PLAN.md -- Jar reader (node-stream-zip), include/exclude filtering (picomatch), MCP tools
 
 ### Phase 4: Multi-Project Sessions
 **Goal**: Users can work with multiple Fabric projects simultaneously with named sessions, enabling the side-by-side porting workflow
