@@ -70,6 +70,14 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **NAV-03**: Find-definition and find-references work across jar boundaries (MC source, dependency source, mod source)
 - [x] **NAV-04**: Navigation results include source provenance, file path, position, and surrounding context
 
+### Advanced LSP Browsing
+
+- [ ] **ALSB-01**: User can list all members (fields, methods, inner classes) of a class with their signatures, visibility, types, and structural kinds via a structured MCP tool
+- [ ] **ALSB-02**: User can get full type signature and Javadoc for any symbol identified by cascading regex position (hover info)
+- [ ] **ALSB-03**: User can query the type hierarchy (superclass chain, implemented interfaces) for any class
+- [ ] **ALSB-04**: User can find all implementations/subtypes of a class or interface across all sources
+- [ ] **ALSB-05**: User can search for symbols (methods, fields, classes) by name across the entire JDT LS workspace
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
@@ -88,8 +96,8 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ### Advanced Navigation
 
-- **ANAV-01**: User can query the class hierarchy (superclass chain, implemented interfaces) for any class
-- **ANAV-02**: User can find all subclasses/implementors of a class/interface
+- ~~**ANAV-01**: User can query the class hierarchy (superclass chain, implemented interfaces) for any class~~ (Superseded by ALSB-03)
+- ~~**ANAV-02**: User can find all subclasses/implementors of a class/interface~~ (Superseded by ALSB-04)
 
 ## Out of Scope
 
@@ -157,9 +165,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NAV-03 | Phase 9 | Complete |
 | NAV-04 | Phase 9 | Complete |
 
+| ALSB-01 | Phase 10 | Pending |
+| ALSB-02 | Phase 10 | Pending |
+| ALSB-03 | Phase 10 | Pending |
+| ALSB-04 | Phase 10 | Pending |
+| ALSB-05 | Phase 10 | Pending |
+
 **Coverage:**
-- v1 requirements: 42 total
-- Mapped to phases: 42
+- v1 requirements: 47 total
+- Mapped to phases: 47
 - Unmapped: 0
 
 ---

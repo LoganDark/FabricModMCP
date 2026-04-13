@@ -21,6 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 7: Search** - Find classes by glob pattern across all sources with scoping and pagination
 - [ ] **Phase 8: Cascading Regex Engine** - Hierarchical pattern matching that resolves to precise character positions in source
 - [ ] **Phase 9: Semantic Navigation** - Find definition and find references via cascading regex positions and JDT LS
+- [ ] **Phase 10: Advanced LSP Browsing** - Structured class member listings, hover info, type hierarchy, and workspace symbol search via JDT LS
 
 ## Phase Details
 
@@ -165,10 +166,21 @@ Plans:
 - [x] 09-02-PLAN.md -- JDT LS workspace extraction, client lifecycle, project load/unload integration
 - [x] 09-03-PLAN.md -- find_definition and find_references MCP tools with tool registration
 
+### Phase 10: Advanced LSP Browsing
+**Goal**: Expose JDT LS document symbols, hover info, and type hierarchy as MCP tools for structured class member browsing and hierarchy navigation
+**Depends on**: Phase 9
+**Requirements**: ALSB-01, ALSB-02, ALSB-03, ALSB-04, ALSB-05
+**Success Criteria** (what must be TRUE):
+  1. User can list all members (fields, methods, inner classes) of a class with their signatures, visibility, types, and kinds via a structured MCP tool
+  2. User can get full type signature and Javadoc for any symbol identified by cascading regex position
+  3. User can query the type hierarchy (superclasses and implemented interfaces) for any class
+  4. User can find all implementations/subtypes of a class or interface across all sources
+  5. User can search for symbols (methods, fields, classes) by name across the entire workspace
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -180,4 +192,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 6. Source Browsing | 0/2 | Planning complete | - |
 | 7. Search | 0/2 | Planning complete | - |
 | 8. Cascading Regex Engine | 0/2 | Planning complete | - |
-| 9. Semantic Navigation | 2/3 | In Progress|  |
+| 9. Semantic Navigation | 3/3 | Complete | 2026-04-13 |
+| 10. Advanced LSP Browsing | 0/0 | Not started | - |
