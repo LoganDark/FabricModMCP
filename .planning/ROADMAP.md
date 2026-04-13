@@ -39,7 +39,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md -- Project scaffolding, core types, server framework, and entry point
-- [ ] 01-02-PLAN.md -- Echo tool implementation and comprehensive test suite
+- [x] 01-02-PLAN.md -- Echo tool implementation and comprehensive test suite
 
 ### Phase 2: Project Discovery
 **Goal**: User can point the server at a Fabric/Loom Gradle project directory and the server correctly parses its configuration and locates the Minecraft sources jar in the Loom cache
