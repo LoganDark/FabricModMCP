@@ -53,7 +53,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md -- Types, test fixtures, Gradle parser, Loom cache resolver, fabric.mod.json parser with tests
+- [x] 02-01-PLAN.md -- Types, test fixtures, Gradle parser, Loom cache resolver, fabric.mod.json parser with tests
 - [ ] 02-02-PLAN.md -- Project loader orchestrator, project store, CLI wiring, server startup integration
 
 ### Phase 3: Dependency Discovery and Jar Registry

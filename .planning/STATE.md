@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-04-13T04:08:13.443Z"
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-04-13T05:35:07.285Z"
 progress:
   total_phases: 10
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-12)
 
 **Core value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
-**Current focus:** Phase 01 — server-bootstrap
+**Current focus:** Phase 02 — project-discovery
 
 ## Current Position
 
-Phase: 2
-Plan: Not started
+Phase: 02 (project-discovery) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -48,6 +48,7 @@ Plan: Not started
 *Updated after each plan completion*
 | Phase 01 P01 | 3min | 2 tasks | 13 files |
 | Phase 01 P02 | 1min | 2 tasks | 5 files |
+| Phase 02 P01 | 3min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -62,6 +63,8 @@ Recent decisions affecting current work:
 - [Phase 01]: Added types: [node] to tsconfig.json for Node.js global type resolution with nodenext
 - [Phase 01]: Added pnpm.onlyBuiltDependencies for esbuild to avoid interactive approval prompt
 - [Phase 01]: Echo tool returns both content (text JSON) and structuredContent for universal MCP client compatibility
+- [Phase 02]: Era detection based on presence of mappings() dependency configuration, not gradle.properties keys
+- [Phase 02]: Zod schema uses .passthrough() to preserve extra fields in fabric.mod.json
 
 ### Pending Todos
 
@@ -73,6 +76,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-13T04:05:59.308Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-04-13T05:35:07.283Z
+Stopped at: Completed 02-01-PLAN.md
 Resume file: None
