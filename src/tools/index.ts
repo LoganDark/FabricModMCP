@@ -15,6 +15,7 @@ import { registerSearchClassesTool } from './search-classes.js';
 import { registerLocateInSourceTool } from './locate-in-source.js';
 import { registerFindDefinitionTool } from './find-definition.js';
 import { registerFindReferencesTool } from './find-references.js';
+import { registerListMembersTool } from './list-members.js';
 
 export function registerAllTools(server: McpServer): void {
 	registerEchoTool(server);
@@ -33,4 +34,5 @@ export function registerAllTools(server: McpServer): void {
 	registerLocateInSourceTool(server);
 	registerFindDefinitionTool(server);
 	registerFindReferencesTool(server);
+	registerListMembersTool(server);
 }
