@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 4: Multi-Project Sessions** - Named project sessions with simultaneous loading, listing, and unloading
 - [ ] **Phase 5: Project Metadata** - Expose structured metadata (MC version, mappings, mod info, jar inventory, provenance)
 - [ ] **Phase 6: Source Browsing** - Navigate packages, list classes, read full source from jars and mod source
-- [ ] **Phase 7: Search** - Find classes/methods/fields by name or regex across all sources with scoping and pagination
+- [ ] **Phase 7: Search** - Find classes by glob pattern across all sources with scoping and pagination
 - [ ] **Phase 8: Cascading Regex Engine** - Hierarchical pattern matching that resolves to precise character positions in source
 - [ ] **Phase 9: Version Comparison** - Compare class source across two loaded projects with structured diff output
 - [ ] **Phase 10: Semantic Navigation** - Find definition and find references via cascading regex positions and JDT LS
@@ -120,20 +120,20 @@ Plans:
 - [x] 06-02-PLAN.md — Three MCP tools: list_packages, list_classes, read_source with tool registration
 
 ### Phase 7: Search
-**Goal**: Users can find classes, methods, and fields by name or regex pattern across all sources in a project, with scoping, pagination, and rich context
+**Goal**: Users can find classes by glob pattern across all sources in a project, with scoping, pagination, and rich context
 **Depends on**: Phase 6
 **Requirements**: SRCH-01, SRCH-02, SRCH-03, SRCH-04, SRCH-05
 **Success Criteria** (what must be TRUE):
-  1. User can search for classes, methods, or fields by name across MC source, dependency source, and mod source
-  2. Search supports regex patterns for flexible matching
-  3. Search results include fully-qualified name, enclosing class, signature, and source provenance
+  1. User can search for classes by name across MC source, dependency source, and mod source
+  2. Search supports glob patterns for flexible matching
+  3. Search results include fully-qualified name, class type, access modifier, and source provenance
   4. Results are paginated or capped to prevent oversized responses
   5. User can scope search to specific source types (MC core only, Fabric API only, mod source only, etc.)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 07-01: TBD
-- [ ] 07-02: TBD
+- [ ] 07-01-PLAN.md — Domain logic: EntryIndex.getAllClasses(), FQN glob matching, kind filtering, deduplication, sorting, pagination
+- [ ] 07-02-PLAN.md — search_classes MCP tool with Zod schema, standard envelope, tool registration
 
 ### Phase 8: Cascading Regex Engine
 **Goal**: Users can provide an array of regex patterns that progressively narrow within matched text to resolve a precise character position in any source file
@@ -193,7 +193,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 4. Multi-Project Sessions | 0/2 | Planning complete | - |
 | 5. Project Metadata | 0/2 | Planning complete | - |
 | 6. Source Browsing | 0/2 | Planning complete | - |
-| 7. Search | 0/2 | Not started | - |
+| 7. Search | 0/2 | Planning complete | - |
 | 8. Cascading Regex Engine | 0/2 | Not started | - |
 | 9. Version Comparison | 0/2 | Not started | - |
 | 10. Semantic Navigation | 0/3 | Not started | - |
