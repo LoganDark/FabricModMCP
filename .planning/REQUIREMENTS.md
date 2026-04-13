@@ -65,8 +65,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Navigation
 
-- [ ] **NAV-01**: User can find the definition of a symbol at a position identified by cascading regex (go-to-definition)
-- [ ] **NAV-02**: User can find all references/usages of a symbol at a position identified by cascading regex across all sources
+- [x] **NAV-01**: User can find the definition of a symbol at a position identified by cascading regex (go-to-definition)
+- [x] **NAV-02**: User can find all references/usages of a symbol at a position identified by cascading regex across all sources
 - [x] **NAV-03**: Find-definition and find-references work across jar boundaries (MC source, dependency source, mod source)
 - [x] **NAV-04**: Navigation results include source provenance, file path, position, and surrounding context
 
@@ -152,8 +152,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMP-01 | v2 | Deferred |
 | COMP-02 | v2 | Deferred |
 | COMP-03 | v2 | Deferred |
-| NAV-01 | Phase 9 | Pending |
-| NAV-02 | Phase 9 | Pending |
+| NAV-01 | Phase 9 | Complete |
+| NAV-02 | Phase 9 | Complete |
 | NAV-03 | Phase 9 | Complete |
 | NAV-04 | Phase 9 | Complete |
 
