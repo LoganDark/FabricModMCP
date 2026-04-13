@@ -31,11 +31,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Project Metadata
 
-- [ ] **META-01**: User can query structured project metadata: Minecraft version, Yarn/Mojang mappings version, Fabric Loader version, Fabric API version
-- [ ] **META-02**: User can query mod metadata from fabric.mod.json: mod ID, name, version, description, authors, dependencies
-- [ ] **META-03**: User can list all available source jars for a project with their identifiers, types, and sizes
+- [x] **META-01**: User can query structured project metadata: Minecraft version, Yarn/Mojang mappings version, Fabric Loader version, Fabric API version
+- [x] **META-02**: User can query mod metadata from fabric.mod.json: mod ID, name, version, description, authors, dependencies
+- [x] **META-03**: User can list all available source jars for a project with their identifiers, types, and sizes
 - [x] **META-04**: Each source jar is labeled with granular provenance: which mod or project depends on it, whether it's Minecraft core, a Fabric API module, a transitive dependency, or the mod's own source
-- [ ] **META-05**: Metadata responses include the mapping era (Yarn-mapped vs unobfuscated) for each project
+- [x] **META-05**: Metadata responses include the mapping era (Yarn-mapped vs unobfuscated) for each project
 
 ### Source Browsing
 
@@ -128,11 +128,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROJ-03 | Phase 4 | Complete |
 | PROJ-04 | Phase 4 | Complete |
 | PROJ-05 | Phase 4 | Complete |
-| META-01 | Phase 5 | Pending |
-| META-02 | Phase 5 | Pending |
-| META-03 | Phase 5 | Pending |
+| META-01 | Phase 5 | Complete |
+| META-02 | Phase 5 | Complete |
+| META-03 | Phase 5 | Complete |
 | META-04 | Phase 5 | Complete |
-| META-05 | Phase 5 | Pending |
+| META-05 | Phase 5 | Complete |
 | BROW-01 | Phase 6 | Pending |
 | BROW-02 | Phase 6 | Pending |
 | BROW-03 | Phase 6 | Pending |

@@ -100,7 +100,7 @@ Plans:
 
 Plans:
 - [x] 05-01-PLAN.md -- Provenance chain tracking in dependency discovery (DependencyEntry extension, discovery functions, tests)
-- [ ] 05-02-PLAN.md -- get_project_metadata MCP tool (version info, mod info, jar inventory, mapping era, tests)
+- [x] 05-02-PLAN.md -- get_project_metadata MCP tool (version info, mod info, jar inventory, mapping era, tests)
 
 ### Phase 6: Source Browsing
 **Goal**: Users can navigate decompiled source hierarchically -- list packages, list classes, read full source -- across jar sources and mod source using a unified interface
