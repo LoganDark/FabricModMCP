@@ -59,13 +59,12 @@ Plans:
 ### Phase 3: Dependency Discovery and Jar Registry
 **Goal**: Server discovers all dependency source jars for a loaded project and can read individual entries from any jar on demand without extracting to disk
 **Depends on**: Phase 2
-**Requirements**: PROJ-07, PROJ-08, PROJ-09, PROJ-10, BROW-05
+**Requirements**: PROJ-07, PROJ-08, PROJ-09, BROW-05
 **Success Criteria** (what must be TRUE):
   1. Server auto-discovers Fabric API and other dependency source jars from the Gradle cache
   2. Minecraft sources jar has a stable, predictable identifier ("minecraft") distinct from other jars
   3. User can include/exclude specific dependencies from the discovered set
-  4. User can manually override any auto-discovered jar path
-  5. Individual .java files can be read directly from any jar on demand with no files extracted to disk
+  4. Individual .java files can be read directly from any jar on demand with no files extracted to disk
 **Plans**: 2 plans
 
 Plans:
