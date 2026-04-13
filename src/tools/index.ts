@@ -12,6 +12,7 @@ import { registerListPackagesTool } from './list-packages.js';
 import { registerListClassesTool } from './list-classes.js';
 import { registerReadSourceTool } from './read-source.js';
 import { registerSearchClassesTool } from './search-classes.js';
+import { registerLocateInSourceTool } from './locate-in-source.js';
 
 export function registerAllTools(server: McpServer): void {
 	registerEchoTool(server);
@@ -27,4 +28,5 @@ export function registerAllTools(server: McpServer): void {
 	registerListClassesTool(server);
 	registerReadSourceTool(server);
 	registerSearchClassesTool(server);
+	registerLocateInSourceTool(server);
 }
