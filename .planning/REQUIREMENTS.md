@@ -17,7 +17,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Project Management
 
-- [ ] **PROJ-01**: User can load a Fabric/Loom Gradle project by providing its root directory path
+- [x] **PROJ-01**: User can load a Fabric/Loom Gradle project by providing its root directory path
 - [ ] **PROJ-02**: User can assign a human-readable name to a loaded project session (e.g., "debrand-1.21" or "old-version") and refer to it by that name in all subsequent tool calls
 - [ ] **PROJ-03**: Multiple projects can be loaded simultaneously with independent state
 - [ ] **PROJ-04**: User can list all loaded projects with their names, MC versions, and status
@@ -116,7 +116,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SERV-03 | Phase 1 | Complete |
 | SERV-04 | Phase 1 | Complete |
 | SERV-05 | Phase 1 | Complete |
-| PROJ-01 | Phase 2 | Pending |
+| PROJ-01 | Phase 2 | Complete |
 | PROJ-06 | Phase 2 | Complete |
 | PROJ-11 | Phase 2 | Complete |
 | PROJ-07 | Phase 3 | Pending |

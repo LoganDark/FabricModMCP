@@ -13,7 +13,7 @@ This roadmap delivers a TypeScript MCP server that gives Claude Code deep, struc
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Server Bootstrap** - Working MCP server over stdio with typed tool framework and stderr-only logging
-- [ ] **Phase 2: Project Discovery** - Load a Fabric/Loom project by path, parse Gradle config, locate Minecraft sources jar
+- [x] **Phase 2: Project Discovery** - Load a Fabric/Loom project by path, parse Gradle config, locate Minecraft sources jar (completed 2026-04-13)
 - [ ] **Phase 3: Dependency Discovery and Jar Registry** - Discover all dependency source jars, read entries on demand without extraction
 - [ ] **Phase 4: Multi-Project Sessions** - Named project sessions with simultaneous loading, listing, and unloading
 - [ ] **Phase 5: Project Metadata** - Expose structured metadata (MC version, mappings, mod info, jar inventory, provenance)
@@ -54,7 +54,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md -- Types, test fixtures, Gradle parser, Loom cache resolver, fabric.mod.json parser with tests
-- [ ] 02-02-PLAN.md -- Project loader orchestrator, project store, CLI wiring, server startup integration
+- [x] 02-02-PLAN.md -- Project loader orchestrator, project store, CLI wiring, server startup integration
 
 ### Phase 3: Dependency Discovery and Jar Registry
 **Goal**: Server discovers all dependency source jars for a loaded project and can read individual entries from any jar on demand without extracting to disk
@@ -190,7 +190,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Server Bootstrap | 0/2 | Planning complete | - |
-| 2. Project Discovery | 0/2 | Planning complete | - |
+| 2. Project Discovery | 2/2 | Complete   | 2026-04-13 |
 | 3. Dependency Discovery and Jar Registry | 0/2 | Not started | - |
 | 4. Multi-Project Sessions | 0/2 | Not started | - |
 | 5. Project Metadata | 0/2 | Not started | - |

@@ -1,0 +1,1 @@
+- Pre-existing tsc error in src/tools/echo.ts: ToolSuccess type missing index signature for structuredContent
