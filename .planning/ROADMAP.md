@@ -80,11 +80,11 @@ Plans:
   2. Two or more projects can be loaded simultaneously with fully independent state
   3. User can list all loaded projects showing their names, MC versions, and status
   4. User can unload a project to free its resources (jar handles, etc.)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md — ProjectStore enhancements (resolveProject, auto-naming, default tracking), JarReader per-project handle tracking, CLI multi-project support, server startup
+- [ ] 04-02-PLAN.md — Four new MCP tools (load, unload, list, set-default) and update existing tools to optional project resolution
 
 ### Phase 5: Project Metadata
 **Goal**: Users can query rich, structured metadata about any loaded project -- versions, mod info, jar inventory, and dependency provenance
@@ -191,7 +191,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 1. Server Bootstrap | 0/2 | Planning complete | - |
 | 2. Project Discovery | 2/2 | Complete   | 2026-04-13 |
 | 3. Dependency Discovery and Jar Registry | 0/2 | Planning complete | - |
-| 4. Multi-Project Sessions | 0/2 | Not started | - |
+| 4. Multi-Project Sessions | 0/2 | Planning complete | - |
 | 5. Project Metadata | 0/2 | Not started | - |
 | 6. Source Browsing | 0/3 | Not started | - |
 | 7. Search | 0/2 | Not started | - |
