@@ -86,14 +86,14 @@ export function registerFindDefinitionTool(server: McpServer): void {
 					const de = error as any;
 					const envelope = makeError(de.code, de.message, de.tried ?? [], de.suggestions);
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 						structuredContent: envelope,
 					};
 				}
 				throw error;
 			}
 
-			// Check JDT LS availability — hard error, no fallback
+			// Check JDT LS availability -- hard error, no fallback
 			if (!loadedProject.jdtls?.available || !loadedProject.jdtls.client) {
 				const envelope = makeError(
 					'JDTLS_NOT_AVAILABLE',
@@ -102,7 +102,7 @@ export function registerFindDefinitionTool(server: McpServer): void {
 					['Ensure Java 21+ is installed and JDTLS_HOME is set'],
 				);
 				return {
-					content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+					content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 					structuredContent: envelope,
 				};
 			}
@@ -145,7 +145,7 @@ export function registerFindDefinitionTool(server: McpServer): void {
 						['Check available jars with get_project_metadata'],
 					);
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 						structuredContent: envelope,
 					};
 				}
@@ -158,7 +158,7 @@ export function registerFindDefinitionTool(server: McpServer): void {
 						['The dependency does not have a sources jar'],
 					);
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 						structuredContent: envelope,
 					};
 				}
@@ -175,7 +175,7 @@ export function registerFindDefinitionTool(server: McpServer): void {
 						['Check the fully-qualified class name'],
 					);
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 						structuredContent: envelope,
 					};
 				}
@@ -192,7 +192,7 @@ export function registerFindDefinitionTool(server: McpServer): void {
 					};
 					const envelope = makeSuccess({ results: [], failures: [failure] }, { provenance });
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Cascade failed at step ${rawCascade.failedStep + 1} in ${className} (${dep.id})` }],
 						structuredContent: envelope,
 					};
 				}
@@ -239,7 +239,7 @@ export function registerFindDefinitionTool(server: McpServer): void {
 						['Check the fully-qualified class name', 'Use list_packages to browse available packages'],
 					);
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 						structuredContent: envelope,
 					};
 				}
@@ -318,8 +318,19 @@ export function registerFindDefinitionTool(server: McpServer): void {
 					},
 					{ provenance },
 				);
+
+				let summary: string;
+				if (results.length === 0) {
+					summary = `No definition found (cascading regex matched at line ${cascadeResult.line}, col ${cascadeResult.column})`;
+				} else if (results.length === 1) {
+					const r = results[0];
+					summary = `Found definition in ${r.className} (${r.jar}) at line ${r.line}`;
+				} else {
+					summary = `Found ${results.length} definitions (${results.map(r => r.className).join(', ')})`;
+				}
+
 				return {
-					content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+					content: [{ type: 'text' as const, text: summary }],
 					structuredContent: envelope,
 				};
 			} catch (error) {

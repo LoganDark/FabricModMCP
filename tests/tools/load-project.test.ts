@@ -8,8 +8,7 @@ vi.mock('../../src/project/loader.js', () => ({
 }));
 
 function parseEnvelope(result: Awaited<ReturnType<TestPair['client']['callTool']>>): any {
-	const content = result.content as Array<{ type: string; text: string }>;
-	return JSON.parse(content[0].text);
+	return (result as any).structuredContent;
 }
 
 function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedProject {

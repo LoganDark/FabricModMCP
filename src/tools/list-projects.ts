@@ -30,7 +30,7 @@ export function registerListProjectsTool(server: McpServer): void {
 			});
 
 			return {
-				content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+				content: [{ type: 'text' as const, text: `${projects.length} project${projects.length === 1 ? '' : 's'} loaded${defaultName ? ` (default: ${defaultName})` : ''}` }],
 				structuredContent: envelope,
 			};
 		},

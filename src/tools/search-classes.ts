@@ -33,7 +33,7 @@ export function registerSearchClassesTool(server: McpServer): void {
 					const de = error as any;
 					const envelope = makeError(de.code, de.message, de.tried ?? [], de.suggestions);
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 						structuredContent: envelope,
 					};
 				}
@@ -57,7 +57,7 @@ export function registerSearchClassesTool(server: McpServer): void {
 			});
 
 			return {
-				content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+				content: [{ type: 'text' as const, text: `Found ${response.results.length} class${response.results.length === 1 ? '' : 'es'} matching '${pattern}' (${response.total} total, showing ${response.offset}-${response.offset + response.results.length})` }],
 				structuredContent: envelope,
 			};
 		},

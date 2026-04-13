@@ -116,7 +116,7 @@ export function registerLoadProjectTool(server: McpServer): void {
 				});
 
 				return {
-					content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+					content: [{ type: 'text' as const, text: `Loaded project '${projectName}' (Minecraft ${project.gradleConfig.minecraftVersion}, ${project.dependencyJars.size} dependencies, JDT LS ${project.jdtls?.available ? 'available' : 'unavailable'})` }],
 					structuredContent: envelope,
 				};
 			} catch (error) {
@@ -124,7 +124,7 @@ export function registerLoadProjectTool(server: McpServer): void {
 					const de = error as any;
 					const envelope = makeError(de.code, de.message, de.tried ?? [path], de.suggestions);
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 						structuredContent: envelope,
 					};
 				}

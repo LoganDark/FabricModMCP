@@ -64,14 +64,14 @@ export function registerFindReferencesTool(server: McpServer): void {
 					const de = error as any;
 					const envelope = makeError(de.code, de.message, de.tried ?? [], de.suggestions);
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 						structuredContent: envelope,
 					};
 				}
 				throw error;
 			}
 
-			// Check JDT LS availability — hard error, no fallback
+			// Check JDT LS availability -- hard error, no fallback
 			if (!loadedProject.jdtls?.available || !loadedProject.jdtls.client) {
 				const envelope = makeError(
 					'JDTLS_NOT_AVAILABLE',
@@ -80,7 +80,7 @@ export function registerFindReferencesTool(server: McpServer): void {
 					['Ensure Java 21+ is installed and JDTLS_HOME is set'],
 				);
 				return {
-					content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+					content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 					structuredContent: envelope,
 				};
 			}
@@ -123,7 +123,7 @@ export function registerFindReferencesTool(server: McpServer): void {
 						['Check available jars with get_project_metadata'],
 					);
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 						structuredContent: envelope,
 					};
 				}
@@ -136,7 +136,7 @@ export function registerFindReferencesTool(server: McpServer): void {
 						['The dependency does not have a sources jar'],
 					);
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 						structuredContent: envelope,
 					};
 				}
@@ -153,7 +153,7 @@ export function registerFindReferencesTool(server: McpServer): void {
 						['Check the fully-qualified class name'],
 					);
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 						structuredContent: envelope,
 					};
 				}
@@ -170,7 +170,7 @@ export function registerFindReferencesTool(server: McpServer): void {
 					};
 					const envelope = makeSuccess({ results: [], failures: [failure] }, { provenance });
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Cascade failed at step ${rawCascade.failedStep + 1} in ${className} (${dep.id})` }],
 						structuredContent: envelope,
 					};
 				}
@@ -217,7 +217,7 @@ export function registerFindReferencesTool(server: McpServer): void {
 						['Check the fully-qualified class name', 'Use list_packages to browse available packages'],
 					);
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 						structuredContent: envelope,
 					};
 				}
@@ -248,7 +248,7 @@ export function registerFindReferencesTool(server: McpServer): void {
 				// Send textDocument/didClose
 				await lspClient.didClose({ textDocument: { uri: fileUri } });
 
-				// Process reference results — refResult is Location[] | null
+				// Process reference results -- refResult is Location[] | null
 				const locations: Array<{ uri: string; range: { start: { line: number; character: number }; end: { line: number; character: number } } }> = refResult ?? [];
 				const results: NavigationResult[] = [];
 
@@ -285,6 +285,7 @@ export function registerFindReferencesTool(server: McpServer): void {
 					});
 				}
 
+				const uniqueFiles = new Set(results.map(r => r.className)).size;
 				const envelope = makeSuccess(
 					{
 						results,
@@ -298,7 +299,7 @@ export function registerFindReferencesTool(server: McpServer): void {
 					{ provenance },
 				);
 				return {
-					content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+					content: [{ type: 'text' as const, text: results.length > 0 ? `Found ${results.length} reference${results.length === 1 ? '' : 's'} across ${uniqueFiles} file${uniqueFiles === 1 ? '' : 's'}` : `No references found for symbol at line ${cascadeResult.line}, col ${cascadeResult.column}` }],
 					structuredContent: envelope,
 				};
 			} catch (error) {

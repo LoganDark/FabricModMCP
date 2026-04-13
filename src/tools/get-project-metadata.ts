@@ -109,7 +109,7 @@ export function registerGetProjectMetadataTool(server: McpServer): void {
 					const de = error as any;
 					const envelope = makeError(de.code, de.message, de.tried ?? [], de.suggestions);
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 						structuredContent: envelope,
 					};
 				}
@@ -139,8 +139,13 @@ export function registerGetProjectMetadataTool(server: McpServer): void {
 				},
 			});
 
+			const sections = [
+				data.projectInfo ? `MC ${loadedProject.gradleConfig.minecraftVersion}` : null,
+				data.modInfo ? `mod: ${(data.modInfo as any).id ?? 'unknown'}` : null,
+				data.jarInventory ? `${(data.jarInventory as any[]).length} jars` : null,
+			].filter(Boolean);
 			return {
-				content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+				content: [{ type: 'text' as const, text: `Metadata for '${loadedProject.name}': ${sections.join(', ')}` }],
 				structuredContent: envelope,
 			};
 		},

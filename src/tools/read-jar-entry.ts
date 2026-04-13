@@ -28,7 +28,7 @@ export function registerReadJarEntryTool(server: McpServer): void {
 					const de = error as any;
 					const envelope = makeError(de.code, de.message, de.tried ?? [], de.suggestions);
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 						structuredContent: envelope,
 					};
 				}
@@ -48,7 +48,7 @@ export function registerReadJarEntryTool(server: McpServer): void {
 					],
 				);
 				return {
-					content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+					content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 					structuredContent: envelope,
 				};
 			}
@@ -61,7 +61,7 @@ export function registerReadJarEntryTool(server: McpServer): void {
 					['Run ./gradlew downloadSources in the project directory, then use refresh_dependencies'],
 				);
 				return {
-					content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+					content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 					structuredContent: envelope,
 				};
 			}
@@ -89,7 +89,7 @@ export function registerReadJarEntryTool(server: McpServer): void {
 				);
 
 				return {
-					content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+					content: [{ type: 'text' as const, text: `Read ${path} from ${jar} (${content.length} bytes)` }],
 					structuredContent: envelope,
 				};
 			} catch (err) {
@@ -100,7 +100,7 @@ export function registerReadJarEntryTool(server: McpServer): void {
 					['Check the file path -- use listEntries or browse packages to find available paths'],
 				);
 				return {
-					content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+					content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 					structuredContent: envelope,
 				};
 			}

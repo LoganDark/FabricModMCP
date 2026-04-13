@@ -4,8 +4,7 @@ import { projectStore } from '../../src/state/project-store.js';
 import type { LoadedProject } from '../../src/project/types.js';
 
 function parseEnvelope(result: Awaited<ReturnType<TestPair['client']['callTool']>>): any {
-	const content = result.content as Array<{ type: string; text: string }>;
-	return JSON.parse(content[0].text);
+	return (result as any).structuredContent;
 }
 
 function makeFakeProject(name: string, mcVersion: string = '1.21.11'): LoadedProject {

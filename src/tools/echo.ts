@@ -40,7 +40,7 @@ export function registerEchoTool(server: McpServer): void {
 
 			const envelope = makeSuccess(data, metadata);
 			return {
-				content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+				content: [{ type: 'text' as const, text: `Echoed: ${message}` }],
 				structuredContent: envelope,
 			};
 		},

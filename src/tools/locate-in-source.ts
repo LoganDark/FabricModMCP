@@ -70,7 +70,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 					const de = error as any;
 					const envelope = makeError(de.code, de.message, de.tried ?? [], de.suggestions);
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 						structuredContent: envelope,
 					};
 				}
@@ -105,7 +105,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 						['Check available jars with get_project_metadata'],
 					);
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 						structuredContent: envelope,
 					};
 				}
@@ -118,7 +118,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 						['The dependency does not have a sources jar'],
 					);
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 						structuredContent: envelope,
 					};
 				}
@@ -141,7 +141,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 						};
 						const envelope = makeSuccess({ results: [locateResult], failures: [] }, { provenance });
 						return {
-							content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+							content: [{ type: 'text' as const, text: `Located in ${className} (${dep.id}) at line ${result.line}, col ${result.column}` }],
 							structuredContent: envelope,
 						};
 					} else {
@@ -155,7 +155,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 						};
 						const envelope = makeSuccess({ results: [], failures: [locateFailure] }, { provenance });
 						return {
-							content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+							content: [{ type: 'text' as const, text: `Cascade failed at step ${result.failedStep + 1} in ${className} (${dep.id})` }],
 							structuredContent: envelope,
 						};
 					}
@@ -167,7 +167,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 						['Check the fully-qualified class name'],
 					);
 					return {
-						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 						structuredContent: envelope,
 					};
 				}
@@ -225,14 +225,21 @@ export function registerLocateInSourceTool(server: McpServer): void {
 					['Check the fully-qualified class name', 'Use list_packages to browse available packages'],
 				);
 				return {
-					content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+					content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
 					structuredContent: envelope,
 				};
 			}
 
 			const envelope = makeSuccess({ results, failures }, { provenance });
+			if (results.length > 0) {
+				const first = results[0];
+				return {
+					content: [{ type: 'text' as const, text: `Located in ${className} (${first.jar}) at line ${first.line}, col ${first.column}${results.length > 1 ? ` (+${results.length - 1} more)` : ''}${failures.length > 0 ? `, ${failures.length} failed` : ''}` }],
+					structuredContent: envelope,
+				};
+			}
 			return {
-				content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+				content: [{ type: 'text' as const, text: `Cascade failed in ${failures.length} jar${failures.length === 1 ? '' : 's'} for ${className}` }],
 				structuredContent: envelope,
 			};
 		},
