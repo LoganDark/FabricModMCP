@@ -12,24 +12,25 @@ export function registerRefreshDependenciesTool(server: McpServer): void {
 			title: 'Refresh Dependencies',
 			description: 'Re-run dependency discovery for a loaded project. Use after running ./gradlew downloadSources or when dependencies have changed.',
 			inputSchema: {
-				project: z.string().describe('Project name'),
+				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
 			},
 		},
 		async ({ project }) => {
 			logger.debug('refresh_dependencies called', { project });
 
-			const loadedProject = projectStore.get(project);
-			if (!loadedProject) {
-				const envelope = makeError(
-					'PROJECT_NOT_FOUND',
-					`Project '${project}' is not loaded`,
-					[project],
-					['Load the project first using the load_project tool'],
-				);
-				return {
-					content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
-					structuredContent: envelope,
-				};
+			let loadedProject;
+			try {
+				loadedProject = projectStore.resolveProject(project);
+			} catch (error) {
+				if (error instanceof Error && 'code' in error) {
+					const de = error as any;
+					const envelope = makeError(de.code, de.message, de.tried ?? [], de.suggestions);
+					return {
+						content: [{ type: 'text' as const, text: JSON.stringify(envelope, null, 2) }],
+						structuredContent: envelope,
+					};
+				}
+				throw error;
 			}
 
 			const result = await discoverDependencies(
@@ -55,7 +56,7 @@ export function registerRefreshDependenciesTool(server: McpServer): void {
 				{
 					provenance: {
 						tool: 'refresh_dependencies',
-						project,
+						project: loadedProject.name,
 					},
 				},
 			);
