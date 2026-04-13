@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-04-13T07:35:54.857Z"
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-04-13T08:08:29.275Z"
 progress:
   total_phases: 10
   completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 8
+  completed_plans: 7
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-12)
 
 **Core value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
-**Current focus:** Phase 03 — dependency-discovery
+**Current focus:** Phase 04 — multi-project-sessions
 
 ## Current Position
 
-Phase: 4
-Plan: Not started
+Phase: 04 (multi-project-sessions) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Plan: Not started
 | Phase 02-02 P02 | 2min | 2 tasks | 5 files |
 | Phase 03 P01 | 4min | 2 tasks | 8 files |
 | Phase 03 P02 | 3min | 2 tasks | 10 files |
+| Phase 04 P01 | 1min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,9 @@ Recent decisions affecting current work:
 - [Phase 03]: Depth limit 5 for transitive POM traversal; compile-scope only
 - [Phase 03]: JarReader uses lazy-open handles cached in a Map, closed on project unload
 - [Phase 03]: Module-level JarReader singleton in read-jar-entry tool for handle reuse across calls
+- [Phase 04]: ProjectStore.set() throws on collision rather than silently overwriting
+- [Phase 04]: generateProjectName is static on ProjectStore, takes existingNames Set
+- [Phase 04]: JarReader closeProject uses inline reference counting across projectHandles map
 
 ### Pending Todos
 
@@ -85,6 +89,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-13T07:30:41.720Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-04-13T08:08:29.273Z
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None

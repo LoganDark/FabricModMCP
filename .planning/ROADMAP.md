@@ -83,7 +83,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — ProjectStore enhancements (resolveProject, auto-naming, default tracking), JarReader per-project handle tracking, CLI multi-project support, server startup
+- [x] 04-01-PLAN.md — ProjectStore enhancements (resolveProject, auto-naming, default tracking), JarReader per-project handle tracking, CLI multi-project support, server startup
 - [ ] 04-02-PLAN.md — Four new MCP tools (load, unload, list, set-default) and update existing tools to optional project resolution
 
 ### Phase 5: Project Metadata
