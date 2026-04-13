@@ -16,7 +16,7 @@ await server.connect(transport);
 logger.info('Server started', { transport: 'stdio' });
 
 process.on('SIGINT', async () => {
-  logger.info('Shutting down...');
-  await server.close();
-  process.exit(0);
+	logger.info('Shutting down...');
+	await server.close();
+	process.exit(0);
 });

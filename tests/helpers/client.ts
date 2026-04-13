@@ -5,27 +5,27 @@ import { createServer } from '../../src/server.js';
 import { registerAllTools } from '../../src/tools/index.js';
 
 export interface TestPair {
-  client: Client;
-  server: McpServer;
-  cleanup: () => Promise<void>;
+	client: Client;
+	server: McpServer;
+	cleanup: () => Promise<void>;
 }
 
 export async function createTestPair(): Promise<TestPair> {
-  const server = createServer();
-  registerAllTools(server);
+	const server = createServer();
+	registerAllTools(server);
 
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  await server.connect(serverTransport);
+	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+	await server.connect(serverTransport);
 
-  const client = new Client({ name: 'test-client', version: '0.0.1' });
-  await client.connect(clientTransport);
+	const client = new Client({ name: 'test-client', version: '0.0.1' });
+	await client.connect(clientTransport);
 
-  return {
-    client,
-    server,
-    cleanup: async () => {
-      await client.close();
-      await server.close();
-    },
-  };
+	return {
+		client,
+		server,
+		cleanup: async () => {
+			await client.close();
+			await server.close();
+		},
+	};
 }
