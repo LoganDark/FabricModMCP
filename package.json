@@ -14,14 +14,19 @@
 	},
 	"packageManager": "pnpm@10.26.0",
 	"pnpm": {
-		"onlyBuiltDependencies": ["esbuild"]
+		"onlyBuiltDependencies": [
+			"esbuild"
+		]
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.29.0",
+		"node-stream-zip": "^1.15.0",
+		"picomatch": "^4.0.4",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {
 		"@types/node": "^25.6.0",
+		"@types/picomatch": "^4.0.3",
 		"tsup": "^8.5.1",
 		"tsx": "^4.21.0",
 		"typescript": "^6.0.2",
