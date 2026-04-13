@@ -99,7 +99,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md -- Provenance chain tracking in dependency discovery (DependencyEntry extension, discovery functions, tests)
+- [x] 05-01-PLAN.md -- Provenance chain tracking in dependency discovery (DependencyEntry extension, discovery functions, tests)
 - [ ] 05-02-PLAN.md -- get_project_metadata MCP tool (version info, mod info, jar inventory, mapping era, tests)
 
 ### Phase 6: Source Browsing
