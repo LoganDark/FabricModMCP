@@ -310,6 +310,211 @@ describe('discoverDependencies', () => {
 		expect(lib!.sourcesJarPath).toBeNull();
 	});
 
+	describe('provenance chains', () => {
+		it('seed entries (minecraft, src) have empty provenanceChains', async () => {
+			const result = await discoverDependencies(makeConfig(), FAKE_MC_SOURCES, '/fake/project');
+			const mc = result.dependencies.get('minecraft');
+			expect(mc!.provenanceChains).toEqual([]);
+			const src = result.dependencies.get('src');
+			expect(src!.provenanceChains).toEqual([]);
+		});
+
+		it('Strategy B Fabric API modules have provenance chain from fabric-api', async () => {
+			const fabricApiPom = `
+<project>
+  <dependencies>
+    <dependency>
+      <groupId>net.fabricmc.fabric-api</groupId>
+      <artifactId>fabric-networking-api-v1</artifactId>
+      <version>4.3.1+1.21.11</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>`;
+
+			const loomPomPath = join(homedir(), '.gradle', 'caches', 'fabric-loom', 'fabric-api', 'fabric-api-0.141.3+1.21.11.pom');
+			mockedReadFile.mockImplementation(async (path: any) => {
+				if (path === loomPomPath) return fabricApiPom;
+				throw new Error('File not found');
+			});
+			mockedFindSourcesJar.mockResolvedValue('/fake/sources.jar');
+
+			const result = await discoverDependencies(makeConfig(), FAKE_MC_SOURCES, '/fake/project');
+			const networking = result.dependencies.get('net.fabricmc.fabric-api:fabric-networking-api-v1');
+			expect(networking!.provenanceChains).toEqual([['net.fabricmc.fabric-api:fabric-api']]);
+		});
+
+		it('transitive deps have full chain path', async () => {
+			const config = makeConfig({
+				dependencies: [
+					{ configuration: 'minecraft', group: 'com.mojang', artifact: 'minecraft', version: '1.21.11', raw: 'com.mojang:minecraft:1.21.11' },
+					{ configuration: 'modImplementation', group: 'com.example', artifact: 'my-lib', version: '1.0.0', raw: 'com.example:my-lib:1.0.0' },
+				],
+				fabricApiVersion: undefined,
+			});
+
+			const myLibPom = `
+<project>
+  <dependencies>
+    <dependency>
+      <groupId>com.example</groupId>
+      <artifactId>transitive-lib</artifactId>
+      <version>2.0.0</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>`;
+
+			const pomDir = join(homedir(), '.gradle', 'caches', 'modules-2', 'files-2.1', 'com.example', 'my-lib', '1.0.0');
+			const transitivePomDir = join(homedir(), '.gradle', 'caches', 'modules-2', 'files-2.1', 'com.example', 'transitive-lib', '2.0.0');
+
+			mockedReaddir.mockImplementation(async (path: any) => {
+				if (path === pomDir) return ['abc123'] as any;
+				if (path === transitivePomDir) return ['def456'] as any;
+				throw new Error('Dir not found');
+			});
+
+			mockedReadFile.mockImplementation(async (path: any) => {
+				if (path === join(pomDir, 'abc123', 'my-lib-1.0.0.pom')) return myLibPom;
+				if (path === join(transitivePomDir, 'def456', 'transitive-lib-2.0.0.pom')) {
+					return '<project><dependencies></dependencies></project>';
+				}
+				throw new Error('File not found');
+			});
+
+			mockedFindSourcesJar.mockResolvedValue('/fake/sources.jar');
+
+			const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project');
+
+			const myLib = result.dependencies.get('com.example:my-lib');
+			expect(myLib!.provenanceChains).toEqual([['com.example:my-lib']]);
+
+			const transitive = result.dependencies.get('com.example:transitive-lib');
+			expect(transitive!.provenanceChains).toEqual([['com.example:my-lib', 'com.example:transitive-lib']]);
+		});
+
+		it('multi-path deps accumulate multiple chains', async () => {
+			const config = makeConfig({
+				dependencies: [
+					{ configuration: 'minecraft', group: 'com.mojang', artifact: 'minecraft', version: '1.21.11', raw: 'com.mojang:minecraft:1.21.11' },
+					{ configuration: 'modImplementation', group: 'path', artifact: 'a', version: '1.0.0', raw: 'path:a:1.0.0' },
+					{ configuration: 'modImplementation', group: 'path', artifact: 'b', version: '1.0.0', raw: 'path:b:1.0.0' },
+				],
+				fabricApiVersion: undefined,
+			});
+
+			const pomA = `
+<project>
+  <dependencies>
+    <dependency>
+      <groupId>shared</groupId>
+      <artifactId>common</artifactId>
+      <version>1.0.0</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>`;
+
+			const pomB = `
+<project>
+  <dependencies>
+    <dependency>
+      <groupId>shared</groupId>
+      <artifactId>common</artifactId>
+      <version>1.0.0</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>`;
+
+			const dirA = join(homedir(), '.gradle', 'caches', 'modules-2', 'files-2.1', 'path', 'a', '1.0.0');
+			const dirB = join(homedir(), '.gradle', 'caches', 'modules-2', 'files-2.1', 'path', 'b', '1.0.0');
+
+			mockedReaddir.mockImplementation(async (path: any) => {
+				if (path === dirA) return ['sha1a'] as any;
+				if (path === dirB) return ['sha1b'] as any;
+				throw new Error('Dir not found');
+			});
+
+			mockedReadFile.mockImplementation(async (path: any) => {
+				if (path === join(dirA, 'sha1a', 'a-1.0.0.pom')) return pomA;
+				if (path === join(dirB, 'sha1b', 'b-1.0.0.pom')) return pomB;
+				throw new Error('File not found');
+			});
+
+			mockedFindSourcesJar.mockResolvedValue(null);
+
+			const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project');
+
+			const common = result.dependencies.get('shared:common');
+			expect(common).toBeDefined();
+			expect(common!.provenanceChains).toHaveLength(2);
+			expect(common!.provenanceChains).toContainEqual(['path:a', 'shared:common']);
+			expect(common!.provenanceChains).toContainEqual(['path:b', 'shared:common']);
+		});
+
+		it('appends to existing provenanceChains when deps.has(id) is true', async () => {
+			const config = makeConfig({
+				dependencies: [
+					{ configuration: 'minecraft', group: 'com.mojang', artifact: 'minecraft', version: '1.21.11', raw: 'com.mojang:minecraft:1.21.11' },
+					{ configuration: 'modImplementation', group: 'first', artifact: 'route', version: '1.0.0', raw: 'first:route:1.0.0' },
+					{ configuration: 'modImplementation', group: 'second', artifact: 'route', version: '1.0.0', raw: 'second:route:1.0.0' },
+				],
+				fabricApiVersion: undefined,
+			});
+
+			const pomFirst = `
+<project>
+  <dependencies>
+    <dependency>
+      <groupId>shared</groupId>
+      <artifactId>target</artifactId>
+      <version>1.0.0</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>`;
+
+			const pomSecond = `
+<project>
+  <dependencies>
+    <dependency>
+      <groupId>shared</groupId>
+      <artifactId>target</artifactId>
+      <version>1.0.0</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>`;
+
+			const dirFirst = join(homedir(), '.gradle', 'caches', 'modules-2', 'files-2.1', 'first', 'route', '1.0.0');
+			const dirSecond = join(homedir(), '.gradle', 'caches', 'modules-2', 'files-2.1', 'second', 'route', '1.0.0');
+
+			mockedReaddir.mockImplementation(async (path: any) => {
+				if (path === dirFirst) return ['sha1'] as any;
+				if (path === dirSecond) return ['sha2'] as any;
+				throw new Error('Dir not found');
+			});
+
+			mockedReadFile.mockImplementation(async (path: any) => {
+				if (path === join(dirFirst, 'sha1', 'route-1.0.0.pom')) return pomFirst;
+				if (path === join(dirSecond, 'sha2', 'route-1.0.0.pom')) return pomSecond;
+				throw new Error('File not found');
+			});
+
+			mockedFindSourcesJar.mockResolvedValue(null);
+
+			const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project');
+
+			const target = result.dependencies.get('shared:target');
+			expect(target).toBeDefined();
+			// First discovery adds one chain, second discovery appends another
+			expect(target!.provenanceChains).toHaveLength(2);
+			expect(target!.provenanceChains[0]).toEqual(['first:route', 'shared:target']);
+			expect(target!.provenanceChains[1]).toEqual(['second:route', 'shared:target']);
+		});
+	});
+
 	it('provides correct summary excluding minecraft and src', async () => {
 		const config = makeConfig({
 			dependencies: [
