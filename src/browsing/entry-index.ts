@@ -35,6 +35,13 @@ export interface ClassInfo {
 	innerClassNames: string[];
 }
 
+export interface FlatClassInfo {
+	fqn: string;
+	className: string;
+	packageName: string;
+	isInnerClass: boolean;
+}
+
 export class EntryIndex {
 	private packages = new Map<string, Set<string>>();
 	private innerClasses = new Map<string, string[]>();
@@ -119,5 +126,27 @@ export class EntryIndex {
 
 	getClassCount(packageName: string): number {
 		return this.packages.get(packageName)?.size ?? 0;
+	}
+
+	getAllClasses(): FlatClassInfo[] {
+		const result: FlatClassInfo[] = [];
+
+		for (const [packageName, classNames] of this.packages) {
+			for (const className of classNames) {
+				const fqn = packageName ? `${packageName}.${className}` : className;
+				result.push({ fqn, className, packageName, isInnerClass: false });
+
+				// Add non-anonymous inner classes
+				const innerClassNames = this.innerClasses.get(fqn);
+				if (innerClassNames) {
+					for (const innerClassName of innerClassNames) {
+						const innerFqn = packageName ? `${packageName}.${innerClassName}` : innerClassName;
+						result.push({ fqn: innerFqn, className: innerClassName, packageName, isInnerClass: true });
+					}
+				}
+			}
+		}
+
+		return result;
 	}
 }
