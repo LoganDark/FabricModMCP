@@ -96,11 +96,11 @@ Plans:
   3. User can list all available source jars for a project with identifiers, types, and sizes
   4. Each source jar is labeled with granular provenance (Minecraft core, Fabric API module, transitive dep, mod source, and which project depends on it)
   5. Metadata responses include the mapping era (Yarn-mapped vs unobfuscated) for each project
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: TBD
-- [ ] 05-02: TBD
+- [ ] 05-01-PLAN.md -- Provenance chain tracking in dependency discovery (DependencyEntry extension, discovery functions, tests)
+- [ ] 05-02-PLAN.md -- get_project_metadata MCP tool (version info, mod info, jar inventory, mapping era, tests)
 
 ### Phase 6: Source Browsing
 **Goal**: Users can navigate decompiled source hierarchically -- list packages, list classes, read full source -- across jar sources and mod source using a unified interface
@@ -192,7 +192,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 2. Project Discovery | 2/2 | Complete   | 2026-04-13 |
 | 3. Dependency Discovery and Jar Registry | 0/2 | Planning complete | - |
 | 4. Multi-Project Sessions | 0/2 | Planning complete | - |
-| 5. Project Metadata | 0/2 | Not started | - |
+| 5. Project Metadata | 0/2 | Planning complete | - |
 | 6. Source Browsing | 0/3 | Not started | - |
 | 7. Search | 0/2 | Not started | - |
 | 8. Cascading Regex Engine | 0/2 | Not started | - |
