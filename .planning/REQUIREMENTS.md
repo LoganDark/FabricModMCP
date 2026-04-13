@@ -50,11 +50,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Search
 
-- [ ] **SRCH-01**: User can search for classes, methods, or fields by name across all sources (MC, dependencies, mod) in a project
-- [ ] **SRCH-02**: Search supports regex patterns
-- [ ] **SRCH-03**: Search results include rich context: fully-qualified name, enclosing class, method/field signature, source provenance
-- [ ] **SRCH-04**: Search results are paginated or limited to prevent oversized responses
-- [ ] **SRCH-05**: User can scope search to specific source types (e.g., only MC core, only Fabric API, only mod source)
+- [x] **SRCH-01**: User can search for classes, methods, or fields by name across all sources (MC, dependencies, mod) in a project
+- [x] **SRCH-02**: Search supports regex patterns
+- [x] **SRCH-03**: Search results include rich context: fully-qualified name, enclosing class, method/field signature, source provenance
+- [x] **SRCH-04**: Search results are paginated or limited to prevent oversized responses
+- [x] **SRCH-05**: User can scope search to specific source types (e.g., only MC core, only Fabric API, only mod source)
 
 ### Cascading Regex
 
@@ -140,11 +140,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BROW-06 | Phase 6 | Complete |
 | BROW-07 | Phase 6 | Complete |
 | BROW-08 | Phase 6 | Complete |
-| SRCH-01 | Phase 7 | Pending |
-| SRCH-02 | Phase 7 | Pending |
-| SRCH-03 | Phase 7 | Pending |
-| SRCH-04 | Phase 7 | Pending |
-| SRCH-05 | Phase 7 | Pending |
+| SRCH-01 | Phase 7 | Complete |
+| SRCH-02 | Phase 7 | Complete |
+| SRCH-03 | Phase 7 | Complete |
+| SRCH-04 | Phase 7 | Complete |
+| SRCH-05 | Phase 7 | Complete |
 | CREG-01 | Phase 8 | Pending |
 | CREG-02 | Phase 8 | Pending |
 | CREG-03 | Phase 8 | Pending |

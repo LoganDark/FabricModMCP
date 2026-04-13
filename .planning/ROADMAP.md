@@ -132,7 +132,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 07-01-PLAN.md — Domain logic: EntryIndex.getAllClasses(), FQN glob matching, kind filtering, deduplication, sorting, pagination
+- [x] 07-01-PLAN.md — Domain logic: EntryIndex.getAllClasses(), FQN glob matching, kind filtering, deduplication, sorting, pagination
 - [ ] 07-02-PLAN.md — search_classes MCP tool with Zod schema, standard envelope, tool registration
 
 ### Phase 8: Cascading Regex Engine
