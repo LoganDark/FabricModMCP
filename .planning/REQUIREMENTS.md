@@ -72,7 +72,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Advanced LSP Browsing
 
-- [ ] **ALSB-01**: User can list all members (fields, methods, inner classes) of a class with their signatures, visibility, types, and structural kinds via a structured MCP tool
+- [x] **ALSB-01**: User can list all members (fields, methods, inner classes) of a class with their signatures, visibility, types, and structural kinds via a structured MCP tool
 - [ ] **ALSB-02**: User can get full type signature and Javadoc for any symbol identified by cascading regex position (hover info)
 - [ ] **ALSB-03**: User can query the type hierarchy (superclass chain, implemented interfaces) for any class
 - [ ] **ALSB-04**: User can find all implementations/subtypes of a class or interface across all sources
@@ -165,7 +165,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NAV-03 | Phase 9 | Complete |
 | NAV-04 | Phase 9 | Complete |
 
-| ALSB-01 | Phase 10 | Pending |
+| ALSB-01 | Phase 10 | Complete |
 | ALSB-02 | Phase 10 | Pending |
 | ALSB-03 | Phase 10 | Pending |
 | ALSB-04 | Phase 10 | Pending |
