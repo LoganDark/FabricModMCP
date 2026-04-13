@@ -173,6 +173,63 @@ describe('EntryIndex', () => {
 		});
 	});
 
+	describe('getAllClasses', () => {
+		it('returns top-level classes with correct FQN', () => {
+			const index = new EntryIndex(sampleEntries);
+			const all = index.getAllClasses();
+			const topLevel = all.filter(c => !c.isInnerClass);
+
+			expect(topLevel.map(c => c.fqn)).toContain('net.minecraft.client.MinecraftClient');
+			expect(topLevel.map(c => c.fqn)).toContain('net.minecraft.client.gui.Screen');
+			expect(topLevel.map(c => c.fqn)).toContain('net.minecraft.client.gui.widget.ButtonWidget');
+			expect(topLevel.map(c => c.fqn)).toContain('net.minecraft.server.MinecraftServer');
+			expect(topLevel.map(c => c.fqn)).toContain('net.minecraft.Bootstrap');
+			expect(topLevel.map(c => c.fqn)).toContain('com.mojang.math.Vector3f');
+		});
+
+		it('returns non-anonymous inner classes', () => {
+			const index = new EntryIndex(sampleEntries);
+			const all = index.getAllClasses();
+			const inner = all.filter(c => c.isInnerClass);
+
+			expect(inner.map(c => c.fqn)).toContain('net.minecraft.client.MinecraftClient$Options');
+			expect(inner.map(c => c.fqn)).toContain('com.mojang.math.Vector3f$Inner');
+		});
+
+		it('excludes anonymous inner classes', () => {
+			const index = new EntryIndex(sampleEntries);
+			const all = index.getAllClasses();
+			const fqns = all.map(c => c.fqn);
+
+			expect(fqns).not.toContain('net.minecraft.client.MinecraftClient$1');
+		});
+
+		it('has correct FQN format for inner classes', () => {
+			const index = new EntryIndex(sampleEntries);
+			const all = index.getAllClasses();
+			const options = all.find(c => c.fqn === 'net.minecraft.client.MinecraftClient$Options');
+
+			expect(options).toBeDefined();
+			expect(options!.className).toBe('MinecraftClient$Options');
+			expect(options!.packageName).toBe('net.minecraft.client');
+			expect(options!.isInnerClass).toBe(true);
+		});
+
+		it('has correct isInnerClass flag for top-level classes', () => {
+			const index = new EntryIndex(sampleEntries);
+			const all = index.getAllClasses();
+			const mc = all.find(c => c.fqn === 'net.minecraft.client.MinecraftClient');
+
+			expect(mc).toBeDefined();
+			expect(mc!.isInnerClass).toBe(false);
+		});
+
+		it('returns empty array for empty index', () => {
+			const index = new EntryIndex([]);
+			expect(index.getAllClasses()).toEqual([]);
+		});
+	});
+
 	describe('edge cases', () => {
 		it('returns empty results for empty input', () => {
 			const index = new EntryIndex([]);
