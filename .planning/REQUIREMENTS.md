@@ -23,10 +23,10 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **PROJ-04**: User can list all loaded projects with their names, MC versions, and status
 - [ ] **PROJ-05**: User can unload a project to free resources
 - [x] **PROJ-06**: Server auto-discovers the Minecraft sources jar from gradle.properties (minecraft_version, yarn_mappings) and the Loom cache path structure
-- [ ] **PROJ-07**: Server auto-discovers dependency source jars (Fabric API, libraries) from Gradle dependency resolution
+- [x] **PROJ-07**: Server auto-discovers dependency source jars (Fabric API, libraries) from Gradle dependency resolution
 - [ ] **PROJ-08**: User can include/exclude specific dependencies from the discovered set
-- [ ] **PROJ-09**: Minecraft sources jar has a stable, predictable identifier (e.g., "minecraft") distinct from other dependency jars
-- [ ] **PROJ-10**: User can manually override any auto-discovered jar path
+- [x] **PROJ-09**: Minecraft sources jar has a stable, predictable identifier (e.g., "minecraft") distinct from other dependency jars
+- [x] **PROJ-10**: User can manually override any auto-discovered jar path
 - [x] **PROJ-11**: Server correctly handles both Yarn-mapped jar era (MC <=1.21.11) and unobfuscated jar era (MC >=26.1) with different Loom cache path structures
 
 ### Project Metadata
@@ -119,10 +119,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROJ-01 | Phase 2 | Complete |
 | PROJ-06 | Phase 2 | Complete |
 | PROJ-11 | Phase 2 | Complete |
-| PROJ-07 | Phase 3 | Pending |
+| PROJ-07 | Phase 3 | Complete |
 | PROJ-08 | Phase 3 | Pending |
-| PROJ-09 | Phase 3 | Pending |
-| PROJ-10 | Phase 3 | Pending |
+| PROJ-09 | Phase 3 | Complete |
+| PROJ-10 | Phase 3 | Complete |
 | BROW-05 | Phase 3 | Pending |
 | PROJ-02 | Phase 4 | Pending |
 | PROJ-03 | Phase 4 | Pending |

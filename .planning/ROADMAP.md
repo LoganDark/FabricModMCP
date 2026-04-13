@@ -69,7 +69,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md -- Types, POM parser, source jar finder, three-pronged dependency discovery, loader integration
+- [x] 03-01-PLAN.md -- Types, POM parser, source jar finder, three-pronged dependency discovery, loader integration
 - [ ] 03-02-PLAN.md -- Jar reader (node-stream-zip), include/exclude filtering (picomatch), MCP tools
 
 ### Phase 4: Multi-Project Sessions
