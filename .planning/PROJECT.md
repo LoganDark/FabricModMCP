@@ -14,14 +14,15 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 
 - [x] Strongly typed tool interfaces — every MCP tool has precise parameter types and rich return types (Validated in Phase 1: Server Bootstrap)
 - [x] Performant and optimized — stderr-only logging, no stdout pollution, structured response envelope (Validated in Phase 1: Server Bootstrap)
+- [x] Auto-discover Minecraft sources jar from Gradle/Loom cache by parsing project config (build.gradle.kts, gradle.properties) (Validated in Phase 2: Project Discovery)
+- [x] Expose rich, strongly-typed project metadata: Minecraft version, Yarn mappings version, loader version, Fabric API version, mod metadata (Validated in Phase 2: Project Discovery)
 
 ### Active
 
 - [ ] Multi-project support — handle multiple Fabric/Loom Gradle projects simultaneously, explicitly supporting the mod-porting use case (comparing two MC versions side-by-side)
-- [ ] Auto-discover Minecraft sources jar from Gradle/Loom cache by parsing project config (build.gradle.kts, gradle.properties), with manual path override
+- [ ] Manual path override for sources jar (fallback when auto-discovery fails)
 - [ ] Auto-discover all dependency source jars (Fabric API, libraries, etc.) with include/exclude filtering; Minecraft sources must have a stable, predictable name
 - [ ] Read .java files directly from source jars on demand — no extraction, no caching of extracted files
-- [ ] Expose rich, strongly-typed project metadata: Minecraft version, Yarn mappings version, loader version, Fabric API version, mod metadata, dependency list, etc.
 - [ ] Browse decompiled source — list packages, list classes in a package, read full source of a class
 - [ ] Search by name — find classes/methods/fields by name or pattern across MC source, mod source, and dependency sources
 - [ ] Find definition — given a cascading regex pattern array (each regex narrows within the previous match), locate the definition site in source
