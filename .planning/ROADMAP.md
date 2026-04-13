@@ -30,16 +30,16 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Depends on**: Nothing (first phase)
 **Requirements**: SERV-01, SERV-02, SERV-03, SERV-04, SERV-05
 **Success Criteria** (what must be TRUE):
-  1. Server starts via ts-node and completes MCP handshake over stdio without errors
+  1. Server starts via tsx and completes MCP handshake over stdio without errors
   2. A test tool can be called with typed parameters and returns a structured JSON response
   3. All logging output goes to stderr only -- stdout contains nothing except JSON-RPC protocol messages
   4. Tool parameter validation rejects malformed input with clear error messages
   5. Tool responses include rich metadata beyond the minimum (the "more info" principle is established)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md -- Project scaffolding, core types, server framework, and entry point
+- [ ] 01-02-PLAN.md -- Echo tool implementation and comprehensive test suite
 
 ### Phase 2: Project Discovery
 **Goal**: User can point the server at a Fabric/Loom Gradle project directory and the server correctly parses its configuration and locates the Minecraft sources jar in the Loom cache
@@ -189,7 +189,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Server Bootstrap | 0/2 | Not started | - |
+| 1. Server Bootstrap | 0/2 | Planning complete | - |
 | 2. Project Discovery | 0/2 | Not started | - |
 | 3. Dependency Discovery and Jar Registry | 0/2 | Not started | - |
 | 4. Multi-Project Sessions | 0/2 | Not started | - |
