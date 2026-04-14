@@ -3,6 +3,7 @@ import { makeSuccess } from '../types/envelope.js';
 import { resolveProjectSafely } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import { logger } from '../logging/logger.js';
+import { isWorkspaceSynced } from '../jdtls/workspace-sync.js';
 
 export function registerListStudyJarsTool(server: McpServer): void {
 	server.registerTool(
@@ -26,6 +27,7 @@ export function registerListStudyJarsTool(server: McpServer): void {
 				path: jar.jarPath,
 				autoInclude: jar.autoInclude,
 				stats: jar.stats,
+				workspaceSynced: isWorkspaceSynced(jar.name, loadedProject.jdtls),
 			}));
 
 			const envelope = makeSuccess({

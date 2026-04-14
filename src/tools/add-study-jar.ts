@@ -7,6 +7,7 @@ import { createStudyJar } from '../project/study-jar.js';
 import { jarReader } from './shared-jar-reader.js';
 import { DomainError } from '../errors/domain-error.js';
 import { logger } from '../logging/logger.js';
+import { syncStudyJarToWorkspace } from '../jdtls/workspace-sync.js';
 
 export function registerAddStudyJarTool(server: McpServer): void {
 	server.registerTool(
@@ -32,6 +33,9 @@ export function registerAddStudyJarTool(server: McpServer): void {
 				loadedProject.studyJars.set(studyJar.name, studyJar);
 				jarReader.addProjectJar(loadedProject.name, studyJar.jarPath);
 
+				// Sync to JDT LS workspace for semantic navigation
+				const syncResult = await syncStudyJarToWorkspace(studyJar, loadedProject.jdtls, jarReader);
+
 				const envelope = makeSuccess({
 					name: studyJar.name,
 					path: studyJar.jarPath,
@@ -40,7 +44,7 @@ export function registerAddStudyJarTool(server: McpServer): void {
 				});
 
 				return {
-					content: [{ type: 'text' as const, text: `Added study jar '${studyJar.name}' (${studyJar.stats.classCount} classes, ${studyJar.stats.packageCount} packages)` }],
+					content: [{ type: 'text' as const, text: `Added study jar '${studyJar.name}' (${studyJar.stats.classCount} classes, ${studyJar.stats.packageCount} packages)` + (syncResult.warning ? `\n${syncResult.warning}` : '') }],
 					structuredContent: envelope,
 				};
 			} catch (err) {

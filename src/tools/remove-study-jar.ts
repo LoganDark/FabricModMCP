@@ -6,6 +6,7 @@ import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import { jarReader } from './shared-jar-reader.js';
 import { evictEntryIndex } from '../browsing/entry-index-cache.js';
 import { logger } from '../logging/logger.js';
+import { unsyncStudyJarFromWorkspace } from '../jdtls/workspace-sync.js';
 
 export function registerRemoveStudyJarTool(server: McpServer): void {
 	server.registerTool(
@@ -40,6 +41,7 @@ export function registerRemoveStudyJarTool(server: McpServer): void {
 			// Apply removals
 			for (const name of names) {
 				const studyJar = loadedProject.studyJars.get(name)!;
+				await unsyncStudyJarFromWorkspace(name, loadedProject.jdtls);
 				await jarReader.removeProjectJar(loadedProject.name, studyJar.jarPath);
 				evictEntryIndex(studyJar.jarPath);
 				loadedProject.studyJars.delete(name);
@@ -51,7 +53,7 @@ export function registerRemoveStudyJarTool(server: McpServer): void {
 			});
 
 			return {
-				content: [{ type: 'text' as const, text: `Removed ${names.length} study jar(s): ${names.join(', ')}` }],
+				content: [{ type: 'text' as const, text: `Removed ${names.length} study jar(s): ${names.join(', ')}. Semantic navigation results have been updated.` }],
 				structuredContent: envelope,
 			};
 		},
