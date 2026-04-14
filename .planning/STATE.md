@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Symbol Resolution
 status: unknown
-stopped_at: Completed 15-01-PLAN.md
-last_updated: "2026-04-14T09:28:15.785Z"
+stopped_at: Completed 16-01-PLAN.md
+last_updated: "2026-04-14T10:18:29.003Z"
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  total_plans: 3
+  completed_plans: 2
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-14)
 
 **Core value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
-**Current focus:** Phase 15 — enable-method-search
+**Current focus:** Phase 16 — member-parser
 
 ## Current Position
 
-Phase: 16
-Plan: Not started
+Phase: 16 (member-parser) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -47,6 +47,7 @@ Plan: Not started
 
 *Updated after each plan completion*
 | Phase 15-enable-method-search P01 | 2min | 2 tasks | 5 files |
+| Phase 16-member-parser P01 | 2min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -58,6 +59,8 @@ Recent decisions affecting current work:
 - [v1.2 roadmap]: 3 phases derived from 7 requirements — method search unlock, parser domain module, structured output wiring
 - [Phase 15-enable-method-search]: Removed probe entirely rather than replacing with safer query -- async notification sufficient
 - [Phase 15-enable-method-search]: Tool description directs users to list_members for field search
+- [Phase 16-member-parser]: java.lang types resolved via hardcoded set rather than resolvePackage callback
+- [Phase 16-member-parser]: Star import cache stores Promise to deduplicate concurrent resolution
 
 ### Pending Todos
 
@@ -70,6 +73,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-14T09:25:56.271Z
-Stopped at: Completed 15-01-PLAN.md
+Last session: 2026-04-14T10:18:29.000Z
+Stopped at: Completed 16-01-PLAN.md
 Resume file: None
