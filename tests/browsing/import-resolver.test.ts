@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { extractImports, createTypeResolver } from '../../src/browsing/import-resolver.js';
+import { extractImports, createTypeResolver, createResolvePackage } from '../../src/browsing/import-resolver.js';
+import type { EntryIndex } from '../../src/browsing/entry-index.js';
 
 describe('extractImports', () => {
 	it('parses explicit import', () => {
@@ -126,5 +127,36 @@ import net.minecraft.block.*;`;
 		expect(result).toEqual({ kind: 'class', name: 'BlockPos', fqn: 'net.minecraft.util.math.BlockPos' });
 		// resolvePackage should NOT have been called since explicit matched first
 		expect(resolvePackage).not.toHaveBeenCalled();
+	});
+});
+
+describe('createResolvePackage', () => {
+	it('returns class names from EntryIndex.getClasses', async () => {
+		const mockEntryIndex = {
+			getClasses: vi.fn((pkg: string) => {
+				if (pkg === 'net.minecraft.client') {
+					return [
+						{ className: 'MinecraftClient', innerClassNames: ['MinecraftClient$Options'] },
+						{ className: 'Window', innerClassNames: [] },
+					];
+				}
+				return [];
+			}),
+		} as unknown as EntryIndex;
+
+		const resolvePackage = createResolvePackage(mockEntryIndex);
+		const result = await resolvePackage('net.minecraft.client');
+		expect(result).toEqual(['MinecraftClient', 'Window']);
+		expect(mockEntryIndex.getClasses).toHaveBeenCalledWith('net.minecraft.client');
+	});
+
+	it('returns empty array for empty package', async () => {
+		const mockEntryIndex = {
+			getClasses: vi.fn(() => []),
+		} as unknown as EntryIndex;
+
+		const resolvePackage = createResolvePackage(mockEntryIndex);
+		const result = await resolvePackage('com.nonexistent');
+		expect(result).toEqual([]);
 	});
 });

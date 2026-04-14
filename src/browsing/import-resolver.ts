@@ -1,4 +1,5 @@
 import type { TypeReference } from './member-types.js';
+import type { EntryIndex } from './entry-index.js';
 
 const IMPORT_RE = /^import\s+(?!static\s)([a-zA-Z_][\w.]*(?:\.\*)?)\s*;/gm;
 const PACKAGE_RE = /^package\s+([a-zA-Z_][\w.]*)\s*;/m;
@@ -116,5 +117,14 @@ export function createTypeResolver(
 
 		// Stage 7: Unresolved
 		return { kind: 'unresolved', rawType: simpleName };
+	};
+}
+
+export function createResolvePackage(
+	entryIndex: EntryIndex,
+): (packageName: string) => Promise<string[]> {
+	return async (packageName: string): Promise<string[]> => {
+		const entries = entryIndex.getClasses(packageName);
+		return entries.map(e => e.className);
 	};
 }

@@ -1,5 +1,6 @@
 import type { JarCategory } from '../project/types.js';
 import type { CascadeStep } from './cascading-regex.js';
+import type { TypeReference, ParameterInfo } from './member-types.js';
 
 export interface PackageEntry {
 	name: string;          // dot-separated: "net.minecraft.client"
@@ -56,6 +57,25 @@ export interface TransformedSymbol {
 	};
 	children: TransformedSymbol[];
 }
+
+export interface EnrichedMethodSymbol extends TransformedSymbol {
+	memberFqn: string;
+	parameters: ParameterInfo[];
+	returnType: TypeReference | null;
+	children: EnrichedSymbol[];
+}
+
+export interface EnrichedFieldSymbol extends TransformedSymbol {
+	memberFqn: string;
+	fieldType: TypeReference;
+	children: EnrichedSymbol[];
+}
+
+export interface EnrichedClassSymbol extends TransformedSymbol {
+	children: EnrichedSymbol[];
+}
+
+export type EnrichedSymbol = EnrichedMethodSymbol | EnrichedFieldSymbol | EnrichedClassSymbol;
 
 export interface SourceResult {
 	jar: string;
