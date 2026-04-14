@@ -148,10 +148,11 @@ None yet.
 | 260413-pqq | DRY extractions: resolveProjectSafely + returnError + resolveSymbolPosition | 2026-04-14 | 1b0e407 | [260413-pqq-medium-dry-extractions-resolveprojectsaf](./quick/260413-pqq-medium-dry-extractions-resolveprojectsaf/) |
 | 260413-q5n | DRY extractions: withLspDocument + resolveClassSource | 2026-04-14 | 732c4b1 | [260413-q5n-complex-dry-extractions-withlspdocument-](./quick/260413-q5n-complex-dry-extractions-withlspdocument-/) |
 | 260413-qh2 | Final DRY cleanup: error handlers, jar filtering, entry-index cache | 2026-04-14 | 26a479d | [260413-qh2-final-dry-cleanup-error-handlers-jar-fil](./quick/260413-qh2-final-dry-cleanup-error-handlers-jar-fil/) |
+| 260413-r39 | Final cleanup: normalizeLocations, ClassIndexEntry rename, test factories | 2026-04-14 | 554fd63 | [260413-r39-final-cleanup-normalizelocations-fix-cla](./quick/260413-r39-final-cleanup-normalizelocations-fix-cla/) |
 
 ## Session Continuity
 
-Last activity: 2026-04-14 - Completed quick task 260413-qh2: Final DRY cleanup error handlers, jar filtering, entry-index cache
-Last session: 2026-04-14T02:14:04.914Z
-Stopped at: Completed quick-260413-qh2
+Last activity: 2026-04-14 - Completed quick task 260413-r39: normalizeLocations fix, ClassIndexEntry rename, shared test factories
+Last session: 2026-04-14T02:43:33.000Z
+Stopped at: Completed quick-260413-r39
 Resume file: None
