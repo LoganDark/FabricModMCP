@@ -1,178 +1,171 @@
 # Project Research Summary
 
-**Project:** MinecraftDevMCP v1.1 — Study Jar Management
-**Domain:** Incremental extension to an existing MCP server for Minecraft mod development
-**Researched:** 2026-04-13
+**Project:** MinecraftDevMCP v1.2 — Symbol Resolution
+**Domain:** Java LSP-based MCP server for Minecraft mod development
+**Researched:** 2026-04-14
 **Confidence:** HIGH
 
 ## Executive Summary
 
-This feature adds the ability to register arbitrary user-provided source jars ("study jars") as browsable, searchable sources within an existing MCP server. The pattern mirrors how IDEs handle manually-attached source jars: the jar is validated, given a unique identifier, stored per-project, and made available to all existing read tools. The critical design constraint is that the existing `dependencyJars` map (keyed by Maven coordinates, rebuilt from scratch on `refresh_dependencies`) must not be contaminated — study jars live in a parallel `studyJars: Map<string, StudyJar>` field on `LoadedProject` and are merged into tool resolution at query time via a facade pattern.
+MinecraftDevMCP v1.2 is a targeted enhancement to an existing, working MCP server that adds method and field first-class citizenship to the symbol resolution layer. The core pattern is surgical: one JDT LS initialization setting unlock (`java.symbols.includeSourceMethodDeclarations: true`) enables method search, and the remaining work is type system enrichment and wiring. No new dependencies are required. The existing stack (TypeScript 6.0.2, MCP SDK 1.29.x, ts-lsp-client, Zod 4.x, node-stream-zip) is fully sufficient for this milestone.
 
-The recommended implementation sequence is bottom-up: types and domain logic first, then wiring existing tools to see study jars via a unified `getCombinedDependencies()` function, then the four management tools (`add_study_jar`, `remove_study_jar`, `list_study_jars`, `set_study_jar_auto_include`), and finally the JDT LS workspace integration for semantic navigation. The first three phases can be validated independently before touching JDT LS, which is the most complex and least predictable integration point. No new npm dependencies are needed — the existing stack handles all study jar requirements.
+The recommended approach is build-order-sensitive: define the member FQN scheme as a convention first (zero code, guides everything), then enable method declarations in JDT LS (one config line, validates that method search works before investing in parsing), then build the member-parser domain module with exhaustive unit tests, then wire structured types into tool outputs, and finally integrate FQN-based navigation into inspection tools. This ordering de-risks the highest-complexity piece (detail string parsing) by validating the foundation first.
 
-The dominant risks are jar handle leaks on removal (no granular remove existed in `JarReader`), stale `EntryIndex` cache entries after removal, and JDT LS workspace desync when study jars are added after project load. All three are prevented with targeted additions to existing infrastructure: a `removeJarFromProject()` method with proper ref-counting, an `evictEntryIndex()` method on the cache, and incremental extraction plus `.classpath` rewrite for JDT LS. The MCP SDK's stdio transport provides natural request serialization that eliminates concurrency risk for the current transport.
+The principal risk is the JDT LS `workspace/symbol` result explosion: enabling method declarations can return tens of thousands of symbols for broad queries, and the existing readiness probe (`waitForWorkspaceSync`) uses `'*'` which would blow up under the new setting. The probe query must be changed to a no-match sentinel before enabling the setting. The second major risk is hover/detail string parsing fragility — complex generics, varargs, and annotations will defeat naive regex. Graceful degradation (returning `kind: "unresolved"` ClassReferences) is the correct strategy; crashing on exotic signatures is not acceptable.
 
 ## Key Findings
 
 ### Recommended Stack
 
-No new dependencies are required. The existing stack handles all study jar needs: `node-stream-zip` 1.15.0 for reading jar entries (each handle is a separate fd with its own central directory index, ~1-3MB of metadata per handle), `zod` 4.x for new tool input schemas, and `picomatch` for jar ID glob matching. The current `JarReader` already manages 10-30 concurrent handles per project; adding 1-5 study jars is negligible relative to existing fd usage (worst case 70 fds against macOS's 256 soft limit). State persistence was evaluated and rejected — study jars are session-scoped, and re-adding via a single tool call per jar is the correct model aligned with how dependency jars work (rediscovered on each `load_project`).
+The v1.2 milestone requires zero new dependencies. The only external-facing change is a one-line addition to `jdtls/client.ts` initializationOptions to add `symbols.includeSourceMethodDeclarations: true`. All new type definitions (`MethodReference`, `FieldReference`, `MemberReference`, `ParameterInfo`, `ParsedMemberFqn`) are pure TypeScript interfaces added to `browsing/types.ts`. The member FQN parsing and detail string parsing logic lives in pure TypeScript modules with no I/O, making them straightforwardly testable.
 
-**Core technologies (no change from v1.0):**
-- `node-stream-zip` 1.15.0: random-access jar reading — central directory indexed on open, O(1) entry lookup by path, never loads full archive into memory
-- `zod` 4.x: new tool input validation — same pattern as existing 21 tools
-- `picomatch` 4.x: jar ID filtering — `study:*` glob patterns work against namespaced IDs automatically
-- JDT LS (existing): incremental workspace update via `.classpath` rewrite — no restart needed for add/remove
+**Core technologies (unchanged):**
+- TypeScript 6.0.2 / Node.js 22 LTS: primary language and runtime — no change
+- @modelcontextprotocol/sdk ^1.29.0: MCP server implementation — no change
+- Zod ^4.3.6: will be needed for new structured output type schemas — already installed
+- ts-lsp-client ^1.1.1: handles all LSP communication including the new method symbol results — no change
+- Eclipse JDT LS (latest milestone): one initialization setting change unlocks method search — config only
+
+**Key immovable constraint:** JDT LS has NO `includeSourceFieldDeclarations` setting. Fields are permanently unavailable via `workspace/symbol`. Fields are only discoverable via `textDocument/documentSymbol` (`list_members`). This is a deliberate JDT LS design decision and cannot be worked around.
 
 ### Expected Features
 
+See `.planning/research/FEATURES.md` for full detail.
+
 **Must have (table stakes):**
-- Add a study jar by absolute file path with a user-provided name — validates path exists, is a valid ZIP, and has .java entries
-- Remove a study jar by name with proper handle ref-count decrement and cache eviction
-- List study jars with name, path, and auto-include status
-- Browse study jar contents via all existing tools (`list_packages`, `list_classes`, `read_source`, `search_classes`, `locate_in_source`) — zero extra code if the entry exists in the combined jar view
-- Explicit selection via `jar`/`jars` parameters including `study:mylib` and `study:*` glob — works automatically via namespaced IDs
-- Auto-include flag (default OFF) — controls whether a jar appears in unscoped "all jars" searches; study jars are opt-in extras, not things that should pollute every search
-- Toggle auto-include without re-adding
-- Survive `refresh_dependencies` — the refresh rebuilds `dependencyJars` from Gradle; study jars in a separate `studyJars` map are unaffected
-- Name conflict detection with actionable errors at add time against both dependency jar IDs and existing study jar names
+- `search_symbols` actually returns methods — tool description already claims this, currently broken
+- `search_symbols` results include the owning class (`containerName`) for method results
+- Member FQN scheme: `Class;method()` for methods, `Class;field:` for fields — unambiguous identifiers
+- Structured method representation: `parameters: ParameterInfo[]`, `returnType: ClassReference`
+- Structured field representation: `type: ClassReference`
+- `list_members` output includes `memberFqn` on every method and field result
 
 **Should have (differentiators):**
-- Auto-name from jar filename stem when no name is provided
-- Study jar section in `get_project_metadata` output with auto-include status visible
-- LSP semantic navigation (`find_definition`, `find_references`) within study jar sources via JDT LS workspace sync
-- Incremental JDT LS classpath update on add/remove (no full restart — 30-120s restart would be unacceptable UX)
+- FQN-based member navigation: pass `MinecraftClient;tick()` directly to `get_symbol_info` instead of constructing class+patterns manually — closes the "inspection parity" gap
+- `search_symbols` results include the member FQN directly, making results immediately actionable (feed output of search into inspection tools without manual translation)
+- Overload disambiguation via simple parameter type names when necessary: `Class;method(BlockPos,int)`
 
-**Defer to v2+:**
-- Bulk add via glob pattern — user can call `add_study_jar` multiple times instead
-- Auto-name from `META-INF/MANIFEST.MF` — filename stem is sufficient for MVP
-- Persistence across server restarts — session-scoped is correct for v1.1
-- `refresh_study_jar` convenience tool for when a jar's file changes on disk
+**Defer (v2+):**
+- Mixin target validation (uses FQN scheme but is a separate semantic concern)
+- JVM descriptor generation (`Lnet/minecraft/client/MinecraftClient;tick()V`) — design FQN scheme to be convertible but do not build the converter now
+- Workspace-wide field search — JDT LS limitation means this requires custom indexing, out of scope
+- Full Java signature parsing with generics, wildcards, and type bounds — pragmatic parsing with graceful degradation is sufficient
 
 ### Architecture Approach
 
-Study jars extend `LoadedProject` directly via a new `studyJars: Map<string, StudyJar>` field, initialized empty on project load. This keeps study jar lifecycle bound to project lifecycle and avoids a parallel store that would require every tool to query two sources. The critical integration point is `getCombinedDependencies()`, a new wrapper that merges filtered Gradle dependencies with auto-included study jars into a single `Map<string, DependencyEntry>`, replacing direct calls to `getFilteredDependencies()` in tool helpers. Study jars are represented as ephemeral `DependencyEntry` facades with `category: 'study'` and `id: 'study:{name}'`, created at query time rather than stored. Non-auto-included study jars are excluded from the merged default view but reachable via explicit `jars: ["study:mylib"]` parameter matching.
+The architecture is additive and surgical. No existing tools are replaced; they are extended. One new domain module (`browsing/member-parser.ts`) handles detail-string-to-structured-types parsing and import map extraction in isolation, keeping tool files thin. The FQN parser utility goes in `tool-helpers.ts`. All new types go in `browsing/types.ts` as a separate union (`MemberReference = MethodReference | FieldReference`) that does NOT overload the existing `ClassReference` type. `TransformedSymbol` gains optional structured fields for backward compatibility.
 
-Study jars are stored separately from `dependencyJars` (not merged into it) to avoid contaminating the Gradle dependency model and to survive `refresh_dependencies`. The `'study'` category is assigned the lowest `CATEGORY_PRIORITY` (value 4, after `'library': 3`) so study jars never shadow real dependencies in default resolution. The `study:` ID prefix namespaces study jars away from Maven coordinate IDs.
-
-**Major components:**
-
-1. `src/project/types.ts` — Add `StudyJar` interface, `'study'` to `JarCategory`, `studyJars` field on `LoadedProject`, `autoInclude?: boolean` on `DependencyEntry`
-2. `src/project/study-jar.ts` (new) — Domain logic: validate, add, remove, toggle, list, build `DependencyEntry` facade, `getCombinedDependencies()`
-3. `src/project/jar-reader.ts` — Add `addProjectJar()` and `removeProjectJar()` with ref-counting extracted to a shared `releaseJarIfUnreferenced()` helper
-4. `src/browsing/entry-index-cache.ts` — Add `evictEntryIndex(cacheKey: string)` for cache invalidation on jar removal
-5. `src/jdtls/workspace.ts` — Add `extractStudyJarToWorkspace()`, `removeStudyJarFromWorkspace()`, `rewriteClasspath()` for incremental workspace mutation
-6. `src/jdtls/uri-mapper.ts` — Rebuild `UriMapper` on study jar add/remove by recreating from updated `JdtLsSession.jarIdToDirName`
-7. New tools: `add-study-jar.ts`, `remove-study-jar.ts`, `list-study-jars.ts`, `set-study-jar-auto-include.ts`
+**Major components (new or modified):**
+1. `browsing/member-parser.ts` (NEW) — parses JDT LS `detail` strings into structured `ParameterInfo`/`ClassReference` types; extracts import maps from source text
+2. `browsing/types.ts` (MODIFIED) — adds `MethodReference`, `FieldReference`, `MemberReference`, `ParameterInfo`, `ParsedMemberFqn`; extends `TransformedSymbol` with optional structured fields
+3. `jdtls/client.ts` (MODIFIED) — one setting addition to initializationOptions
+4. `tools/search-symbols.ts` (MODIFIED) — adds `memberFqn` to method/constructor results; normalizes `containerName` semantics
+5. `tools/list-members.ts` (MODIFIED) — uses member-parser to add structured types and `memberFqn` to all member output
+6. `tools/get-symbol-info.ts` (MODIFIED) — accepts member FQN, auto-generates cascading regex patterns
+7. `tools/tool-helpers.ts` (MODIFIED) — adds `parseMemberFqn()`, `generateMemberPatterns()`
 
 ### Critical Pitfalls
 
-1. **Jar handle leak on remove** — `JarReader.closeProject()` is the only ref-counting path; individual removes have no equivalent. Add `removeJarFromProject()` that runs the ref-counting check and calls `this.close(jarPath)` when no other project references the path. Extract the shared `releaseJarIfUnreferenced()` helper from the existing loop in `closeProject`.
+1. **Fields are not in workspace/symbol** — `includeSourceMethodDeclarations` adds methods only. `kind: 'field'` searches via `search_symbols` will return empty. Must be documented clearly; fields require `list_members` on a known class. Do not attempt to fix this by building a custom field index.
 
-2. **Stale EntryIndex cache after jar removal** — `entryIndexCache` has no eviction API; only a nuclear `clearEntryIndexCache()`. Add `evictEntryIndex(sourcesJarPath)` and call it on remove. Without this, re-adding a rebuilt jar silently returns stale class lists — wrong results with no error.
+2. **Result count explosion + broken readiness probe** — enabling method declarations causes `workspace/symbol` with `'*'` to return potentially 300,000+ results. The `waitForWorkspaceSync` probe currently uses `{ query: '*' }` (confirmed in `workspace-sync.ts:85`). Change this probe to a no-match sentinel string BEFORE enabling the setting. Monitor response times; broad queries like `get` may need minimum-length enforcement.
 
-3. **JDT LS workspace desync** — `extractSourcesToTemp()` runs once at load time. Study jars added afterward need incremental extraction to a new subdirectory and `.classpath` rewrite. Removal must delete the extracted directory and rewrite `.classpath`. If passive JDT LS detection of the `.classpath` change fails, send `workspace/didChangeWatchedFiles` for the `.classpath` URI as an explicit trigger.
+3. **Detail string parsing fragility** — JDT LS `documentSymbol` detail strings are formatted for humans, not machines. Complex generics (`RegistryKey<Registry<T>>`), varargs (`String...`), annotations (`@Nullable`), and inner type references will break naive regex. Use a balanced-bracket tokenizer for angle brackets. Accept `kind: "unresolved"` ClassReferences rather than crashing or returning wrong FQNs.
 
-4. **Study jar ID collision with dependency jar IDs** — Maven coordinate IDs (e.g., `com.mojang:authlib`) and simple names (e.g., `minecraft`) could collide with user-provided study jar names. Use a `study:` namespace prefix for all study jar IDs and store them in a separate `studyJars` map rather than in `dependencyJars`. Validate user-provided names at add time against both maps.
+4. **Method overloads make FQN non-unique** — `SomeClass;method()` matches ALL overloads. Design this as intentional: the FQN is a "family reference" that returns all overloads. Support an optional extended form `Class;method(ParamType)` for disambiguation when needed. Minecraft has heavily overloaded APIs (e.g., `Registry;get()`) — this will arise.
 
-5. **Study jars invisible to existing tools** — `filterDependenciesByJarPattern()` and `getFilteredDependencies()` only iterate `dependencyJars`. If every call site is not updated to use `getCombinedDependencies()`, study jars silently appear to do nothing. This is the most likely integration miss; update all direct callers of `getFilteredDependencies()` in the same step.
+5. **containerName semantics differ by symbol kind** — For type symbols, `containerName` is the package name. For method symbols, `containerName` is the declaring class name (NOT the FQN). The existing `search_symbols` transform passes `containerName` through as-is. Normalize or add a separate `declaringClass` field for method results to avoid mixing semantics.
 
 ## Implications for Roadmap
 
-### Phase 1: Types and Domain Logic
+Based on research, the natural build order is dictated by dependency chains: FQN convention before code, config before parsing, parsing before wiring, wiring before navigation.
 
-**Rationale:** All subsequent phases depend on stable data model contracts and correct infrastructure extensions. Start here so everything is unit-testable in isolation before any MCP tool surface is created. Pitfalls 1, 2, and 4 are prevented by building the right abstractions before any tool touches them.
+### Phase 1: Enable Method Declarations + search_symbols Enrichment
 
-**Delivers:** `StudyJar` interface, `'study'` `JarCategory`, `studyJars: Map<string, StudyJar>` on `LoadedProject`, `CATEGORY_PRIORITY` updated, `loader.ts` initialization, `addProjectJar()`/`removeProjectJar()` on `JarReader` with proper ref-counting, `evictEntryIndex()` on cache, new `src/project/study-jar.ts` domain module with `getCombinedDependencies()`.
+**Rationale:** The single highest-visibility fix with the lowest risk. One config line unlocks method search. This validates that JDT LS responds as expected with methods before investing in the parsing layer. Each subsequent phase builds on knowledge gained here.
+**Delivers:** `search_symbols` returns actual methods with `memberFqn` in results. The broken tool promise (tool description claims methods, returns only types) is fulfilled.
+**Addresses:** Table stakes — method search, containerName in results, FQN in search output
+**Avoids:** Pitfall 2 (change readiness probe before enabling setting), Pitfall 8 (set in initializationOptions at init time, not via dynamic config change), Pitfall 5 (normalize containerName semantics for method vs type results)
+**Research flag:** Standard patterns. Straightforward config change and transform wiring. No phase research needed.
 
-**Addresses:** Data model for all features. Auto-include flag logic. Facade creation (`studyJarToDependencyEntry()`). `refresh_dependencies` survival (separate map, unaffected by refresh). Name collision detection.
+### Phase 2: Member Parser Domain Module
 
-**Avoids:** Pitfall 4 (ID collision) by designing `study:` namespace prefix into the type from the start. Pitfall 1 (handle leak) by building `removeJarFromProject()` before the remove tool exists. Pitfall 2 (stale cache) by building `evictEntryIndex()` before the remove tool exists.
+**Rationale:** Pure domain logic with no I/O dependency. Can be built and tested exhaustively before touching any tool. This is the foundation that Phase 3 and Phase 4 depend on.
+**Delivers:** `browsing/member-parser.ts` with `parseDetail()` and `extractImportMap()`. New types in `browsing/types.ts`: `MethodReference`, `FieldReference`, `MemberReference`, `ParameterInfo`.
+**Addresses:** Structured member representations, ClassReference enrichment with resolved FQNs from import maps
+**Avoids:** Pitfall 3 (use tokenizer for balanced brackets, not regex), Pitfall 7 (import map extraction for FQN resolution from source files), Pitfall 9 (new MemberReference types, ClassReference left unchanged)
+**Research flag:** Needs real JDT LS detail string samples from a live Minecraft workspace to write correct unit tests. Capture actual fixture data (methods with generics, varargs, annotations, inner class types) before writing the parser. Mock fixtures will miss edge cases that cause production failures.
 
-### Phase 2: Existing Tool Integration
+### Phase 3: Enrich list_members Output
 
-**Rationale:** Before writing new tools, prove that existing tools automatically see study jars when the data model is correct. Replace `getFilteredDependencies()` calls with `getCombinedDependencies()` across tool helpers and direct callers. This validates the facade pattern with no new tool surface and is the most critical integration point to get right.
+**Rationale:** Wires the member-parser (Phase 2) into the first tool output. `list_members` already reads full source files (import maps are available) and already receives DocumentSymbol detail strings. This is the natural integration point and validates the member-parser against real data.
+**Delivers:** `list_members` returns `memberFqn`, `parameters: ParameterInfo[]`, `returnType: ClassReference`, `fieldType: ClassReference` on all member results. Tool output is now structured and actionable.
+**Addresses:** Structured method/field representation in `list_members`; `memberFqn` in field results (the only path to field FQNs, since workspace/symbol cannot return fields)
+**Avoids:** Pitfall 3 (use parser from Phase 2, not ad-hoc regex), Pitfall 10 (reuse existing position conversion utilities, do not reimplement)
+**Research flag:** Standard patterns. The integration is mechanical wiring of Phase 2 output into the existing tool transform. No novel patterns required.
 
-**Delivers:** `list_packages`, `list_classes`, `search_classes`, `search`, `locate_in_source`, and `get_project_metadata` all correctly include auto-included study jars and exclude non-auto-included ones. `resolveClassSource` respects `'study'` category priority (lowest — never shadows real dependencies). `get_project_metadata` shows study jars as a distinct section.
+### Phase 4: Member FQN Navigation + Inspection Parity
 
-**Addresses:** Pitfall 13 (study jars invisible to existing tools) — the most likely integration miss. Pitfall 7 (class shadowing) — `'study'` priority 4 ensures study jars never shadow real dependencies in default resolution.
-
-**Avoids:** Building new tools before proving the data flow integration works end-to-end. Shipping tools that appear to work but silently fail for some callers.
-
-### Phase 3: Study Jar Management Tools
-
-**Rationale:** With the data model and tool integration validated, implement the four management tools as thin wiring over Phase 1 domain logic. Each tool follows the established pattern: `resolveProjectSafely` -> domain call -> structured response. Input validation and error messages reuse existing `DomainError` patterns.
-
-**Delivers:** `add_study_jar`, `remove_study_jar`, `list_study_jars`, `set_study_jar_auto_include` MCP tools. Path validation (exists, absolute, valid ZIP, contains .java files). Auto-name from filename stem when no name provided. Collision detection with actionable error messages. Server instructions and tool descriptions updated.
-
-**Addresses:** All table stakes features. Pitfall 6 (path validation gaps) — validate existence, absoluteness, and ZIP validity before registering. Pitfall 10 (name collision) — validate uniqueness against both maps at add time.
-
-**Avoids:** Pitfall 9 (persistence expectations) — document session-scoped behavior explicitly in tool descriptions so users are not surprised.
-
-### Phase 4: JDT LS Workspace Sync
-
-**Rationale:** The hardest integration point deserves its own phase. Study jars are fully usable for browsing, search, and source reading after Phase 3 — Phase 4 adds semantic navigation (`find_definition`, `find_references`, type hierarchy). Incremental extraction + classpath rewrite is strongly preferred over full JDT LS restart (which takes 30-120 seconds — unacceptable per-operation cost).
-
-**Delivers:** `extractStudyJarToWorkspace()`, `removeStudyJarFromWorkspace()`, `rewriteClasspath()` in `workspace.ts`. `UriMapper` reconstruction on add/remove. JDT LS notification on classpath change. Semantic navigation working for study jar classes. Large jar file-count warning (suggest threshold ~10,000 files).
-
-**Addresses:** Pitfall 3 (JDT LS workspace desync). Pitfall 8 (UriMapper stale after add). LSP semantic navigation differentiator.
-
-**Avoids:** Pitfall 3 mitigation (incremental over restart) — do not restart JDT LS on each add/remove; rewrite `.classpath` and notify instead. Anti-Pattern 3 from ARCHITECTURE.md: never kill and restart JDT LS per operation.
+**Rationale:** Closes the full workflow loop. After Phase 1, search returns FQNs. After Phase 3, `list_members` returns FQNs. This phase makes inspection tools accept those FQNs directly, eliminating the manual step of deconstructing search results to construct inspection calls.
+**Delivers:** `get_symbol_info` (and optionally `find_definition`) accepts `Class;method()` as direct input, auto-generates cascading regex patterns. `tool-helpers.ts` gains `parseMemberFqn()` and `generateMemberPatterns()`. All tool descriptions updated to document the FQN scheme.
+**Addresses:** FQN-based member navigation (key differentiator), inspection parity
+**Avoids:** Pitfall 4 (FQN resolves to all overloads, patterns disambiguate when needed), Pitfall 11 (inner class `$` separator handling), Anti-pattern 1 from ARCHITECTURE.md (extend existing tools, do not add new parallel tools)
+**Research flag:** Auto-generated regex patterns need validation against real Minecraft source for correctness before shipping. Capture test cases specifically with overloaded methods and inner classes.
 
 ### Phase Ordering Rationale
 
-- Phase 1 before Phase 2: `getCombinedDependencies()` requires `studyJars` field on `LoadedProject` and the facade factory to exist.
-- Phase 2 before Phase 3: Validates the core data flow before exposing it via MCP tools. Prevents shipping tools that appear to work but silently fail for some callers.
-- Phase 3 before Phase 4: JDT LS sync is high-complexity with uncertain behavior (classpath hot-reload needs empirical testing). Study jars must work for browsing/search first — that is the primary value. LSP navigation is additive.
-- Phase 4 is independently deferrable: if JDT LS incremental classpath update proves unreliable, Phase 4 can ship with a "require project reload for LSP navigation" fallback without blocking Phases 1-3.
+- Phase 1 before Phase 2: validate the JDT LS config change produces real method results before building the parsing infrastructure that depends on those results.
+- Phase 2 before Phase 3: the member-parser is a pure domain module — test it exhaustively in isolation before wiring it into tools where bugs are harder to diagnose.
+- Phase 3 before Phase 4: `list_members` FQN output validates the FQN scheme in practice before teaching inspection tools to accept FQNs as input.
+- Each phase is independently shippable and delivers visible improvement. No phase creates infrastructure that is only useful in a later phase.
 
 ### Research Flags
 
-Phases needing deeper research during planning:
-- **Phase 4:** JDT LS classpath hot-reload behavior is marked MEDIUM confidence. Whether `workspace/didChangeWatchedFiles` (or `workspace/didChangeWorkspaceFolders`) triggers JDT LS re-indexing after `.classpath` rewrite needs empirical validation during implementation — not just spec reading. Design a fallback plan (full project reload) and surface clear failure detection (try `find_definition` on a known study jar class after add).
+Phases needing deeper research or real-world validation during planning:
+- **Phase 2:** Capture real JDT LS detail string samples from a live Minecraft workspace before writing the parser. The ARCHITECTURE.md documents the expected format (`"(BlockPos, int) : BlockState"`) derived from reading JDT LS source, but live verification against complex Minecraft types is essential.
+- **Phase 4:** Test auto-generated regex patterns against methods with overloads in actual Minecraft source before considering the implementation complete. The pattern generation logic needs real-world validation.
 
-Phases with standard patterns (skip research-phase):
-- **Phase 1:** Fully informed by codebase analysis. TypeScript data model changes follow established patterns in `src/project/types.ts`. Ref-counting logic extension is mechanical.
-- **Phase 2:** Well-understood call-site substitution. All callers of `getFilteredDependencies()` are identifiable via static analysis.
-- **Phase 3:** New tools follow the exact pattern of existing 21 tools. Input validation reuses established `DomainError` patterns. No novel patterns required.
+Phases with standard patterns (no phase research needed):
+- **Phase 1:** Config change plus LSP response wiring. JDT LS behavior is well-documented and confirmed from source.
+- **Phase 3:** Mechanical wiring of Phase 2 output into the existing tool transform. Follows established domain-tool separation patterns.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | No new dependencies. All assessed against installed package versions and direct codebase analysis. |
-| Features | HIGH | Derived entirely from codebase analysis of actual data flows. IDE patterns (IntelliJ, VS Code) confirm user expectations for study jar behavior. |
-| Architecture | HIGH | All components analyzed directly from source. Integration points are concrete, not speculative. The DependencyEntry facade pattern is well-motivated by the existing tool pipeline. |
-| Pitfalls | HIGH | Every pitfall verified against actual code paths — no theoretical risks. JDT LS classpath hot-reload is the sole MEDIUM-confidence item. |
+| Stack | HIGH | Zero new dependencies. All existing stack components verified against current codebase. JDT LS setting confirmed against Preferences.java source and multiple community sources. |
+| Features | HIGH | Table stakes directly derived from existing tool description gaps (search_symbols claims methods but returns only types). JDT LS field limitation confirmed from source code, not just documentation. |
+| Architecture | HIGH | Component modifications are precisely scoped to existing files. Build order derived from actual dependency chains. Patterns (extend vs replace, domain vs tool separation) match existing codebase conventions. |
+| Pitfalls | HIGH | Critical pitfalls verified against JDT LS source, open issues, and existing codebase code paths. The readiness probe pitfall is confirmed by reading workspace-sync.ts line 85. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **JDT LS classpath hot-reload reliability:** Whether `workspace/didChangeWatchedFiles` triggers re-indexing after `.classpath` rewrite is unverified without running JDT LS. Design the Phase 4 implementation to detect failure (try `find_definition` on a known study jar class) and surface a clear error message recommending project reload as fallback.
-- **`workspace/didChangeWorkspaceFolders` vs. `workspace/didChangeWatchedFiles`:** PITFALLS.md and ARCHITECTURE.md mention different notifications for triggering JDT LS re-indexing. Phase 4 planning should test both empirically and pick the one JDT LS actually responds to.
-- **Study jar file count warning threshold:** PITFALLS.md suggests ~10,000 files as a soft limit for JDT LS memory. This is an estimate — validate against actual JDT LS behavior with large jars during Phase 4 integration testing.
+- **Actual JDT LS detail string format for methods:** The ARCHITECTURE.md documents the expected format (`"(BlockPos, int) : BlockState"`) derived from reading JDT LS source code. Live verification against real Minecraft source in a running JDT LS is needed before writing the Phase 2 parser.
+- **containerName value for method symbols (MEDIUM confidence):** PITFALLS.md flags that `containerName` may be the simple class name rather than the FQN for method results. Verify against real output during Phase 1 implementation before writing the Phase 1 transform.
+- **Performance of method declarations setting on Minecraft workspace:** JDT LS issue #2075 documents slowdowns. The Minecraft sources jar has ~6,600 classes. Actual query latency after enabling the setting must be measured during Phase 1 before declaring it complete.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Codebase analysis: `src/project/jar-reader.ts` — ref-counting in `closeProject`, handle lifecycle, `getHandle` validation
-- Codebase analysis: `src/project/types.ts` — `LoadedProject`, `DependencyEntry`, `JarCategory`, `FilterConfig`
-- Codebase analysis: `src/project/jar-registry.ts` — `getFilteredDependencies`, `matchesFilter`, special-case IDs
-- Codebase analysis: `src/browsing/entry-index-cache.ts` — global Map cache, `getOrBuildIndex`, no eviction API
-- Codebase analysis: `src/browsing/source-adapter.ts` — `createJarAdapter` works for any jar path
-- Codebase analysis: `src/tools/tool-helpers.ts` — `CATEGORY_PRIORITY`, `filterDependenciesByJarPattern`, `resolveClassSource`
-- Codebase analysis: `src/jdtls/workspace.ts` — one-shot `extractSourcesToTemp`, `.classpath` generation
-- Codebase analysis: `src/jdtls/uri-mapper.ts` — immutable `jarIdToDirNameMap` and reverse map in closure
-- Codebase analysis: `src/state/project-store.ts` — `generateProjectName` collision avoidance pattern
-- [node-stream-zip GitHub](https://github.com/antelle/node-stream-zip) — central directory index behavior, `storeEntries` memory semantics (metadata only, not file content)
+- [JDT LS Preferences.java](https://github.com/eclipse-jdtls/eclipse.jdt.ls/blob/main/org.eclipse.jdt.ls.core/src/org/eclipse/jdt/ls/core/internal/preferences/Preferences.java) — `includeSourceMethodDeclarations` setting definition; confirmed no field equivalent exists
+- [DocumentSymbolHandler source](https://github.com/eclipse-jdtls/eclipse.jdt.ls/blob/master/org.eclipse.jdt.ls.core/src/org/eclipse/jdt/ls/core/internal/handlers/DocumentSymbolHandler.java) — detail string format for methods, fields, constructors
+- [JDT LS Issue #2075](https://github.com/eclipse-jdtls/eclipse.jdt.ls/issues/2075) — workspace/symbol performance with large result sets
+- [JDT LS Issue #1712](https://github.com/eclipse-jdtls/eclipse.jdt.ls/issues/1712) — partial results behavior for workspace/symbol
+- [LSP 3.17 Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/) — SymbolInformation type, containerName semantics
+- Codebase: `src/jdtls/client.ts`, `src/tools/search-symbols.ts`, `src/tools/list-members.ts`, `src/tools/get-symbol-info.ts`, `src/jdtls/workspace-sync.ts`, `src/browsing/types.ts`, `tests/tools/search-symbols.test.ts`
 
 ### Secondary (MEDIUM confidence)
-- [LSP Specification 3.17 — workspace/didChangeWatchedFiles](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#workspace_didChangeWatchedFiles) — JDT LS workspace mutation notifications
-- [IntelliJ IDEA Libraries Documentation](https://www.jetbrains.com/help/idea/library.html) — IDE pattern for manual source jar attachment
-- [VS Code Java Project Management](https://code.visualstudio.com/docs/java/java-project) — `java.project.referencedLibraries` source attachment pattern
+- [nvim-jdtls Discussion #676](https://github.com/mfussenegger/nvim-jdtls/discussions/676) — community confirmation of method-only scope for `includeSourceMethodDeclarations`; no field equivalent
+- [LSP-jdtls Sublime settings](https://github.com/sublimelsp/LSP-jdtls/blob/main/LSP-jdtls.sublime-settings) — confirms setting path
+- [Neovim Discourse: workspace symbols](https://neovim.discourse.group/t/telescope-lsp-dynamic-workspace-symbols-for-nvim-jdtls-is-not-giving-methods/5032) — additional community confirmation
+- [emacs-lsp/lsp-java](https://emacs-lsp.github.io/lsp-java/) — additional JDT LS settings reference
+
+### Tertiary (used for design rationale)
+- [Fabric Wiki - @Inject](https://wiki.fabricmc.net/tutorial:mixin_injects) — Mixin descriptor conventions; informs forward-compatible FQN scheme design
+- [SpongePowered Mixin - Obfuscation](https://github.com/SpongePowered/Mixin/wiki/Introduction-to-Mixins---Obfuscation-and-Mixins) — Mixin method/field targeting conventions
 
 ---
-*Research completed: 2026-04-13*
+*Research completed: 2026-04-14*
 *Ready for roadmap: yes*

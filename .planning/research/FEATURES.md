@@ -1,117 +1,124 @@
 # Feature Landscape
 
-**Domain:** Study jar management for MCP-based Minecraft dev tool
-**Researched:** 2026-04-13
+**Domain:** Symbol resolution and structured member inspection for Minecraft mod development MCP server
+**Researched:** 2026-04-14
 
 ## Table Stakes
 
-Features users expect from "add arbitrary source jars for study." Missing = feature feels incomplete.
+Features the user explicitly requires or that are expected for methods/fields to be "first-class citizens."
 
-| Feature | Why Expected | Complexity | Dependencies on Existing |
-|---------|--------------|------------|--------------------------|
-| Add a study jar by file path | Core operation -- user has a sources jar on disk and wants to browse it. Must validate it exists and is a valid ZIP/JAR. | Low | `JarReader.readEntry`/`listEntries` for validation; needs a new `DependencyEntry` with a new category |
-| Assign a human-friendly name | Jar paths are unwieldy. Users need short IDs like `"sodium"` to reference in `jar`/`jars` parameters. Auto-generation from filename is a fallback, but explicit naming must be supported. | Low | `DependencyEntry.id` is already the short identifier used everywhere |
-| Remove a study jar by name | Undo of add. Must clean up jar handle ref counts. | Low | `JarReader` project handle tracking; remove from `dependencyJars` map |
-| List study jars | Show what's currently added with name, path, auto-include status. Distinguish study jars from auto-discovered dependencies. | Low | `get_project_metadata` already renders jar inventory; needs category filtering or a dedicated tool |
-| Browse study jar contents via existing tools | After adding, `list_packages`, `list_classes`, `read_source`, `search_classes`, `locate_in_source` must see the study jar. This is the whole point. | Low | Study jars become entries in `dependencyJars` -- existing tools iterate that map. If the entry exists and is available, tools work automatically. |
-| Study jars selectable via `jar`/`jars` parameters | User must be able to scope operations to a specific study jar by its name. | Low | Already works -- `jar` param does `dependencyJars.get(jar)`, `jars` param uses picomatch against IDs. Study jar ID just needs to be in the map. |
-| Auto-include flag (opt-in to default jar set) | Controls whether a study jar appears when tools search "all jars" without explicit `jars` parameter. Default should be OFF -- study jars are opt-in extras, not things you want polluting every search. User enables auto-include for jars they're actively studying. | Medium | `getFilteredDependencies` + `matchesFilter` need to respect auto-include. Study jars with auto-include=false should be excluded from default resolution but still accessible via explicit `jar`/`jars` parameters. |
-| Toggle auto-include on existing study jars | Change auto-include without re-adding. Separate operation from add/remove. | Low | Mutate the entry in `dependencyJars` map |
-| Persist across refresh_dependencies | `refresh_dependencies` re-scans Gradle cache and replaces `dependencyJars`. Study jars are not from Gradle -- they must survive refresh. | Low | `refresh_dependencies` currently replaces the entire `dependencyJars` map. Need to preserve study jar entries during refresh. |
-| Name conflict detection with actionable errors | When adding a study jar whose name collides with an existing dependency or study jar, provide a clear error with the conflicting entry and suggest an alternative. | Low | `DomainError` pattern already established. Check `dependencyJars.has(name)` before insert. |
+| Feature | Why Expected | Complexity | Dependencies | Notes |
+|---------|--------------|------------|--------------|-------|
+| search_symbols returns methods | The tool description already claims it finds "methods, fields, classes, constructors" but currently only returns types. Broken promise. | Low | JDT LS `java.symbols.includeSourceMethodDeclarations` setting | Add setting to initializationOptions in `client.ts`. One-line config change plus test updates. |
+| search_symbols results include container class | When methods are returned, users need to know which class they belong to. JDT LS already provides `containerName` on SymbolInformation. | Low | Enabled method declarations | Already in the LSP response; just needs to be included in the transformed output (currently captured but not surfaced well). |
+| FQN scheme for methods: `Class;method()` | Unambiguous identification of methods, needed for future Mixin target specs and for passing method references between tools. | Medium | None (convention definition) | Must handle overloads. The semicolon separator avoids collision with Java's dot notation. Parentheses distinguish methods from fields. |
+| FQN scheme for fields: `Class;field:` | Same rationale as methods. Colon suffix distinguishes fields from methods. | Low | None (convention definition) | Simpler than methods -- no overload disambiguation needed. |
+| Structured method representation with typed parameters | `list_members` currently returns `detail: string` (raw signature text from JDT LS). Methods need structured `parameters: [{name, type: ClassReference}]` and `returnType: ClassReference`. | High | ClassReference type (exists), JDT LS documentSymbol response parsing | This is the core complexity. JDT LS `detail` field contains the signature as a string; parsing it into structured types requires understanding Java signature syntax. |
+| Structured field representation with typed value | Fields need `type: ClassReference` extracted from `detail`. | Medium | ClassReference type (exists) | Simpler than methods -- just one type to extract, not a parameter list. |
+| Method/field inspection via get_symbol_info | Currently works -- cascading regex can target any symbol position, and hover returns type info. | Low (already works) | None | Already functional. The "parity" gap is discoverability, not capability. |
+| Method/field inspection via find_definition | Same -- already works when you can provide patterns. | Low (already works) | None | Already functional for methods/fields. |
+| Method/field inspection via find_references | Same pattern. | Low (already works) | None | Already functional. |
 
 ## Differentiators
 
-Features that set this apart from bare-minimum "add a jar" functionality. Not expected, but high value.
+Features that go beyond table stakes and provide real workflow improvement.
 
-| Feature | Value Proposition | Complexity | Dependencies on Existing |
-|---------|-------------------|------------|--------------------------|
-| Auto-name from jar metadata | Parse `META-INF/MANIFEST.MF` or embedded Maven POM to derive a meaningful name (e.g., `"sodium-0.6.0"`) when user doesn't provide one. Better than just stripping `.jar` from filename. | Low | `JarReader.readEntry` to read manifest. Fallback to filename stem. |
-| Bulk add via glob pattern | `add_study_jar` accepts a glob like `/path/to/libs/*-sources.jar` and adds multiple jars at once with auto-generated names. Useful when user has a directory of source jars. | Medium | `glob` library already in stack. Need to handle partial failures (some valid, some not). |
-| Study jar metadata in get_project_metadata | Show study jars as a separate section or with a `"study"` category in jar inventory, so `get_project_metadata` clearly distinguishes auto-discovered vs. manually-added jars. | Low | Add `'study'` to `JarCategory` union type. `buildJarInventory` already iterates all deps. |
-| LSP navigation with study jars | `find_definition`, `find_references`, etc. work within study jar sources. Requires sources extracted to JDT LS workspace. | High | `jdtls/workspace.ts` extraction on project load. Adding after load requires incremental extraction + JDT LS notification. |
-| Incremental JDT LS workspace update | When a study jar is added/removed, update the JDT LS workspace without requiring full project reload. Extract sources to workspace dir and send `workspace/didChangeWatchedFiles` notification. | High | `JdtLsSession` lifecycle management. Must avoid breaking active LSP state. |
+| Feature | Value Proposition | Complexity | Dependencies | Notes |
+|---------|-------------------|------------|--------------|-------|
+| FQN-based member navigation (accept FQN instead of class+patterns) | Instead of `class: "MinecraftClient", patterns: ["void tick\\(", "tick"]`, accept `MinecraftClient;tick()` and auto-resolve the position. Massive UX improvement -- search_symbols returns FQNs, user passes them directly to inspection tools. | High | FQN scheme, member position resolution | This is the key differentiator for "inspection parity." Without it, the workflow is: search -> get result -> manually construct class+patterns. With it: search -> pass FQN -> done. |
+| Overload disambiguation in FQN scheme | `Class;method(int,String)` to distinguish overloaded methods. Matches Mixin target descriptor conventions. | Medium | FQN scheme | Important for Minecraft where overloads are common. Start with simple type names; full JVM descriptors later. |
+| ClassReference enrichment with jar provenance | ClassReferences in method params/return types could include which jar contains the type's source. | Low | ClassReference type | Useful for navigation: "this method returns a `BlockState` -- where is that defined?" |
+| search_symbols with FQN in results | Return member FQN (`MinecraftClient;tick()`) directly in search results so Claude can immediately pass it to other tools. | Low | FQN scheme | Transforms search from "informational" to "actionable." |
+| Member search across specific jars | search_symbols currently searches the entire JDT LS workspace. Filtering by jar scope would reduce noise. | Medium | JDT LS workspace/symbol limitations | JDT LS workspace/symbol has no built-in jar filtering. Would need post-filtering by URI mapping. |
 
 ## Anti-Features
 
-Features to explicitly NOT build.
+Features to explicitly NOT build in this milestone.
 
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| Auto-discovery of study jars from a configured directory | Adds implicit state and "magic" behavior. Study jars are arbitrary user-chosen artifacts, not things with a well-defined location. | User explicitly adds each jar. Claude can be instructed to add specific jars automatically. |
-| Persistence across server restarts | Study jars are session-scoped, tied to loaded projects. Persisting creates stale references (jars moved/deleted), config file management complexity, and conflicts with the "load project = fresh start" model. | User re-adds study jars after loading a project. Claude remembers what to add from conversation context. |
-| Classpath/compilation integration | Study jars are for reading source code, not for compilation. Adding them to the Java classpath would create version conflicts and confuse JDT LS type resolution. | Source browsing only. JDT LS workspace extraction is for navigation, not compilation. |
-| Automatic transitive dependency resolution | Unlike Gradle dependencies, study jars should not trigger transitive dependency discovery. A study jar is a standalone source artifact the user wants to read. | Each study jar is self-contained. User adds exactly what they want. |
-| Sub-categorization of study jars | No need for `"study-library"`, `"study-framework"`, etc. One category distinguishes manual from auto-discovered. | Single `'study'` category on `JarCategory`. |
-| Editing/writing to study jars | This is a read-only analysis server. | Read-only access via existing `SourceAdapter` pattern. |
+| Mixin target validation | Conflates symbol resolution with Mixin-specific semantics. v2 concern. | Build the FQN scheme cleanly so Mixin tooling can consume it later. |
+| Automatic Mixin descriptor generation | Generating `Lnet/minecraft/client/MinecraftClient;tick()V` JVM descriptors from FQNs. Useful but scope creep. | FQN scheme should be designed to be convertible to JVM descriptors, but don't build the converter yet. |
+| Field value inspection (runtime values) | This is a read-only source analysis server, not a debugger. | get_symbol_info already provides type information from hover. |
+| Full Java signature parsing library | Building a complete Java type signature parser (generics, wildcards, arrays, etc.) is a rabbit hole. | Parse what JDT LS gives us pragmatically. Handle common cases (simple types, parameterized types, arrays). Fall back to raw string for exotic signatures. |
+| Workspace-wide field search | JDT LS `includeSourceMethodDeclarations` only adds methods, NOT fields, to workspace/symbol results. There is no `includeSourceFieldDeclarations` setting in JDT LS. Building custom field indexing is out of scope. | Fields are discoverable via `list_members` on a known class. Document this limitation clearly in the search_symbols tool description. |
+| Changing existing tool required params | Adding new tools or optional params is fine. Changing required params on existing tools breaks Claude's learned patterns. | Add new optional parameters (e.g., `member` FQN param) alongside existing `class`+`patterns` params. |
 
 ## Feature Dependencies
 
 ```
-Add study jar -----> Browse via existing tools (automatic once in dependencyJars)
-     |
-     +-------------> Remove study jar
-     |
-     +-------------> List study jars
-     |
-     +-------------> Toggle auto-include
-     |
-     +-------------> LSP navigation with study jars (requires workspace extraction)
-
-Auto-include flag --> Filter integration (getFilteredDependencies must know about study jars)
-
-Persist across refresh --> refresh_dependencies must preserve study entries
-
-Name conflict detection --> Add study jar (pre-insert validation)
+Enable includeSourceMethodDeclarations ──> search_symbols returns methods
+                                              │
+Define FQN scheme ──────────────────────────> FQN in search results
+                                              │
+Structured member types ─────────────────> ClassReference for params/returns
+    │                                         │
+    └── Signature string parsing              │
+                                              v
+                                    FQN-based member navigation (differentiator)
+                                              │
+                                              v
+                                    Inspection parity complete
 ```
 
-Key insight: because existing tools operate on `dependencyJars` map entries via `DependencyEntry`, the integration cost for browsing/search is near-zero. The entry just needs to exist in the map with `available: true` and a valid `sourcesJarPath`. The main complexity points are:
+Key ordering:
+1. FQN scheme definition (convention) -- no code dependency, but everything else references it
+2. `includeSourceMethodDeclarations` setting -- trivial, unblocks method search
+3. Structured member types with ClassReference -- the hard part, needed for rich results
+4. FQN in search/list_members results -- wiring, depends on 1+3
+5. FQN-based navigation (optional differentiator) -- depends on 1+2+3+4
 
-1. **Auto-include filtering** -- `getFilteredDependencies` and `matchesFilter` currently only check filter patterns. Study jars with auto-include=false need a new exclusion path: excluded from the "all jars" default set but still accessible when explicitly named in `jar`/`jars` parameters.
+## Critical Limitation: Fields NOT Searchable via workspace/symbol
 
-2. **JDT LS workspace integration** -- adding sources to the JDT LS workspace after initial project load is the hardest part. Without this, study jars get browsing/search/regex but not semantic navigation.
+JDT LS provides exactly two `java.symbols.*` settings:
+- `includeSourceMethodDeclarations` (enables methods in workspace/symbol)
+- `includeGeneratedCode` (enables Lombok-generated symbols in documentSymbol)
 
-3. **Jar handle lifecycle** -- `JarReader.registerProject` tracks which jar paths belong to which project. Study jars added after load need to be registered. `closeProject` must clean them up.
+There is **no** `includeSourceFieldDeclarations` setting. This is a deliberate JDT LS design choice for performance reasons -- the Java type index used by workspace/symbol does not index fields.
 
-## Filter Interaction Design
+**Impact on the milestone**: The search_symbols tool will return types + methods but NOT fields. Fields remain discoverable only through `list_members` (which uses documentSymbol on a specific class). This is an inherent JDT LS limitation, not something we can fix.
 
-The critical design question: how does auto-include interact with `getFilteredDependencies` and the `jars` parameter?
-
-**Recommended approach:**
-
-1. `getFilteredDependencies()` excludes study jars where `autoInclude === false`. Tools searching "all jars" (no `jars` param) skip non-auto-included study jars.
-2. When `jars` parameter is explicitly provided, it matches against ALL entries including non-auto-included study jars. Users can explicitly target a study jar by name even if it's not auto-included.
-3. When `jar` (singular) parameter is provided, it does a direct `dependencyJars.get(jar)` lookup -- already works for any entry in the map regardless of auto-include.
-4. `matchesFilter()` already always includes `'minecraft'` and `'src'`. Study jars with `autoInclude === true` should behave like regular dependencies (subject to include/exclude filter patterns). Study jars with `autoInclude === false` should be excluded from default resolution regardless of filter patterns.
-
-This gives the user full control: auto-include=false means "only show me this when I ask for it by name."
-
-## Data Model Implications
-
-The `DependencyEntry` type needs extension:
-
-- **New `JarCategory` value**: `'study'` added to the `'minecraft' | 'mod-source' | 'fabric-api' | 'library'` union.
-- **Auto-include flag**: New field on `DependencyEntry` (e.g., `autoInclude?: boolean`, defaulting to `undefined`/`true` for non-study entries). Adding to `DependencyEntry` is cleaner than a separate tracking structure -- it's already the per-jar metadata record.
-- **Origin tracking**: The `'study'` category serves to distinguish "came from Gradle discovery" vs "manually added" so `refresh_dependencies` knows which entries to preserve.
-
-Study jars should live in the existing `dependencyJars` map rather than a separate `studyJars` map. A separate map would require every tool to check two maps -- using the existing map with a distinguishing category is the lower-friction approach that gives automatic integration for free.
+**Mitigation**: Update the search_symbols tool description to accurately state what it can find. Consider adding a note to search results when kind="field" is requested, explaining fields must be found via list_members.
 
 ## MVP Recommendation
 
 Prioritize:
-1. **Add/remove/list study jars** -- core CRUD operations. Add `'study'` to `JarCategory`. Store study entries in `dependencyJars`.
-2. **Auto-include flag with filter integration** -- must ship with add/remove since it defines default visibility.
-3. **Persist across refresh_dependencies** -- without this, refreshing silently removes study jars. Unacceptable.
-4. **Name conflict detection** -- trivial to implement, prevents confusing errors.
+1. **FQN scheme definition** -- Convention only, zero code. Must be decided first because it appears in every other feature's output format. Design it to be forward-compatible with JVM descriptors (for future Mixin support).
+2. **Enable `includeSourceMethodDeclarations`** -- One setting addition to `client.ts` initializationOptions. Instantly fixes the "search_symbols only returns types" issue. Test that methods appear in results.
+3. **Structured member types** -- Extend or replace `TransformedSymbol` with new `StructuredMethod`/`StructuredField` types using `ClassReference` for parameter types and return types. Parse JDT LS `detail` strings. This is where most engineering effort goes.
+4. **FQN in tool outputs** -- Wire the FQN scheme into search_symbols results and list_members results. Makes search results actionable.
 
 Defer:
-- **Incremental JDT LS workspace update**: High complexity. Study jars would initially support browsing/search/regex but not semantic LSP navigation. This is still highly useful. LSP can be added in a follow-up or require project reload.
-- **Bulk glob add**: Nice but not essential. User can call add_study_jar multiple times.
-- **Auto-name from jar metadata**: Filename stem is good enough for MVP. Manifest parsing is polish.
+- **FQN-based member navigation** (accept member FQN in inspection tools): High value but high complexity. Can be a follow-up within v1.2 or deferred to v1.3. Table-stakes features are useful without it -- Claude can still use class+patterns for inspection.
+- **Overload disambiguation with parameter types**: Start with simple `Class;method()` and add parameter-based disambiguation only when overloads are actually encountered.
+
+## Complexity Budget
+
+| Feature | Estimated Effort | Risk |
+|---------|-----------------|------|
+| FQN scheme definition | Hours | Low -- convention, not code |
+| Enable method declarations setting | Hours | Low -- config change |
+| Signature string parsing | Days | Medium -- JDT LS detail format varies |
+| Structured member types | Days | Medium -- type design + parsing |
+| FQN wiring in outputs | Hours | Low -- mechanical |
+| FQN-based navigation (differentiator) | Days | High -- new resolution path |
+
+## Key Design Decisions to Make
+
+1. **FQN separator**: The milestone context specifies `;` (e.g., `SomeClass;method()`). This avoids ambiguity with Java's `.` and `$`. Full examples: `net.minecraft.client.MinecraftClient;tick()`, `net.minecraft.client.MinecraftClient;worldRenderer:`.
+
+2. **Overload handling**: Start with `Class;method()` (no params in parens). If the method name is unambiguous within the class, this suffices. For overloads, extend to `Class;method(BlockPos,BlockState)` using simple type names. Full JVM descriptors (`(Lnet/minecraft/util/math/BlockPos;)V`) are a Mixin concern for later.
+
+3. **ClassReference for primitives**: `int`, `void`, `boolean` are not classes. For primitives: `{name: "int", fqn: "int", kind: "primitive"}`. For arrays: `{name: "int[]", fqn: "int[]", kind: "array"}`.
+
+4. **Generics in ClassReference**: `List<String>` -- start simple with raw type only (`{name: "List", fqn: "java.util.List", kind: "class"}`). Add `typeArguments` if JDT LS detail parsing makes it tractable.
+
+5. **Where structured types live**: Create separate types (`StructuredMethod`, `StructuredField`) rather than extending `TransformedSymbol`. The current `TransformedSymbol` is generic LSP output; structured types are domain-specific enrichment.
 
 ## Sources
 
-- Codebase analysis: `jar-registry.ts`, `jar-reader.ts`, `source-adapter.ts`, `tool-helpers.ts`, `dependency-discovery.ts`, `loader.ts`, `project/types.ts`
-- [IntelliJ IDEA Libraries Documentation](https://www.jetbrains.com/help/idea/library.html) -- IDE pattern for attaching source jars
-- [VS Code Java Project Management](https://code.visualstudio.com/docs/java/java-project) -- `java.project.referencedLibraries` source attachment pattern
-- [IntelliJ attach sources discussion](https://intellij-support.jetbrains.com/hc/en-us/community/posts/206191239-Attach-sources-to-jars-the-easy-way) -- community patterns for source attachment workflows
+- [nvim-jdtls Discussion #676 - Workspace symbols beyond class](https://github.com/mfussenegger/nvim-jdtls/discussions/676) -- Confirms `java.symbols.includeSourceMethodDeclarations` enables methods in workspace/symbol. No equivalent for fields. MEDIUM confidence.
+- [Eclipse JDT LS Preferences.java](https://github.com/eclipse-jdtls/eclipse.jdt.ls/blob/main/org.eclipse.jdt.ls.core/src/org/eclipse/jdt/ls/core/internal/preferences/Preferences.java) -- Only two `java.symbols.*` settings exist: `includeSourceMethodDeclarations` and `includeGeneratedCode`. No field equivalent. HIGH confidence.
+- [LSP Specification 3.17 - workspace/symbol](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/) -- SymbolInformation includes `containerName` field. HIGH confidence.
+- [Fabric Wiki - @Inject](https://wiki.fabricmc.net/tutorial:mixin_injects) -- Mixin method target format uses JVM descriptors: `Lpackage/Class;method(params)returnType`. HIGH confidence.
+- [SpongePowered Mixin - Obfuscation](https://github.com/SpongePowered/Mixin/wiki/Introduction-to-Mixins---Obfuscation-and-Mixins) -- Mixin descriptor conventions for method/field targeting. HIGH confidence.

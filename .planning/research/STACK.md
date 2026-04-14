@@ -1,132 +1,219 @@
-# Technology Stack
+# Technology Stack: v1.2 Symbol Resolution
 
-**Project:** MinecraftDevMCP v1.1 Study Jars
-**Researched:** 2026-04-13
+**Project:** MinecraftDevMCP v1.2
+**Researched:** 2026-04-14
+**Scope:** Stack additions/changes for method/field symbol search and structured member type representations
 
-## Recommended Stack Changes
+## Executive Summary
 
-### No new libraries needed.
+This milestone requires **zero new dependencies**. The entire feature set is achievable through:
+1. A single JDT LS initialization setting change (`includeSourceMethodDeclarations`)
+2. New TypeScript types/interfaces for structured member representations
+3. A member FQN scheme implemented as string conventions in existing code
 
-The existing stack handles study jar management without additions. Here is what is already in place and why it suffices:
+The existing stack (TypeScript 6.0.2, MCP SDK ^1.29.0, ts-lsp-client ^1.1.1, Zod ^4.3.6, node-stream-zip ^1.15.0) is fully sufficient.
 
-### Jar I/O: node-stream-zip 1.15.0 (existing -- no change)
+## Required Changes to Existing Stack
 
-| Concern | Assessment | Confidence |
-|---------|-----------|------------|
-| Multiple concurrent handles | Safe. Each `StreamZip.async` instance opens its own file descriptor and maintains its own central directory index. The existing `JarReader` already manages 10-30+ concurrent handles (minecraft + ~20 dependencies per project). Adding 1-5 study jars is negligible. | HIGH |
-| Memory per handle | With `storeEntries: true`, node-stream-zip stores the central directory metadata (file names, offsets, sizes) in memory -- NOT the file contents. For a typical sources jar (~6,600 entries), this is ~1-3MB of metadata. Study jars are the same. | HIGH |
-| File descriptor limits | macOS default ulimit is 256 soft / unlimited hard. Each open zip = 1 fd. Current worst case: 2 projects x 30 jars = 60 fds. Adding 10 study jars = 70 fds. Well within limits. | HIGH |
-| Jar validation | `JarReader.getHandle()` already validates on open: it calls `await handle.entries()` which throws if the file is not a valid ZIP. This is sufficient validation for study jars -- no separate validation library needed. | HIGH |
-| Dynamic add/remove | `JarReader` supports adding jar paths to a project's set at any time (just set manipulation + lazy handle creation). Handle cleanup on remove uses existing ref-counting logic -- if no other project references the jar path, the handle is closed. | HIGH |
+### JDT LS Initialization Settings
 
-### State Persistence: None (in-memory only)
+| Change | Current | Required | Confidence |
+|--------|---------|----------|------------|
+| `java.symbols.includeSourceMethodDeclarations` | Not set (defaults to `false`) | `true` | HIGH |
 
-| Approach | Recommendation | Why |
-|----------|---------------|-----|
-| JSON file on disk | NO | Violates "no caching of extracted files" constraint spirit. Study jars are session-scoped -- user adds them after loading a project, they go away on unload. This matches how dependency jars work (discovered fresh on each `load_project`). |
-| SQLite / LevelDB | NO | Massive overkill for a list of (name, path, autoInclude) tuples. Adds a native dependency. |
-| In-memory on LoadedProject | YES | Study jars are a property of a loaded project session. Store them directly in the existing `dependencyJars` map as `DependencyEntry` objects with `category: 'study'`. When the project is unloaded, they are cleaned up with everything else. |
+**What this does:** JDT LS's `workspace/symbol` request only returns types (classes, interfaces, enums) by default. This is a deliberate performance tradeoff by the JDT LS team. Setting `includeSourceMethodDeclarations: true` causes `workspace/symbol` to also return method and constructor declarations from indexed source files.
 
-**Rationale:** The MCP server is a session tool -- Claude starts it, loads projects, works, and exits. There is no long-running daemon that needs to survive restarts. Re-adding study jars on a new session is a single tool call per jar. Persistence adds complexity for zero practical benefit.
-
-### Schema Validation: Zod 4 (existing -- no change)
-
-New tool input schemas (`add_study_jar`, `remove_study_jar`, `list_study_jars`) use Zod exactly like the existing 21 tools. No new validation library needed.
-
-### JDT LS Integration: Incremental workspace update (existing infrastructure)
-
-| Concern | Approach | Confidence |
-|---------|----------|------------|
-| Adding study jar to JDT LS workspace | Extract .java files to temp dir (existing `extractSourcesToTemp` pattern), update `.classpath`, notify JDT LS via `workspace/didChangeWatchedFiles`. | MEDIUM |
-| Hot-adding without restart | JDT LS supports `workspace/didChangeWatchedFiles` notifications. Extract study jar sources to the existing temp dir, add a new `<classpathentry>` to `.classpath`, send notification. JDT LS should re-index. This avoids full JDT LS restart. | MEDIUM |
-| Removing study jar from JDT LS | Delete extracted directory, update `.classpath`, notify. Same mechanism. | MEDIUM |
-
-**Flag:** JDT LS hot-reload of classpath changes needs phase-specific testing. If `didChangeWatchedFiles` does not trigger re-indexing, fallback is full JDT LS restart (which takes ~5-10 seconds). This is acceptable for a study jar add/remove operation.
-
-## Integration Points with Existing Code
-
-### 1. Types (src/project/types.ts)
-
-Extend `JarCategory` to include `'study'`:
+**Where to change:** `src/jdtls/client.ts` in the `initializationOptions.settings.java` object (around line 221):
 
 ```typescript
-export type JarCategory = 'minecraft' | 'mod-source' | 'fabric-api' | 'library' | 'study';
+initializationOptions: {
+	settings: {
+		java: {
+			autobuild: { enabled: true },
+			import: {
+				maven: { enabled: false },
+				gradle: { enabled: false },
+			},
+			symbols: {
+				includeSourceMethodDeclarations: true,
+			},
+		},
+	},
+},
 ```
 
-Study jars are stored as `DependencyEntry` objects in the existing `dependencyJars` map. The `category: 'study'` discriminant identifies them. The auto-include flag needs a separate tracking mechanism (since `DependencyEntry` does not have one) -- a `Set<string>` of auto-included study jar IDs on `LoadedProject`, or a parallel `studyJarMeta` map.
+**Critical limitation -- no field equivalent:** JDT LS does NOT have an `includeSourceFieldDeclarations` setting. The `workspace/symbol` request can return methods but NOT fields. This is confirmed by inspecting the JDT LS `Preferences.java` source -- only two symbol-related settings exist:
+- `java.symbols.includeSourceMethodDeclarations` (boolean, default false)
+- `java.symbols.includeGeneratedCode` (boolean, default false -- for Lombok-generated code)
 
-### 2. JarReader (src/project/jar-reader.ts)
+**Implication for field search:** Fields must be discovered through `textDocument/documentSymbol` (which already works via `list_members`) rather than `workspace/symbol`. The `search_symbols` tool should clearly communicate this: when `kind: "field"` is requested, either return an informative error directing the user to `list_members`, or implement a fallback that searches within a specified class scope.
 
-The existing `registerProject` / `closeProject` ref-counting pattern handles shared jar paths across projects. Study jars integrate by:
-- On add: add jar path to the project's registered set via a new `addJarToProject(projectName, jarPath)` method
-- On remove: remove from set, close handle if no other project references it via a new `removeJarFromProject(projectName, jarPath)` method
+**Confidence:** HIGH -- verified against JDT LS `Preferences.java` source on GitHub and corroborated by nvim-jdtls discussion #676, Neovim Discourse reports, and emacs-lsp/lsp-java documentation.
 
-Both are thin wrappers around the existing `projectHandles` Map and `close()` method.
+### LSP Response Shape for Methods in workspace/symbol
 
-### 3. Jar registry / filtering (src/project/jar-registry.ts)
+When `includeSourceMethodDeclarations` is enabled, method entries in the `SymbolInformation[]` response have:
 
-`matchesFilter` already special-cases `'minecraft'` and `'src'` as always-included. Study jars with auto-include should be similarly special-cased:
+| Field | Value for Methods | Existing Handling |
+|-------|-------------------|-------------------|
+| `name` | Method name (e.g., `"tick"`, `"render"`) | Already mapped in `search_symbols` |
+| `kind` | `6` (Method) or `9` (Constructor) | Already in `SYMBOL_KIND_NAME` and `KIND_NAME_TO_NUMBER` |
+| `containerName` | Containing class FQN (e.g., `"net.minecraft.client.MinecraftClient"`) | Already read (line 99 of search-symbols.ts) |
+| `location.uri` | File URI to extracted source | Already handled by `uriMapper` |
+| `location.range` | Position of the method declaration | Already handled |
+
+**No new LSP types or protocol libraries needed.** The existing `SymbolInformation` shape from ts-lsp-client already supports all method-related fields. The `search_symbols` tool's transform logic (lines 94-108) already handles `containerName`, `kind`, and `location` generically.
+
+### Performance Impact
+
+Enabling `includeSourceMethodDeclarations` increases result volume. Minecraft sources have ~6,600 classes with 5-50 methods each, so broad queries could return 30,000-300,000 symbols.
+
+**Why this is manageable:**
+- JDT LS applies the query string server-side as a prefix/substring filter before returning results -- it does not return all symbols and let the client filter
+- The `search_symbols` tool already has `limit` (default 50, max 200), `offset` (pagination), and `kind` filter
+- Specific method name queries (e.g., `"tick"`) will return hundreds, not hundreds of thousands
+
+**Recommended safeguard:** Add a note in the tool description that method searches work best with specific queries, not single-character wildcards.
+
+## New Types Needed (Pure TypeScript -- No Libraries)
+
+### Structured Member Type Representations
+
+The `ClassReference` type already exists in `src/browsing/types.ts`:
 
 ```typescript
-// Study jars with autoInclude bypass filter
-if (autoIncludeSet.has(jarId)) return true;
+export interface ClassReference {
+	name: string;      // simple name
+	fqn: string;       // fully qualified name
+	kind: string;      // "class" | "interface" | "enum" | "record" | "@interface"
+}
 ```
 
-This requires passing the auto-include set into the filter function, or extending `FilterConfig`.
+New interfaces needed for rich method/field representations. These are pure TypeScript -- no library required:
 
-### 4. Source adapter (src/browsing/source-adapter.ts)
+```typescript
+// Parameter with ClassReference type
+export interface MethodParameter {
+	name: string;                    // parameter name
+	type: ClassReference | string;   // ClassReference when resolvable, raw string otherwise
+}
 
-No changes needed. `createSourceAdapter` already handles any `DependencyEntry` with a non-null `sourcesJarPath` via `createJarAdapter`. Study jars have `sourcesJarPath` set to the user-provided path.
+// Structured method representation
+export interface MethodInfo {
+	name: string;
+	fqn: string;                     // "net.minecraft.client.MinecraftClient;tick()"
+	access: string;                  // "public" | "protected" | "private" | "package-private"
+	modifiers: string[];             // ["static", "final", "synchronized", etc.]
+	returnType: ClassReference | string;
+	parameters: MethodParameter[];
+	deprecated: boolean;
+}
 
-### 5. Entry index cache (src/browsing/entry-index-cache.ts)
+// Structured field representation
+export interface FieldInfo {
+	name: string;
+	fqn: string;                     // "net.minecraft.client.MinecraftClient;running:"
+	access: string;
+	modifiers: string[];
+	type: ClassReference | string;
+	deprecated: boolean;
+}
+```
 
-No changes needed. Cache is keyed by jar path. Study jar paths are unique. Index builds automatically on first access.
+**Where the type info comes from:** JDT LS `textDocument/hover` already returns type signatures as markdown. The `get_symbol_info` tool (already working) retrieves this. Parsing hover markdown into structured `ClassReference` objects requires regex on the hover output -- no AST parser needed because JDT LS formats hover text consistently:
 
-### 6. Tool helpers (src/tools/tool-helpers.ts)
+```
+public void tick()
+public static MinecraftClient getInstance()
+private final GameOptions options
+```
 
-`CATEGORY_PRIORITY` needs a new entry: `'study': 4` (lowest default priority -- study jars should not shadow minecraft/dependency classes unless user explicitly selects them via `jars` parameter).
+### Member FQN Scheme
 
-`filterDependenciesByJarPattern` works unchanged because study jar IDs are just strings matched by picomatch.
+The FQN scheme uses `;` as the separator between class FQN and member name:
 
-### 7. JDT LS workspace (src/jdtls/workspace.ts)
+| Symbol Type | FQN Format | Example |
+|-------------|-----------|---------|
+| Class | `package.ClassName` | `net.minecraft.client.MinecraftClient` |
+| Method | `package.ClassName;methodName()` | `net.minecraft.client.MinecraftClient;tick()` |
+| Constructor | `package.ClassName;ClassName()` | `net.minecraft.client.MinecraftClient;MinecraftClient()` |
+| Field | `package.ClassName;fieldName:` | `net.minecraft.client.MinecraftClient;running:` |
 
-Needs new functions for incremental extraction:
-- `addJarToWorkspace(tempDir, jarReader, dep, rootPath)` -- extracts one jar's .java files and returns the dir name
-- `removeJarFromWorkspace(tempDir, dirName)` -- deletes the extracted directory
-- `rewriteClasspath(tempDir, allDirNames)` -- regenerates `.classpath` with current source dirs
+- `;` separates class from member (classes never contain `;`, so unambiguous)
+- `()` suffix marks methods/constructors
+- `:` suffix marks fields
+- This is a **human-readable convention**, not JVM bytecode descriptor format
 
-### 8. get_project_metadata tool
+**Construction from workspace/symbol:** For method results, `containerName` provides the class FQN and `name` provides the method name. FQN = `${containerName};${name}()`.
 
-Should include study jars in the jar inventory, with auto-include status visible.
+**Construction from documentSymbol:** For field results from `list_members`, the class FQN is known from the tool input, and `name` is the field name. FQN = `${classFqn};${name}:`.
+
+## No New Dependencies Required
+
+| Need | Solution | Why No Library |
+|------|----------|----------------|
+| Method symbol search | JDT LS config change | Already built into JDT LS |
+| Field discovery | Existing `list_members` / `documentSymbol` | Already working |
+| Structured types | TypeScript interfaces | Pure type definitions |
+| Member FQN | String concatenation | Simple convention |
+| Zod schemas for new types | Zod 4 (^4.3.6 installed) | Already in place |
+| Hover parsing for type info | Regex on JDT LS hover markdown | Consistent format, no AST needed |
 
 ## What NOT to Add
 
-| Library | Why Not |
-|---------|---------|
-| Any persistence library (better-sqlite3, level, conf) | Session-scoped state. No persistence needed. |
-| Jar metadata extraction (java-parser, @pnpm/java-properties) | Study jars are source jars -- just ZIP files of .java files. Validation is "can node-stream-zip open it and does it contain .java entries." |
-| File watcher (chokidar, fs.watch) | Study jars do not change on disk during a session. No need to watch for modifications. |
-| UUID / nanoid for jar IDs | User provides the name. Existing `jarIdToDirName` handles sanitization for JDT LS directory names. |
-| Path validation library | Node.js `fs.access` + node-stream-zip's open validation is sufficient. |
-| Maven/POM parser for study jars | Study jars are user-provided paths, not Maven coordinates. No resolution needed. |
+| Technology | Why Not |
+|------------|---------|
+| Java parser library (java-parser, tree-sitter-java) | JDT LS already provides semantic analysis. Hover gives type signatures. Parsing Java ASTs ourselves is redundant. |
+| Additional LSP client library | ts-lsp-client + JSONRPCEndpoint handle all needed LSP requests. No protocol gaps. |
+| Method signature parser library | JDT LS hover output is consistently formatted. Simple regex extracts return type, name, and parameters. |
+| Caching layer for symbol results | JDT LS maintains its own index. Client-side caching adds complexity for marginal benefit. |
+| Type resolution library | ClassReference construction from hover text is string manipulation. Full type resolution would require JDT LS APIs we can already call (hover, definition). |
+| `java.symbols.includeGeneratedCode` | Minecraft sources are decompiled, not Lombok-generated. This setting is irrelevant for our use case. |
 
-## Version Verification
+## Stack Summary
 
-| Package | Installed | Latest | Status | Confidence |
-|---------|-----------|--------|--------|------------|
-| node-stream-zip | 1.15.0 | 1.15.0 | Current | HIGH |
-| @modelcontextprotocol/sdk | ^1.29.0 | 1.29.x | Current | HIGH |
-| zod | ^4.3.6 | 4.x | Current | HIGH |
-| picomatch | ^4.0.4 | 4.x | Current | HIGH |
+| Component | Version | Status for v1.2 | Action |
+|-----------|---------|-----------------|--------|
+| TypeScript | 6.0.2 | Unchanged | None |
+| Node.js | 22 LTS | Unchanged | None |
+| @modelcontextprotocol/sdk | ^1.29.0 | Unchanged | None |
+| Zod | ^4.3.6 | Unchanged | None |
+| node-stream-zip | ^1.15.0 | Unchanged | None |
+| ts-lsp-client | ^1.1.1 | Unchanged | None |
+| glob | ^13.0.6 | Unchanged | None |
+| picomatch | ^4.0.4 | Unchanged | None |
+| JDT LS | Latest milestone | **Config change** | Add `symbols.includeSourceMethodDeclarations: true` to init settings |
 
-No version bumps or new dependencies needed for v1.1.
+## Key Technical Details
+
+### How workspace/symbol Query Matching Works
+
+JDT LS uses the query string as a case-insensitive prefix/substring match against symbol names. With methods enabled:
+- Query `"tick"` returns classes like `TickManager` AND methods like `tick()`, `tickEntities()`
+- Query `"MinecraftClient"` returns the class AND its constructors
+- The `kind` filter parameter becomes important for disambiguation
+
+### containerName for Member FQN Construction
+
+When JDT LS returns a method via workspace/symbol, `containerName` is the fully-qualified class name:
+
+```
+containerName: "net.minecraft.client.MinecraftClient"
+name: "tick"
+kind: 6 (Method)
+--> FQN: "net.minecraft.client.MinecraftClient;tick()"
+```
+
+### documentSymbol for Complete Member Listing
+
+`textDocument/documentSymbol` (used by `list_members`) already returns ALL members including fields, methods, constructors, inner classes, and enum constants with `detail` strings containing type information. This is the authoritative source for "what members does this class have" and is the only path to field discovery since workspace/symbol cannot return fields.
 
 ## Sources
 
-- [node-stream-zip - GitHub](https://github.com/antelle/node-stream-zip) -- architecture: reads central directory on open, random access by path, never loads full archive into memory
-- [node-stream-zip - npm](https://www.npmjs.com/package/node-stream-zip) -- v1.15.0, storeEntries stores metadata not file content
-- Codebase analysis: `src/project/jar-reader.ts` -- existing ref-counting handle management already supports dynamic jar sets
-- Codebase analysis: `src/project/types.ts` -- `DependencyEntry` and `JarCategory` are the extension points
-- Codebase analysis: `src/browsing/source-adapter.ts` -- `createJarAdapter` works for any jar path, no study-jar-specific code needed
-- Codebase analysis: `src/jdtls/workspace.ts` -- extraction pattern exists, needs incremental add/remove variants
-- Codebase analysis: `src/project/jar-registry.ts` -- filter/match logic extensible via `JarCategory` and special-case IDs
+- [JDT LS Preferences.java](https://github.com/eclipse-jdtls/eclipse.jdt.ls/blob/main/org.eclipse.jdt.ls.core/src/org/eclipse/jdt/ls/core/internal/preferences/Preferences.java) -- authoritative source for all JDT LS settings (HIGH confidence)
+- [nvim-jdtls Discussion #676](https://github.com/mfussenegger/nvim-jdtls/discussions/676) -- community confirmation of `includeSourceMethodDeclarations` behavior (HIGH confidence)
+- [Neovim Discourse: workspace symbols not giving methods](https://neovim.discourse.group/t/telescope-lsp-dynamic-workspace-symbols-for-nvim-jdtls-is-not-giving-methods/5032) -- additional confirmation (MEDIUM confidence)
+- [JDT LS Issue #1712: partial results for workspace/symbol](https://github.com/eclipse-jdtls/eclipse.jdt.ls/issues/1712) -- performance considerations for large result sets (MEDIUM confidence)
+- [LSP 3.17 Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/) -- SymbolInformation type definition, containerName semantics (HIGH confidence)
+- [emacs-lsp/lsp-java](https://emacs-lsp.github.io/lsp-java/) -- additional JDT LS settings reference (MEDIUM confidence)
+- Codebase analysis: `src/jdtls/client.ts`, `src/tools/search-symbols.ts`, `src/tools/list-members.ts`, `src/browsing/types.ts` -- existing implementation review (HIGH confidence)

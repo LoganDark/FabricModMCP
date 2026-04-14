@@ -1,340 +1,476 @@
 # Architecture Patterns
 
-**Domain:** Study jar management integration into existing MCP server
-**Researched:** 2026-04-13
+**Domain:** Symbol resolution features for MCP server (v1.2)
+**Researched:** 2026-04-14
 
-## Existing Architecture Summary
+## Recommended Architecture
 
-The codebase follows a **domain -> tool layered architecture**:
+This milestone adds method/field first-class citizenship to an existing layered architecture. The changes are surgical: one JDT LS config fix, new domain types, a member FQN scheme, and enriched tool outputs. No new tools are needed -- existing tools gain richer return types.
 
-- **State layer:** `ProjectStore` holds `LoadedProject` instances keyed by name
-- **Domain layer:** `JarReader` (shared jar handles with ref counting), `EntryIndex` (class/package indexes from jar contents), `SourceAdapter` (unified read interface across jar and filesystem sources), `jar-registry` (filter-based dependency selection)
-- **Tool layer:** Thin wiring -- resolves project via `resolveProjectSafely()`, gets filtered deps via `getFilteredDependencies()`, optionally narrows by `jars` glob pattern via `filterDependenciesByJarPattern()`, then delegates to domain modules
-- **JDT LS layer:** Workspace extraction to temp dir, Eclipse project/classpath generation, LSP client lifecycle
+### Integration Overview
 
-Key data flow for jar-aware tools:
 ```
-Tool receives (project?, jars?) params
-  -> resolveProjectSafely(project) -> LoadedProject
-  -> getFilteredDependencies(project.dependencyJars, project.filterConfig) -> filtered Map
-  -> filterDependenciesByJarPattern(filtered, jars) if jars provided -> scoped Map
-  -> iterate scoped deps, create SourceAdapter per dep, read/index
+Existing layer          What changes                      Why
+--------------------    --------------------------------  -------------------------
+jdtls/client.ts         Add initializationOptions setting One-line config fix
+browsing/types.ts       New MemberReference type          Structured method/field representation
+browsing/types.ts       MemberFqn type alias              FQN scheme for members
+jdtls/types.ts          (no changes needed)               NavigationResult already sufficient
+tools/search-symbols.ts Richer transform for method/field results  Methods now appear in results
+tools/list-members.ts   Parse detail string into MemberReference   Structured output
+tools/get-symbol-info.ts Accept member FQN, resolve to position    Inspection parity
+tools/find-definition.ts Accept member FQN (future)       Same pattern
+tool-helpers.ts         Member FQN parser utility          Shared across tools
+descriptions.ts         Updated descriptions + FQN docs   User-facing documentation
 ```
-
-## Recommended Architecture for Study Jars
-
-### Design Decision: Study jars live on LoadedProject
-
-Study jar state belongs on `LoadedProject`, not in a separate store. Rationale:
-
-1. **Study jars are per-project.** A study jar added to project A should not appear in project B. The existing `dependencyJars` map is already per-project -- study jars are the same concept with a different provenance.
-2. **All tool resolution flows through `LoadedProject`.** Adding a separate store would require every tool to query two sources and merge results. Keeping study jars on `LoadedProject` means the existing data flow works with minimal changes.
-3. **Lifecycle ties to project lifecycle.** When a project is unloaded, its study jars should be cleaned up. This happens naturally if they live on `LoadedProject`.
-
-### New Type: StudyJar
-
-```typescript
-// In src/project/types.ts
-
-export interface StudyJar {
-  /** User-provided display name */
-  name: string;
-  /** Absolute path to the source jar on disk */
-  path: string;
-  /** Whether this jar appears in the default jar set (when jars param is omitted) */
-  autoInclude: boolean;
-}
-```
-
-### Modified Type: LoadedProject
-
-```typescript
-export interface LoadedProject {
-  // ... existing fields unchanged ...
-  studyJars: Map<string, StudyJar>;  // keyed by name
-}
-```
-
-The `studyJars` map is initialized as empty in `loader.ts` when a project is loaded. Study jars are added/removed/toggled via new tools at runtime.
-
-### Integration Strategy: Bridge via DependencyEntry Facade
-
-The critical architectural question is: how do study jars participate in the existing tool resolution pipeline? Two approaches:
-
-**Option A (rejected): Merge study jars into `dependencyJars` map.** This would contaminate the dependency model -- `dependencyJars` represents discovered Gradle dependencies with Maven coordinates, provenance chains, and categories. Study jars have none of this. Also breaks `refresh_dependencies` which rebuilds the map from scratch.
-
-**Option B (recommended): Create DependencyEntry facades at query time.** When tools call `getFilteredDependencies()`, a new wrapper function also includes study jars with `autoInclude: true`. When tools use the `jars` param, study jars are matchable by their namespaced ID. This requires one new function that wraps the existing `getFilteredDependencies()`.
 
 ### Component Boundaries
 
-| Component | Current Responsibility | Change for Study Jars |
-|-----------|----------------------|----------------------|
-| `LoadedProject` (type) | Holds project state | Add `studyJars: Map<string, StudyJar>` field |
-| `loader.ts` | Creates LoadedProject from Gradle project | Initialize `studyJars` as empty Map |
-| `JarReader` | Shared jar handles with ref counting | Add `addProjectJar()` and `removeProjectJar()` methods |
-| `jar-registry.ts` | Filter deps by include/exclude config | New `getCombinedDependencies()` function that merges filtered deps + auto-included study jars |
-| `EntryIndex` / `entry-index-cache.ts` | Index class/package structure from jar entries | No change -- study jars use existing cache keyed by jar path |
-| `SourceAdapter` | Unified read across jar/filesystem | No change -- `createJarAdapter()` already works with any jar path |
-| `tool-helpers.ts` | `filterDependenciesByJarPattern`, `resolveClassSource`, etc. | Use `getCombinedDependencies()` instead of raw `getFilteredDependencies()` |
-| `workspace.ts` | Extract sources to temp dir for JDT LS | New functions for incremental extraction/removal of study jars |
-| `uri-mapper.ts` | Map file URIs to jar IDs | Study jar names follow existing convention -- no code change needed |
-| `load-project.ts` (tool) | Registers jar handles, starts JDT LS | No change -- study jars added post-load |
-| `unload-project.ts` (tool) | Closes handles, cleans up JDT LS | Study jar handles cleaned up naturally by existing `closeProject()` |
-| New: `study-jar.ts` (domain) | Add/remove/list/toggle study jars | New domain module |
-| New: `add-study-jar.ts` (tool) | MCP tool for adding study jars | New tool |
-| New: `remove-study-jar.ts` (tool) | MCP tool for removing study jars | New tool |
-| New: `list-study-jars.ts` (tool) | MCP tool for listing study jars | New tool |
-| New: `set-study-jar-auto-include.ts` (tool) | MCP tool for toggling auto-include | New tool |
+| Component | Responsibility | Communicates With |
+|-----------|---------------|-------------------|
+| `jdtls/client.ts` | JDT LS process lifecycle, LSP init settings | JDT LS process (stdio) |
+| `browsing/types.ts` | Domain type definitions (ClassReference, MemberReference, MemberFqn) | All tools, all domain modules |
+| `browsing/member-parser.ts` (NEW) | Parse JDT LS detail strings into structured MemberReference | `tools/list-members.ts`, `tools/search-symbols.ts` |
+| `tools/search-symbols.ts` | Workspace symbol search via `workspace/symbol` | `jdtls/client.ts` endpoint, `browsing/member-parser.ts` |
+| `tools/list-members.ts` | Document symbol listing via `textDocument/documentSymbol` | `jdtls/client.ts` client, `browsing/member-parser.ts` |
+| `tools/get-symbol-info.ts` | Hover info for any symbol (class or member) | `jdtls/client.ts` client, member FQN resolver |
+| `tools/tool-helpers.ts` | Shared utilities including member FQN parsing | All tool files |
 
-## Data Flow Changes
+### Data Flow
 
-### Adding a Study Jar
-
+**Current flow (search_symbols):**
 ```
-add_study_jar(project, name, path, autoInclude?)
-  -> Validate jar path exists and is a valid ZIP/JAR
-  -> Validate name is unique within project's study jars
-  -> Create StudyJar { name, path, autoInclude: autoInclude ?? false }
-  -> project.studyJars.set(name, studyJar)
-  -> jarReader.addProjectJar(projectName, path)
-  -> If JDT LS active: extract study jar to workspace, update .classpath, rebuild UriMapper
+query -> workspace/symbol -> SymbolInformation[] -> transform(name, kind, location) -> response
+```
+Currently only returns types because `includeSourceMethodDeclarations` is not enabled.
+
+**New flow (search_symbols with methods):**
+```
+query -> workspace/symbol -> SymbolInformation[] (now includes methods)
+  -> transform: for each result:
+     if method/constructor: parse containerName to get owning class, build member FQN
+     if field: (not returned by workspace/symbol -- JDT LS limitation)
+     if type: existing behavior
+  -> response with memberFqn field on method/field results
 ```
 
-### Removing a Study Jar
-
+**Current flow (list_members):**
 ```
-remove_study_jar(project, name)
-  -> Get StudyJar from project.studyJars
-  -> project.studyJars.delete(name)
-  -> jarReader.removeProjectJar(projectName, path)
-  -> If JDT LS active: remove extracted dir, update .classpath, rebuild UriMapper
+class FQN -> resolve source -> didOpen -> textDocument/documentSymbol -> DocumentSymbol[]
+  -> transformSymbol(name, kind, detail, range, children) -> response
+```
+`detail` is a raw string like `"void"` for fields or `"(BlockPos) : BlockState"` for methods.
+
+**New flow (list_members with MemberReference):**
+```
+class FQN -> resolve source -> didOpen -> textDocument/documentSymbol -> DocumentSymbol[]
+  -> transformSymbol + parseMemberDetail:
+     For methods: parse detail "(BlockPos, int) : BlockState" into {
+       parameters: [{ name: "BlockPos", fqn: "net.minecraft.util.math.BlockPos", kind: "class" }],
+       returnType: { name: "BlockState", fqn: "net.minecraft.block.BlockState", kind: "class" }
+     }
+     For fields: parse detail "BlockState" into {
+       type: { name: "BlockState", fqn: "net.minecraft.block.BlockState", kind: "class" }
+     }
+  -> response with structured MemberReference
 ```
 
-### Modified Tool Resolution (e.g., list_packages, search_classes)
-
+**Member FQN resolution flow (new):**
 ```
-Tool receives (project?, jars?) params
-  -> resolveProjectSafely(project) -> LoadedProject
-  -> getCombinedDependencies(project) -> combined Map<string, DependencyEntry>
-       (internally: getFilteredDependencies + auto-included study jars merged)
-  -> filterDependenciesByJarPattern(combined, jars) if jars provided -> scoped
-  -> [rest unchanged]
+"net.minecraft.client.MinecraftClient;tick()" -> parse:
+  class = "net.minecraft.client.MinecraftClient"
+  member = "tick"
+  kind = method (has parens)
+
+-> resolve class source (existing resolveClassSource)
+-> find member position within source (cascading regex with generated patterns)
+-> feed to existing LSP tools (hover, definition, references)
 ```
 
-The merge step creates ephemeral `DependencyEntry` objects for study jars:
+## New Types
+
+### MemberReference (in `browsing/types.ts`)
 
 ```typescript
-function studyJarToDependencyEntry(studyJar: StudyJar): DependencyEntry {
-  return {
-    id: `study:${studyJar.name}`,
-    group: '',
-    artifact: studyJar.name,
-    version: '',
-    category: 'study',
-    sourcesJarPath: studyJar.path,
-    available: true,
-    provenanceChains: [],
-  };
+/**
+ * Structured representation of a method or field with resolved type references.
+ * Extends the existing ClassReference pattern used in type_hierarchy.
+ */
+
+export interface ParameterInfo {
+	name: string;           // parameter name (from source if available, positional otherwise)
+	type: ClassReference;   // resolved type reference
+}
+
+export interface MethodReference {
+	kind: 'method' | 'constructor';
+	name: string;                    // method name
+	fqn: string;                     // "net.minecraft.client.MinecraftClient;tick()"
+	parameters: ParameterInfo[];     // ordered parameter list with types
+	returnType: ClassReference | null; // null for constructors and void
+	deprecated: boolean;
+	modifiers: string[];             // ["public", "final", etc.]
+}
+
+export interface FieldReference {
+	kind: 'field';
+	name: string;                    // field name
+	fqn: string;                     // "net.minecraft.client.MinecraftClient;world:"
+	type: ClassReference;            // resolved type reference
+	deprecated: boolean;
+	modifiers: string[];             // ["private", "final", etc.]
+}
+
+export type MemberReference = MethodReference | FieldReference;
+```
+
+### Member FQN Scheme
+
+```typescript
+/**
+ * Member FQN format:
+ *   Methods:      "net.minecraft.foo.Bar;method()"
+ *   Constructors: "net.minecraft.foo.Bar;<init>()"
+ *   Fields:       "net.minecraft.foo.Bar;field:"
+ *
+ * The semicolon separates class FQN from member name.
+ * Trailing () indicates method/constructor. Trailing : indicates field.
+ * No parameter types in the FQN -- disambiguation handled by cascading regex
+ * when overloads exist (this matches how users actually think about members).
+ */
+
+export interface ParsedMemberFqn {
+	classFqn: string;        // "net.minecraft.foo.Bar"
+	memberName: string;      // "method" or "field"
+	memberKind: 'method' | 'field';  // determined by suffix
+}
+
+export function parseMemberFqn(fqn: string): ParsedMemberFqn | null {
+	const semiIdx = fqn.indexOf(';');
+	if (semiIdx === -1) return null;  // plain class FQN, not a member
+
+	const classFqn = fqn.substring(0, semiIdx);
+	const memberPart = fqn.substring(semiIdx + 1);
+
+	if (memberPart.endsWith('()')) {
+		return { classFqn, memberName: memberPart.slice(0, -2), memberKind: 'method' };
+	}
+	if (memberPart.endsWith(':')) {
+		return { classFqn, memberName: memberPart.slice(0, -1), memberKind: 'field' };
+	}
+	return null;
 }
 ```
 
-### JarCategory Extension
+### Why This FQN Scheme
 
-Add `'study'` to `JarCategory`:
+The semicolon separator was chosen deliberately:
+- Dots are used within class FQNs (`net.minecraft.foo.Bar`)
+- Hash (`#`) is common in Javadoc but conflicts with shell escaping
+- Semicolon is used in JVM internal signatures and is unambiguous here
+- No parameter types in the FQN because: (a) overloaded methods are rare enough that cascading regex handles disambiguation, (b) encoding parameter types in FQNs adds complexity for marginal benefit, (c) the FQN is for human use and tool input, not a unique identifier
+
+## Modifications to Existing Components
+
+### 1. `jdtls/client.ts` -- Enable Method Declarations in workspace/symbol
+
+**Change:** Add `includeSourceMethodDeclarations: true` to initialization settings.
+
+**Location:** `startJdtLs()` function, line ~221, `initializationOptions.settings.java` object.
 
 ```typescript
-export type JarCategory = 'minecraft' | 'mod-source' | 'fabric-api' | 'library' | 'study';
+initializationOptions: {
+	settings: {
+		java: {
+			autobuild: { enabled: true },
+			symbols: {
+				includeSourceMethodDeclarations: true,  // NEW
+			},
+			import: {
+				maven: { enabled: false },
+				gradle: { enabled: false },
+			},
+		},
+	},
+},
 ```
 
-Study jars sort last in priority (they are supplementary):
+**Impact:** After this change, `workspace/symbol` returns `SymbolInformation` items with `kind: 6` (method), `kind: 9` (constructor) in addition to type kinds. The `containerName` field on these items contains the owning class FQN.
 
+**Risk:** Performance. The JDT LS team disabled this by default for performance reasons. With ~6,600 source files, queries like `"*"` or short strings may return very large result sets. The existing `limit` parameter on `search_symbols` (default 50, max 200) provides pagination, but JDT LS still computes the full result set server-side.
+
+**Mitigation:** The existing pagination in `search_symbols` already handles this. Monitor response times. If problematic, add a minimum query length validation (e.g., require 2+ characters).
+
+**Note on fields:** `includeSourceMethodDeclarations` does NOT include fields in `workspace/symbol` results. Fields are only available via `textDocument/documentSymbol` (which `list_members` already uses). This is a JDT LS limitation, not a bug. The `search_symbols` tool can filter by `kind: 'field'` but will return no results for fields -- this should be documented clearly in the tool description.
+
+### 2. `tools/search-symbols.ts` -- Enrich Method Results
+
+**What changes:**
+- Transform method/constructor results to include `containerName` as the owning class
+- Add `memberFqn` field to method results using the FQN scheme
+- Existing kind filtering already supports `'method'`, `'constructor'`, `'field'` -- no schema change needed
+
+**New output shape per result:**
 ```typescript
-export const CATEGORY_PRIORITY: Record<JarCategory, number> = {
-  'minecraft': 0,
-  'mod-source': 1,
-  'fabric-api': 2,
-  'library': 3,
-  'study': 4,
-};
+{
+	name: "tick",                           // existing
+	kind: "method",                         // existing (now actually appears)
+	containerName: "net.minecraft.client.MinecraftClient",  // existing field, now meaningful
+	deprecated: false,                      // existing
+	memberFqn: "net.minecraft.client.MinecraftClient;tick()",  // NEW
+	location: { ... },                      // existing
+}
 ```
 
-### Namespaced Jar IDs
+### 3. `tools/list-members.ts` -- Structured Member Output
 
-Study jar IDs use a `study:` prefix: `study:my-library`. This avoids collisions with Maven-coordinate dependency IDs like `group:artifact`. Users target them with `jars: ["study:*"]` or `jars: ["study:my-library"]`.
+**What changes:**
+- Import and use new `browsing/member-parser.ts` to parse `detail` strings
+- Add `memberFqn` to each member in output
+- Add structured type info (parameters, returnType for methods; type for fields)
+- The existing `TransformedSymbol` type gains optional structured fields
 
-The `study:` prefix naturally maps to filesystem directory `study__my-library` via the existing `jarIdToDirName()` function (`:` -> `__`).
-
-## JarReader Ref Counting Changes
-
-Two new methods extend the existing pattern:
+**Approach:** Extend `TransformedSymbol` rather than replace it. Add optional `memberFqn`, `parameters`, `returnType`, `fieldType` fields. This preserves backward compatibility -- the `detail` string remains as-is for tools/humans that want the raw form.
 
 ```typescript
-addProjectJar(projectName: string, jarPath: string): void {
-  const paths = this.projectHandles.get(projectName);
-  if (!paths) throw new DomainError(...);
-  paths.add(jarPath);
+// Extended TransformedSymbol in browsing/types.ts
+export interface TransformedSymbol {
+	name: string;
+	kind: string;
+	detail: string | null;
+	deprecated: boolean;
+	range: { ... };
+	selectionRange: { ... };
+	children: TransformedSymbol[];
+	// NEW optional fields for v1.2:
+	memberFqn?: string;             // "OwningClass;name()" or "OwningClass;name:"
+	parameters?: ParameterInfo[];   // for methods/constructors
+	returnType?: ClassReference | null;  // for methods
+	fieldType?: ClassReference;     // for fields
+	modifiers?: string[];           // ["public", "static", "final"]
+}
+```
+
+### 4. `tools/get-symbol-info.ts` -- Accept Member FQN
+
+**What changes:**
+- Accept either a class FQN + patterns (existing) or a member FQN + optional patterns
+- When member FQN is provided without patterns, auto-generate cascading regex patterns to locate the member
+
+**Auto-generated patterns for member FQN:**
+```typescript
+// For "net.minecraft.client.MinecraftClient;tick()"
+// Auto-generate: ["\\btick\\s*\\(", "tick"]
+// The first pattern finds the method declaration, the second narrows to the name
+
+// For "net.minecraft.client.MinecraftClient;world:"
+// Auto-generate: ["\\bworld\\s*[=;]", "world"]  or  ["\\bworld\\b", "world"]
+```
+
+This is a convenience layer. Users can still provide explicit `patterns` to disambiguate overloads or target specific usages.
+
+### 5. New Module: `browsing/member-parser.ts`
+
+**Purpose:** Parse JDT LS `detail` strings from `DocumentSymbol` into structured types.
+
+**Input formats from JDT LS:**
+- Methods: `"(BlockPos, int) : BlockState"` or `"(String, boolean) : void"` or `"() : void"`
+- Constructors: `"(BlockPos)"` (no return type)
+- Fields: `"BlockState"` or `"int"` or `"Map<BlockPos, BlockState>"`
+- Enum constants: (no detail or empty)
+
+**Key challenge:** The `detail` string uses simple names, not FQNs. Resolving `"BlockPos"` to `"net.minecraft.util.math.BlockPos"` requires:
+1. Parsing import statements from the source file (already read by `list_members`)
+2. Mapping simple names to FQNs via the imports
+3. Handling primitives (`int`, `boolean`, `void`) -- no ClassReference, just the name
+4. Handling generics (`Map<BlockPos, BlockState>`) -- strip type params for the ClassReference, preserve in display
+
+**Implementation plan:**
+```typescript
+export interface ParsedDetail {
+	parameters?: Array<{ typeName: string; resolved?: ClassReference }>;
+	returnType?: { typeName: string; resolved?: ClassReference } | null;
+	fieldType?: { typeName: string; resolved?: ClassReference };
 }
 
-async removeProjectJar(projectName: string, jarPath: string): Promise<void> {
-  const paths = this.projectHandles.get(projectName);
-  if (!paths) return;
-  paths.delete(jarPath);
+/**
+ * Parse a JDT LS detail string into structured type info.
+ *
+ * @param detail - The raw detail string from DocumentSymbol
+ * @param kind - The symbol kind (method, field, constructor, etc.)
+ * @param imports - Map of simple name -> FQN from source file imports
+ */
+export function parseDetail(
+	detail: string | null,
+	kind: string,
+	imports: Map<string, string>,
+): ParsedDetail;
 
-  // Close handle if no other project references this jar
-  let shared = false;
-  for (const [, otherPaths] of this.projectHandles) {
-    if (otherPaths.has(jarPath)) { shared = true; break; }
-  }
-  if (!shared) {
-    await this.close(jarPath);
-  }
+/**
+ * Extract import map from Java source text.
+ * Maps simple class names to their FQNs.
+ */
+export function extractImportMap(sourceText: string): Map<string, string>;
+```
+
+### 6. `tools/tool-helpers.ts` -- Member FQN Utilities
+
+**Add:**
+- `parseMemberFqn()` function (as defined in types section above)
+- `generateMemberPatterns(memberName: string, memberKind: 'method' | 'field'): string[]` -- auto-generate cascading regex patterns from a member name
+
+## New Module vs Modified Module Summary
+
+| Path | Status | Description |
+|------|--------|-------------|
+| `browsing/types.ts` | MODIFIED | Add MemberReference, MethodReference, FieldReference, ParameterInfo, ParsedMemberFqn |
+| `browsing/member-parser.ts` | NEW | Parse JDT LS detail strings + extract import maps |
+| `jdtls/client.ts` | MODIFIED | One line: add `symbols.includeSourceMethodDeclarations: true` |
+| `tools/search-symbols.ts` | MODIFIED | Add memberFqn to method/constructor results |
+| `tools/list-members.ts` | MODIFIED | Parse details into structured types, add memberFqn |
+| `tools/get-symbol-info.ts` | MODIFIED | Accept member FQN, auto-generate patterns |
+| `tools/tool-helpers.ts` | MODIFIED | Add parseMemberFqn(), generateMemberPatterns() |
+| `tools/descriptions.ts` | MODIFIED | Update descriptions, document FQN scheme |
+
+## Patterns to Follow
+
+### Pattern 1: Extend Existing Types, Don't Replace
+
+**What:** Add optional fields to `TransformedSymbol` and `ClassReference` rather than creating parallel type hierarchies.
+**When:** Adding structured data to existing tool outputs.
+**Why:** Preserves backward compatibility. Consumers that don't know about new fields keep working. Avoids type explosion.
+
+### Pattern 2: Domain Module for Parsing, Tool Module for Wiring
+
+**What:** Put detail string parsing in `browsing/member-parser.ts`, not in the tool file.
+**When:** Adding any non-trivial logic that transforms data.
+**Why:** Follows the established domain-tool separation. `member-parser.ts` is testable in isolation with unit tests against known JDT LS output strings. The tool file stays thin.
+
+### Pattern 3: Graceful Degradation for Type Resolution
+
+**What:** When a type name can't be resolved to a FQN (missing import, primitive, generic parameter), still return what you have.
+**When:** Parsing detail strings into ClassReferences.
+**Why:** Partial information is better than no information. A ClassReference with `fqn: "BlockPos"` (unresolved) and `name: "BlockPos"` is still useful. The `kind` can be `"unresolved"` to signal this.
+
+```typescript
+// Graceful degradation example
+function resolveTypeName(simpleName: string, imports: Map<string, string>): ClassReference {
+	// Primitives
+	if (['int', 'long', 'float', 'double', 'boolean', 'byte', 'short', 'char', 'void'].includes(simpleName)) {
+		return { name: simpleName, fqn: simpleName, kind: 'primitive' };
+	}
+	// Check imports
+	const fqn = imports.get(simpleName);
+	if (fqn) {
+		return { name: simpleName, fqn, kind: 'class' };
+	}
+	// java.lang types
+	const javaLangTypes = ['String', 'Object', 'Integer', 'Long', 'Float', 'Double',
+		'Boolean', 'Byte', 'Short', 'Character', 'Void', 'Class', 'Enum', 'Record',
+		'Throwable', 'Exception', 'RuntimeException', 'Error', 'Override', 'Deprecated',
+		'SuppressWarnings', 'Iterable', 'Comparable', 'Cloneable', 'AutoCloseable',
+		'Thread', 'Runnable', 'Math', 'System', 'StringBuilder', 'Number'];
+	if (javaLangTypes.includes(simpleName)) {
+		return { name: simpleName, fqn: `java.lang.${simpleName}`, kind: 'class' };
+	}
+	// Same-package types (no import needed in Java)
+	// Cannot resolve without knowing the package -- mark unresolved
+	return { name: simpleName, fqn: simpleName, kind: 'unresolved' };
 }
 ```
 
-The existing `closeProject()` already iterates all paths in a project's handle set, so study jar paths added via `addProjectJar()` get cleaned up on project unload automatically.
+### Pattern 4: FQN as Primary Identifier, Patterns as Disambiguator
 
-## JDT LS Workspace Impact
-
-This is the most complex integration point.
-
-### Current flow (load time only)
-
-1. `extractSourcesToTemp()` extracts ALL available dependency jars to a temp directory
-2. Generates `.project` and `.classpath` listing all extracted dirs as source entries
-3. Starts JDT LS with this workspace
-4. JDT LS indexes everything during startup
-
-### Study jar flow (post-load mutation)
-
-**Approach: Incremental extraction + classpath rewrite**
-
-1. Extract study jar to new subdirectory in existing `tempDir` (e.g., `study__mylib/`)
-2. Rewrite `.classpath` to include the new source entry
-3. JDT LS detects `.classpath` change and re-configures the project
-4. Rebuild `UriMapper` so LSP result URIs map back to the study jar ID
-
-JDT LS watches `.classpath` for changes. After rewriting it, JDT LS should pick up the new source root. This needs validation during implementation -- if passive watching does not work, a `workspace/didChangeWatchedFiles` notification for the `.classpath` file URI should trigger it.
-
-### New workspace.ts functions
-
-```typescript
-export async function extractStudyJarToWorkspace(
-  studyJar: StudyJar,
-  tempDir: string,
-  jarReader: JarReader,
-): Promise<string>  // returns dirName
-
-export async function removeStudyJarFromWorkspace(
-  studyJarName: string,
-  tempDir: string,
-): Promise<void>
-
-export async function rewriteClasspath(
-  tempDir: string,
-  allDirNames: string[],
-): Promise<void>
-```
-
-### UriMapper rebuild
-
-Current `UriMapper` is created once at load time. When study jars change, rebuild it:
-
-```typescript
-// After adding/removing study jar, update JdtLsSession:
-session.jarIdToDirName.set(`study:${name}`, dirName);  // or .delete()
-// Then rebuild:
-const newMapper = createUriMapper(session.tempDir, session.jarIdToDirName);
-```
-
-The `UriMapper` is cheap to construct (two Maps + one `realpathSync`). Rebuilding is cleaner than adding mutation methods.
-
-### Non-blocking extraction
-
-Study jar extraction and JDT LS re-indexing should not block the `add_study_jar` response. The jar is immediately usable for browsing, search, and reading (those go through `JarReader` directly). Only semantic navigation (find-definition, find-references) needs the JDT LS index. Return success immediately; JDT LS indexes in the background.
-
-However, implementing truly async extraction adds complexity (tracking in-progress state, error handling). For v1.1, **synchronous extraction with async JDT LS indexing** is the pragmatic choice: extract files synchronously (fast -- just file I/O), rewrite .classpath, return. JDT LS re-indexes on its own timeline.
+**What:** Member FQN (`Class;method()`) is the primary way to reference a member. Cascading regex patterns are the escape hatch for overloaded methods or unusual cases.
+**When:** Any tool that accepts a member target.
+**Why:** FQNs are deterministic and composable (output of one tool feeds input of another). Patterns are powerful but require knowledge of the source. Using FQN-first with patterns-as-fallback gives the best UX.
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Separate Study Jar Store
+### Anti-Pattern 1: Separate "Member Info" Tool
 
-**What:** Creating a `StudyJarStore` parallel to `ProjectStore`.
-**Why bad:** Every tool would need to query two stores and merge. The `jars` parameter resolution would need two code paths. Testing surface doubles.
-**Instead:** Keep study jar state on `LoadedProject`.
+**What:** Creating a new `get_member_info` tool alongside `get_symbol_info`.
+**Why bad:** Tool proliferation. Claude already has 25 tools. The existing `get_symbol_info` can accept a member FQN via the `class` parameter (parsing semicolons) and use the same hover mechanism. A member FQN naturally decomposes into a class FQN + cascading regex patterns.
+**Instead:** Extend `get_symbol_info` to understand member FQNs. Document the FQN scheme in the tool description.
 
-### Anti-Pattern 2: Mutating dependencyJars Map
+### Anti-Pattern 2: Full Signature in FQN
 
-**What:** Inserting study jar entries directly into `LoadedProject.dependencyJars`.
-**Why bad:** Breaks `refresh_dependencies` (rebuilds the map from scratch). Confuses `get_project_metadata` provenance. Makes it impossible to distinguish study jars from real dependencies.
-**Instead:** Use the DependencyEntry facade pattern at query time.
+**What:** Encoding parameter types in the FQN: `"Bar;method(BlockPos,int)"`
+**Why bad:** Requires knowing exact parameter types before you can reference a method. Users discovering methods via `list_members` or `search_symbols` would need to copy exact signatures. Overloads are rare enough in Minecraft code that cascading regex handles disambiguation.
+**Instead:** Simple `Class;method()` scheme. If overloads exist, user adds patterns to disambiguate.
 
-### Anti-Pattern 3: Restarting JDT LS on Every Add/Remove
+### Anti-Pattern 3: Resolving All Types Eagerly via LSP
 
-**What:** Kill and restart JDT LS when study jars change.
-**Why bad:** 30-120 seconds downtime per operation. Unacceptable UX.
-**Instead:** Incremental extraction + classpath rewrite.
+**What:** For every member in `list_members`, making additional LSP hover calls to resolve each parameter and return type to a full ClassReference with validated FQN.
+**Why bad:** A class with 50 methods and 3 parameters each = 150+ LSP calls. Massive latency.
+**Instead:** Parse detail strings synchronously (they're already in memory). Resolve types from the import map (already read for the source). Accept `"unresolved"` gracefully. No additional LSP calls.
 
-## Suggested Build Order
+### Anti-Pattern 4: Changing ClassReference to Support Members
 
-Each step is independently testable. Dependencies flow downward.
+**What:** Adding method/field fields to `ClassReference` to make it a "universal reference".
+**Why bad:** `ClassReference` is used extensively in `type_hierarchy` and represents a type, not a member. Conflating types and members creates confused semantics.
+**Instead:** `MemberReference` is a separate union type (`MethodReference | FieldReference`). Both use `ClassReference` for their types but they are distinct concepts.
 
-### Step 1: Types and Domain Logic (no tool changes)
+## Build Order (Suggested Phase Structure)
 
-1. Add `StudyJar` interface and `'study'` to `JarCategory` in `src/project/types.ts`
-2. Add `studyJars` field to `LoadedProject` interface
-3. Update `CATEGORY_PRIORITY` in `tool-helpers.ts`
-4. Initialize `studyJars: new Map()` in `loader.ts`
-5. Add `addProjectJar()` and `removeProjectJar()` to `JarReader`
-6. Create `src/project/study-jar.ts` with domain logic (add/remove/list/validate/facade)
-7. Create `getCombinedDependencies()` helper
+### Phase 1: Enable Method Declarations + Update search_symbols
 
-**Tests:** Unit test StudyJar validation, JarReader add/remove, getCombinedDependencies merging.
+**Dependencies:** None (standalone config change + transform update)
+**Changes:**
+1. `jdtls/client.ts` -- add `symbols.includeSourceMethodDeclarations: true`
+2. `tools/search-symbols.ts` -- add `memberFqn` to method/constructor results
+3. `tools/descriptions.ts` -- update search_symbols description to note method support and field limitation
+4. Tests: verify methods appear in workspace/symbol results, verify FQN format
 
-### Step 2: Existing Tool Integration (existing tools see study jars)
+**Why first:** This is the simplest change with the highest visibility. One line of config enables methods in search results. The transform enrichment is straightforward (`containerName` is already in `SymbolInformation`). This unblocks validation that methods actually appear in results before investing in the parser.
 
-1. Replace `getFilteredDependencies()` calls with `getCombinedDependencies()` in:
-   - `tool-helpers.ts` (`resolveClassSource`)
-   - `list-packages.ts`, `list-classes.ts`, `search-classes.ts`, `search.ts` (direct callers)
-   - `get-project-metadata.ts` (display study jars in inventory)
+### Phase 2: Member Parser + Import Map Extraction
 
-**Tests:** Integration tests -- manually set up a LoadedProject with study jars, verify tools see them.
+**Dependencies:** None (pure domain module)
+**Changes:**
+1. NEW `browsing/member-parser.ts` -- detail string parser + import map extractor
+2. `browsing/types.ts` -- add ParameterInfo, MethodReference, FieldReference, MemberReference types
+3. Tests: unit tests against known JDT LS detail strings, import map extraction from real source files
 
-### Step 3: Study Jar Management Tools
+**Why second:** This is the foundation for structured member output. It's a pure domain module with no I/O, making it easy to test exhaustively before wiring into tools.
 
-1. `add_study_jar` tool
-2. `remove_study_jar` tool
-3. `list_study_jars` tool
-4. `set_study_jar_auto_include` tool
+### Phase 3: Enrich list_members Output
 
-**Tests:** Tool-level tests for each.
+**Dependencies:** Phase 2 (member-parser)
+**Changes:**
+1. `browsing/types.ts` -- extend TransformedSymbol with optional structured fields
+2. `tools/list-members.ts` -- use member-parser to add structured types to TransformedSymbol
+3. Tests: integration tests verifying structured output from list_members
 
-### Step 4: JDT LS Workspace Sync
+**Why third:** list_members already returns DocumentSymbol data including the `detail` string. This phase enriches that output with the parsed structured types. Natural progression from Phase 2.
 
-1. Add incremental extraction functions to `workspace.ts`
-2. Wire into add/remove study jar tools
-3. Rebuild UriMapper on add/remove
-4. Notify JDT LS of classpath changes
+### Phase 4: Member FQN Scheme + Tool Integration
 
-**Tests:** Integration test -- add study jar, verify find-definition resolves to study jar source.
+**Dependencies:** Phase 2 (types), Phase 3 (enriched list_members for FQN output testing)
+**Changes:**
+1. `tools/tool-helpers.ts` -- add parseMemberFqn(), generateMemberPatterns()
+2. `tools/get-symbol-info.ts` -- accept member FQN in class parameter, auto-generate patterns
+3. `tools/descriptions.ts` -- document FQN scheme in server instructions and tool descriptions
+4. Tests: member FQN parsing, pattern generation, end-to-end get_symbol_info with member FQN
 
-### Step 5: Descriptions and Server Instructions
-
-1. Update `SERVER_INSTRUCTIONS` to document study jars
-2. Add `TOOL_DESCRIPTIONS` for new tools
-3. Register tools in `src/tools/index.ts`
+**Why last:** This depends on the FQN scheme being established (Phase 2 types) and validated (Phase 3 list_members outputs FQNs that feed back into get_symbol_info). The auto-pattern generation needs testing against real source to ensure the generated regex actually finds the right member.
 
 ## Scalability Considerations
 
-| Concern | 1-2 study jars | 10 study jars | 50 study jars |
-|---------|----------------|---------------|---------------|
-| Memory (jar handles) | Negligible | ~500MB uncompressed | Consider limiting |
-| EntryIndex build time | <100ms per jar | ~1s total | May need lazy indexing |
-| JDT LS indexing | 5-10s incremental | 30-60s incremental | May hit JDT LS limits |
-| Tool response time | No impact | Minimal (parallel reads) | Use `jars` param to scope |
+| Concern | Current (v1.1) | After v1.2 |
+|---------|----------------|------------|
+| workspace/symbol response size | Types only (~2,000 results for broad queries) | Methods + types (~10,000+ results for broad queries) |
+| list_members output size | Raw detail strings | Structured types add ~50% more data per member |
+| Type resolution cost | N/A | O(n) import map build per class, O(1) per type lookup |
+| Memory | No additional state | Import maps are transient (built per request, not cached) |
 
-Practical limit: 10-15 study jars is reasonable. No need for an artificial cap in v1.1, but document the tradeoff.
+The main scalability concern is `workspace/symbol` returning much larger result sets with methods enabled. The existing pagination (default limit 50, max 200) handles this at the API level. JDT LS still computes the full result set internally, but this is a JDT LS-side concern and not something we can optimize from our side.
 
 ## Sources
 
-- Existing codebase analysis (all files in `src/project/`, `src/browsing/`, `src/tools/`, `src/jdtls/`, `src/state/`)
-- LSP Specification 3.17 (workspace/didChangeWatchedFiles): https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#workspace_didChangeWatchedFiles
+- [nvim-jdtls Discussion #676 on includeSourceMethodDeclarations](https://github.com/mfussenegger/nvim-jdtls/discussions/676) -- confirms setting path and method-only scope (HIGH confidence)
+- [LSP-jdtls Sublime Settings](https://github.com/sublimelsp/LSP-jdtls/blob/main/LSP-jdtls.sublime-settings) -- confirms `java.symbols.includeSourceMethodDeclarations` path (HIGH confidence)
+- [JDT LS Issue #1712 on partial results](https://github.com/eclipse-jdtls/eclipse.jdt.ls/issues/1712) -- performance considerations for large symbol sets (MEDIUM confidence)
+- [DocumentSymbolHandler source](https://github.com/eclipse-jdtls/eclipse.jdt.ls/blob/master/org.eclipse.jdt.ls.core/src/org/eclipse/jdt/ls/core/internal/handlers/DocumentSymbolHandler.java) -- detail string format reference (HIGH confidence)
+- [Eclipse JDT LS GitHub](https://github.com/eclipse-jdtls/eclipse.jdt.ls) -- reference implementation (HIGH confidence)
+- Existing codebase analysis: `src/jdtls/client.ts`, `src/tools/search-symbols.ts`, `src/tools/list-members.ts`, `src/tools/get-symbol-info.ts`, `src/browsing/types.ts`, `src/tools/tool-helpers.ts`
