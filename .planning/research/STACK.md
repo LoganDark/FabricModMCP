@@ -1,219 +1,209 @@
-# Technology Stack: v1.2 Symbol Resolution
+# Technology Stack: v1.3 Context Management
 
-**Project:** MinecraftDevMCP v1.2
+**Project:** MinecraftDevMCP v1.3
 **Researched:** 2026-04-14
-**Scope:** Stack additions/changes for method/field symbol search and structured member type representations
+**Scope:** Stack additions/changes for line-range reading, response truncation, pagination controls, output size estimation
 
 ## Executive Summary
 
-This milestone requires **zero new dependencies**. The entire feature set is achievable through:
-1. A single JDT LS initialization setting change (`includeSourceMethodDeclarations`)
-2. New TypeScript types/interfaces for structured member representations
-3. A member FQN scheme implemented as string conventions in existing code
+This milestone requires **zero new dependencies and zero stack changes**. Every v1.3 feature is achievable with existing code patterns already proven in the codebase:
 
-The existing stack (TypeScript 6.0.2, MCP SDK ^1.29.0, ts-lsp-client ^1.1.1, Zod ^4.3.6, node-stream-zip ^1.15.0) is fully sufficient.
+1. **Line-range reading** -- string splitting + slicing, same pattern as `extractContext()` in `locate-in-source.ts`
+2. **Context lines on read_member** -- identical pattern, already proven
+3. **Pagination/limits on tools that lack them** -- same `offset`/`limit` pattern used by `search_classes` and `search_symbols`
+4. **Verbosity reduction** -- removing or condensing fields in existing structured responses
+5. **Output size estimation** -- `Buffer.byteLength()` or string `.length`, built into Node.js
+
+The existing stack (TypeScript 6.0.2, MCP SDK ^1.29.0, Zod ^4.3.6, node-stream-zip ^1.15.0) is fully sufficient. No `package.json` changes needed.
 
 ## Required Changes to Existing Stack
 
-### JDT LS Initialization Settings
+None. The entire v1.3 feature set is internal refactoring of tool parameters and response shaping.
 
-| Change | Current | Required | Confidence |
-|--------|---------|----------|------------|
-| `java.symbols.includeSourceMethodDeclarations` | Not set (defaults to `false`) | `true` | HIGH |
+## Feature-by-Feature Stack Analysis
 
-**What this does:** JDT LS's `workspace/symbol` request only returns types (classes, interfaces, enums) by default. This is a deliberate performance tradeoff by the JDT LS team. Setting `includeSourceMethodDeclarations: true` causes `workspace/symbol` to also return method and constructor declarations from indexed source files.
+### 1. Line-Range Reading on read_source (offset + limit)
 
-**Where to change:** `src/jdtls/client.ts` in the `initializationOptions.settings.java` object (around line 221):
+**What's needed:** Add `offset` (line number to start from, 0-based or 1-based) and `limit` (max lines to return) parameters to `read_source` when a single `jar` is specified.
 
-```typescript
-initializationOptions: {
-	settings: {
-		java: {
-			autobuild: { enabled: true },
-			import: {
-				maven: { enabled: false },
-				gradle: { enabled: false },
-			},
-			symbols: {
-				includeSourceMethodDeclarations: true,
-			},
-		},
-	},
-},
-```
-
-**Critical limitation -- no field equivalent:** JDT LS does NOT have an `includeSourceFieldDeclarations` setting. The `workspace/symbol` request can return methods but NOT fields. This is confirmed by inspecting the JDT LS `Preferences.java` source -- only two symbol-related settings exist:
-- `java.symbols.includeSourceMethodDeclarations` (boolean, default false)
-- `java.symbols.includeGeneratedCode` (boolean, default false -- for Lombok-generated code)
-
-**Implication for field search:** Fields must be discovered through `textDocument/documentSymbol` (which already works via `list_members`) rather than `workspace/symbol`. The `search_symbols` tool should clearly communicate this: when `kind: "field"` is requested, either return an informative error directing the user to `list_members`, or implement a fallback that searches within a specified class scope.
-
-**Confidence:** HIGH -- verified against JDT LS `Preferences.java` source on GitHub and corroborated by nvim-jdtls discussion #676, Neovim Discourse reports, and emacs-lsp/lsp-java documentation.
-
-### LSP Response Shape for Methods in workspace/symbol
-
-When `includeSourceMethodDeclarations` is enabled, method entries in the `SymbolInformation[]` response have:
-
-| Field | Value for Methods | Existing Handling |
-|-------|-------------------|-------------------|
-| `name` | Method name (e.g., `"tick"`, `"render"`) | Already mapped in `search_symbols` |
-| `kind` | `6` (Method) or `9` (Constructor) | Already in `SYMBOL_KIND_NAME` and `KIND_NAME_TO_NUMBER` |
-| `containerName` | Containing class FQN (e.g., `"net.minecraft.client.MinecraftClient"`) | Already read (line 99 of search-symbols.ts) |
-| `location.uri` | File URI to extracted source | Already handled by `uriMapper` |
-| `location.range` | Position of the method declaration | Already handled |
-
-**No new LSP types or protocol libraries needed.** The existing `SymbolInformation` shape from ts-lsp-client already supports all method-related fields. The `search_symbols` tool's transform logic (lines 94-108) already handles `containerName`, `kind`, and `location` generically.
-
-### Performance Impact
-
-Enabling `includeSourceMethodDeclarations` increases result volume. Minecraft sources have ~6,600 classes with 5-50 methods each, so broad queries could return 30,000-300,000 symbols.
-
-**Why this is manageable:**
-- JDT LS applies the query string server-side as a prefix/substring filter before returning results -- it does not return all symbols and let the client filter
-- The `search_symbols` tool already has `limit` (default 50, max 200), `offset` (pagination), and `kind` filter
-- Specific method name queries (e.g., `"tick"`) will return hundreds, not hundreds of thousands
-
-**Recommended safeguard:** Add a note in the tool description that method searches work best with specific queries, not single-character wildcards.
-
-## New Types Needed (Pure TypeScript -- No Libraries)
-
-### Structured Member Type Representations
-
-The `ClassReference` type already exists in `src/browsing/types.ts`:
+**Implementation approach:** Pure string manipulation already proven in the codebase.
 
 ```typescript
-export interface ClassReference {
-	name: string;      // simple name
-	fqn: string;       // fully qualified name
-	kind: string;      // "class" | "interface" | "enum" | "record" | "@interface"
-}
+// Pattern from locate-in-source.ts extractContext(), adapted:
+const lines = sourceText.split('\n');
+const totalLines = lines.length;
+const startLine = Math.max(0, offset ?? 0);
+const endLine = limit !== undefined ? Math.min(totalLines, startLine + limit) : totalLines;
+const sliced = lines.slice(startLine, endLine).join('\n');
 ```
 
-New interfaces needed for rich method/field representations. These are pure TypeScript -- no library required:
+**Why no library:** `String.split()` + `Array.slice()` is O(n) on first call, but the source text is already fully loaded from the jar via `node-stream-zip`. There is no streaming alternative that would help -- `node-stream-zip`'s `entryData()` returns the entire entry as a Buffer. A line-indexing library would add complexity for no benefit given file sizes (largest Minecraft source files are ~5,000 lines, typically under 500).
+
+**Zod schema addition:**
+```typescript
+offset: z.number().int().min(0).optional().describe('Start reading from this line (0-based, default: 0)'),
+limit: z.number().int().min(1).optional().describe('Maximum number of lines to return'),
+```
+
+**Constraint:** Line-range reading should require `jar` to be specified (single jar mode). Multi-jar mode returns the class from all jars -- adding line ranges to that would be confusing since the same class has different line counts in different jars.
+
+### 2. Context Lines on read_member
+
+**What's needed:** Optional `contextLines` parameter (or `context` object matching `locate_in_source`'s pattern) to include lines before/after the extracted member.
+
+**Implementation approach:** The `extractMemberSource()` in `member-extractor.ts` already returns `startLine` and `endLine`. Adding context is the same `extractContext()` pattern from `locate-in-source.ts` -- clamp line range and slice.
+
+**Why no library:** Same rationale as above. The source text is already in memory from the JDT LS `withLspDocument` call.
+
+### 3. Pagination/Limits on Tools That Lack Them
+
+**Current state:**
+
+| Tool | Has offset/limit? | Needs it? |
+|------|--------------------|-----------|
+| `search_classes` | Yes (offset + limit, default 250) | No change needed |
+| `search_symbols` | Yes (offset + limit, default 50) | No change needed |
+| `list_members` | No | Maybe -- classes rarely exceed 200 members, but `MinecraftClient` has ~300. A `kind` filter is more useful than pagination. |
+| `find_references` | No | Yes -- popular symbols (e.g., `World.getBlockState`) can have 500+ references |
+| `find_implementations` | No | Yes -- interfaces like `Block` can have hundreds of implementations |
+| `find_definition` | No | No -- returns 0-3 results by nature |
+| `list_packages` | No | Maybe -- Minecraft has ~300 packages, manageable but could benefit from a limit |
+| `list_classes` | No | Maybe -- largest package (net.minecraft.block) has ~200 classes |
+| `type_hierarchy` | No | No -- hierarchy trees are bounded by class depth |
+
+**Implementation approach:** Same Zod `offset`/`limit` pattern already used in `search_classes` and `search_symbols`. Apply to `find_references`, `find_implementations`, and optionally `list_members`.
 
 ```typescript
-// Parameter with ClassReference type
-export interface MethodParameter {
-	name: string;                    // parameter name
-	type: ClassReference | string;   // ClassReference when resolvable, raw string otherwise
-}
-
-// Structured method representation
-export interface MethodInfo {
-	name: string;
-	fqn: string;                     // "net.minecraft.client.MinecraftClient;tick()"
-	access: string;                  // "public" | "protected" | "private" | "package-private"
-	modifiers: string[];             // ["static", "final", "synchronized", etc.]
-	returnType: ClassReference | string;
-	parameters: MethodParameter[];
-	deprecated: boolean;
-}
-
-// Structured field representation
-export interface FieldInfo {
-	name: string;
-	fqn: string;                     // "net.minecraft.client.MinecraftClient;running:"
-	access: string;
-	modifiers: string[];
-	type: ClassReference | string;
-	deprecated: boolean;
-}
+// Already-proven pattern from search-symbols.ts:
+const effectiveLimit = limit ?? 50;
+const effectiveOffset = offset ?? 0;
+const total = filtered.length;
+const page = filtered.slice(effectiveOffset, effectiveOffset + effectiveLimit);
 ```
 
-**Where the type info comes from:** JDT LS `textDocument/hover` already returns type signatures as markdown. The `get_symbol_info` tool (already working) retrieves this. Parsing hover markdown into structured `ClassReference` objects requires regex on the hover output -- no AST parser needed because JDT LS formats hover text consistently:
+**Why no library:** Array slicing is trivial. A pagination library would be absurd overhead for `slice()`.
 
+### 4. Verbosity Reduction
+
+**What's needed:** Audit structured responses and remove/condense fields that waste context tokens without adding value.
+
+**Candidates for reduction (based on codebase review):**
+
+| Field | Currently in | Assessment |
+|-------|-------------|------------|
+| `provenanceChains` | Every result with jar metadata | Often 2-3 levels deep, mostly noise for context management. Consider omitting by default, adding `verbose` flag. |
+| `steps` in locate results | `locate_in_source` | Cascade step details are debugging info. Omit by default. |
+| Full `location.uri` | `search_symbols`, navigation results | File URIs are long temp paths. The `jar` + `line` fields are sufficient. |
+| `category` | Every jar-sourced result | Useful for disambiguation but repetitive when results come from the same jar. |
+
+**Implementation approach:** This is purely restructuring return objects. Options:
+1. **Remove fields from default output** -- simplest, may break consumers
+2. **Add `verbose: boolean` parameter** -- backwards-compatible, agent can request detail when needed
+3. **Add `fields: string[]` parameter** -- too complex, GraphQL-style field selection is overkill
+
+**Recommendation:** Option 2 (`verbose` flag) because it preserves backwards compatibility while giving agents the choice. Default to concise output for v1.3.
+
+**Why no library:** Restructuring TypeScript object literals needs no tooling.
+
+### 5. Output Size Estimation
+
+**What's needed:** Optionally report estimated response size so agents can decide whether to paginate further.
+
+**Implementation approach:** Add a `metadata.responseSize` field to the envelope:
+
+```typescript
+// Already available in Node.js, no library needed:
+const json = JSON.stringify(envelope);
+const byteSize = Buffer.byteLength(json, 'utf-8');
+const estimatedTokens = Math.ceil(json.length / 4); // rough heuristic: ~4 chars per token
 ```
-public void tick()
-public static MinecraftClient getInstance()
-private final GameOptions options
-```
 
-### Member FQN Scheme
+**Where to add:** In the `makeSuccess()` helper or at the tool level before returning.
 
-The FQN scheme uses `;` as the separator between class FQN and member name:
+**Why no library:** Token estimation for Claude is roughly `characterCount / 4`. A tokenizer library (like `tiktoken` or `@anthropic-ai/tokenizer`) would add a dependency for marginal precision improvement. The heuristic is good enough for "is this response too big?" decisions.
 
-| Symbol Type | FQN Format | Example |
-|-------------|-----------|---------|
-| Class | `package.ClassName` | `net.minecraft.client.MinecraftClient` |
-| Method | `package.ClassName;methodName()` | `net.minecraft.client.MinecraftClient;tick()` |
-| Constructor | `package.ClassName;ClassName()` | `net.minecraft.client.MinecraftClient;MinecraftClient()` |
-| Field | `package.ClassName;fieldName:` | `net.minecraft.client.MinecraftClient;running:` |
-
-- `;` separates class from member (classes never contain `;`, so unambiguous)
-- `()` suffix marks methods/constructors
-- `:` suffix marks fields
-- This is a **human-readable convention**, not JVM bytecode descriptor format
-
-**Construction from workspace/symbol:** For method results, `containerName` provides the class FQN and `name` provides the method name. FQN = `${containerName};${name}()`.
-
-**Construction from documentSymbol:** For field results from `list_members`, the class FQN is known from the tool input, and `name` is the field name. FQN = `${classFqn};${name}:`.
+**Why NOT to add a tokenizer:**
+- `tiktoken` (OpenAI) uses a different tokenization than Claude
+- No official Anthropic tokenizer package exists for JavaScript
+- The purpose is estimation, not exact counting -- `length / 4` suffices
+- Adding a WASM-based tokenizer would increase bundle size significantly
 
 ## No New Dependencies Required
 
 | Need | Solution | Why No Library |
 |------|----------|----------------|
-| Method symbol search | JDT LS config change | Already built into JDT LS |
-| Field discovery | Existing `list_members` / `documentSymbol` | Already working |
-| Structured types | TypeScript interfaces | Pure type definitions |
-| Member FQN | String concatenation | Simple convention |
-| Zod schemas for new types | Zod 4 (^4.3.6 installed) | Already in place |
-| Hover parsing for type info | Regex on JDT LS hover markdown | Consistent format, no AST needed |
+| Line-range reading | `String.split().slice()` | Source text already in memory, files are small |
+| Context lines | Same `extractContext` pattern from locate-in-source.ts | Already proven in codebase |
+| Pagination | `Array.slice(offset, offset + limit)` | Trivial operation |
+| Verbosity control | Conditional field inclusion in response objects | Object restructuring |
+| Size estimation | `Buffer.byteLength()` + `string.length / 4` | Built into Node.js |
+| Zod schemas for new params | Zod 4 (^4.3.6 installed) | Already in place |
 
 ## What NOT to Add
 
 | Technology | Why Not |
 |------------|---------|
-| Java parser library (java-parser, tree-sitter-java) | JDT LS already provides semantic analysis. Hover gives type signatures. Parsing Java ASTs ourselves is redundant. |
-| Additional LSP client library | ts-lsp-client + JSONRPCEndpoint handle all needed LSP requests. No protocol gaps. |
-| Method signature parser library | JDT LS hover output is consistently formatted. Simple regex extracts return type, name, and parameters. |
-| Caching layer for symbol results | JDT LS maintains its own index. Client-side caching adds complexity for marginal benefit. |
-| Type resolution library | ClassReference construction from hover text is string manipulation. Full type resolution would require JDT LS APIs we can already call (hover, definition). |
-| `java.symbols.includeGeneratedCode` | Minecraft sources are decompiled, not Lombok-generated. This setting is irrelevant for our use case. |
+| Tokenizer library (tiktoken, etc.) | Wrong tokenization model for Claude, heavy WASM dependency, character-length heuristic is sufficient for estimation |
+| Streaming response library | MCP SDK's stdio transport does not support streaming tool results. The response must be a complete JSON object. |
+| Response compression (gzip, etc.) | MCP protocol uses JSON-RPC over stdio. Compression would need to be at the protocol level, not the tool level. Not supported. |
+| LRU cache for line-split results | Source files are read from jars on demand (project constraint: no caching). Line splitting is fast enough (~1ms for largest files). |
+| Pagination cursor library | Offset-based pagination with array slicing is the established pattern. Cursor-based pagination adds complexity for no benefit on in-memory result sets. |
+| GraphQL-style field selection | Over-engineered for this use case. A simple `verbose` boolean covers the 80% case. |
 
 ## Stack Summary
 
-| Component | Version | Status for v1.2 | Action |
+| Component | Version | Status for v1.3 | Action |
 |-----------|---------|-----------------|--------|
 | TypeScript | 6.0.2 | Unchanged | None |
 | Node.js | 22 LTS | Unchanged | None |
 | @modelcontextprotocol/sdk | ^1.29.0 | Unchanged | None |
-| Zod | ^4.3.6 | Unchanged | None |
+| Zod | ^4.3.6 | Unchanged | New optional params on existing tool schemas |
 | node-stream-zip | ^1.15.0 | Unchanged | None |
 | ts-lsp-client | ^1.1.1 | Unchanged | None |
 | glob | ^13.0.6 | Unchanged | None |
 | picomatch | ^4.0.4 | Unchanged | None |
-| JDT LS | Latest milestone | **Config change** | Add `symbols.includeSourceMethodDeclarations: true` to init settings |
+| JDT LS | Latest milestone | Unchanged | None |
 
 ## Key Technical Details
 
-### How workspace/symbol Query Matching Works
+### Line-Range Reading and node-stream-zip
 
-JDT LS uses the query string as a case-insensitive prefix/substring match against symbol names. With methods enabled:
-- Query `"tick"` returns classes like `TickManager` AND methods like `tick()`, `tickEntities()`
-- Query `"MinecraftClient"` returns the class AND its constructors
-- The `kind` filter parameter becomes important for disambiguation
+`node-stream-zip`'s `entryData()` returns the entire ZIP entry as a `Buffer`. There is no way to read a byte range within a ZIP entry without decompressing the whole thing (ZIP entries use DEFLATE compression, which is not randomly accessible). Therefore, line-range reading must happen after full decompression:
 
-### containerName for Member FQN Construction
+1. `entryData()` returns full Buffer (already happening)
+2. Convert to string: `buffer.toString('utf-8')` (already happening)
+3. Split into lines and slice (new)
 
-When JDT LS returns a method via workspace/symbol, `containerName` is the fully-qualified class name:
+This means line-range reading does NOT save jar I/O -- it saves context window tokens by returning fewer lines. That is the entire point of v1.3.
 
-```
-containerName: "net.minecraft.client.MinecraftClient"
-name: "tick"
-kind: 6 (Method)
---> FQN: "net.minecraft.client.MinecraftClient;tick()"
-```
+### Response Size Budget
 
-### documentSymbol for Complete Member Listing
+Typical response sizes from codebase analysis:
 
-`textDocument/documentSymbol` (used by `list_members`) already returns ALL members including fields, methods, constructors, inner classes, and enum constants with `detail` strings containing type information. This is the authoritative source for "what members does this class have" and is the only path to field discovery since workspace/symbol cannot return fields.
+| Tool | Typical Response Size | Worst Case |
+|------|----------------------|------------|
+| `read_source` (full class) | 5-50 KB | ~200 KB (MinecraftClient.java) |
+| `read_member` | 0.5-5 KB | ~20 KB (large method) |
+| `find_references` | 2-20 KB | ~100 KB (500+ references) |
+| `search_symbols` | 5-15 KB | ~50 KB (200 results at limit) |
+| `list_members` | 5-30 KB | ~80 KB (MinecraftClient, 300+ members) |
+
+Claude's context window is ~200K tokens (~800 KB of text). A single `read_source` on MinecraftClient.java consumes ~25% of that. This validates the need for line-range reading.
+
+### Existing Patterns to Reuse
+
+The codebase already has every pattern needed:
+
+| Pattern | Where It Exists | Reuse For |
+|---------|----------------|-----------|
+| `extractContext(source, line, linesBefore, linesAfter)` | `locate-in-source.ts:15-27` | read_member context lines |
+| `offset`/`limit` pagination with Zod schemas | `search-symbols.ts`, `search-classes.ts` | find_references, find_implementations |
+| Structured envelope with metadata | `types/envelope.ts` | Adding responseSize metadata |
+| `PARAMS` shared parameter definitions | `tools/descriptions.ts` | Shared offset/limit params |
 
 ## Sources
 
-- [JDT LS Preferences.java](https://github.com/eclipse-jdtls/eclipse.jdt.ls/blob/main/org.eclipse.jdt.ls.core/src/org/eclipse/jdt/ls/core/internal/preferences/Preferences.java) -- authoritative source for all JDT LS settings (HIGH confidence)
-- [nvim-jdtls Discussion #676](https://github.com/mfussenegger/nvim-jdtls/discussions/676) -- community confirmation of `includeSourceMethodDeclarations` behavior (HIGH confidence)
-- [Neovim Discourse: workspace symbols not giving methods](https://neovim.discourse.group/t/telescope-lsp-dynamic-workspace-symbols-for-nvim-jdtls-is-not-giving-methods/5032) -- additional confirmation (MEDIUM confidence)
-- [JDT LS Issue #1712: partial results for workspace/symbol](https://github.com/eclipse-jdtls/eclipse.jdt.ls/issues/1712) -- performance considerations for large result sets (MEDIUM confidence)
-- [LSP 3.17 Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/) -- SymbolInformation type definition, containerName semantics (HIGH confidence)
-- [emacs-lsp/lsp-java](https://emacs-lsp.github.io/lsp-java/) -- additional JDT LS settings reference (MEDIUM confidence)
-- Codebase analysis: `src/jdtls/client.ts`, `src/tools/search-symbols.ts`, `src/tools/list-members.ts`, `src/browsing/types.ts` -- existing implementation review (HIGH confidence)
+- Codebase analysis: `src/tools/read-source.ts`, `src/tools/read-member.ts`, `src/tools/locate-in-source.ts`, `src/tools/search-symbols.ts`, `src/tools/search-classes.ts`, `src/tools/find-references.ts`, `src/tools/find-implementations.ts`, `src/types/envelope.ts`, `src/browsing/types.ts` -- existing implementation review (HIGH confidence)
+- [node-stream-zip API](https://github.com/antelle/node-stream-zip) -- confirmed `entryData()` returns full entry Buffer, no partial read support (HIGH confidence)
+- [MCP SDK structured content](https://modelcontextprotocol.io/docs/concepts/tools) -- tool responses are complete JSON objects, no streaming (HIGH confidence)
+- [ZIP file format](https://en.wikipedia.org/wiki/ZIP_(file_format)) -- DEFLATE compression is not randomly seekable, full decompression required (HIGH confidence)

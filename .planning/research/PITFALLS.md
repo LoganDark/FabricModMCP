@@ -1,228 +1,303 @@
-# Domain Pitfalls
+# Pitfalls Research
 
-**Domain:** Adding method/field search and structured member types to existing JDT LS-based MCP tool server
+**Domain:** Adding response size controls and progressive disclosure to an existing MCP server (22 tools, 526 tests)
 **Researched:** 2026-04-14
-**Confidence:** HIGH (pitfalls verified against codebase implementation and JDT LS source/issues)
+**Confidence:** HIGH (based on codebase analysis of current tool implementations, response envelope patterns, and line-number conventions)
 
 ## Critical Pitfalls
 
-Mistakes that cause rewrites or major issues.
+### Pitfall 1: Breaking structuredContent Contracts When Reducing Verbosity
 
-### Pitfall 1: `includeSourceMethodDeclarations` Does Not Include Fields
+**What goes wrong:**
+Existing agent workflows parse `structuredContent` envelopes expecting specific fields. Every tool returns `{ content: [...], structuredContent: makeSuccess({...}) }`. If you remove or rename fields from the structured response (e.g., dropping `context` from `NavigationResult` in find_references, or changing `source` to `lines` in `SourceResult`), agents that depended on those fields break silently -- they get `undefined` where they expected data, and their reasoning degrades without any error.
 
-**What goes wrong:** Enabling `java.symbols.includeSourceMethodDeclarations` in JDT LS initializationOptions adds method declarations to `workspace/symbol` results, but fields and constants are NOT included. The setting name says "method declarations" and that is exactly what it does -- methods only. Code that assumes "enable this setting and we get all symbol types" will silently return zero results for field searches via `workspace/symbol`.
+**Why it happens:**
+The codebase has a dual-response pattern. Developers focus on making the human-readable `content[].text` look right and forget that `structuredContent` is the actual machine API. The types in `browsing/types.ts` (`SourceResult`, `MemberResult`, `LocateResult`, `NavigationResult`) and `jdtls/types.ts` (`ContextSnippet`) define the contract. Any field removal is a breaking change even though there is no formal schema versioning.
 
-**Why it happens:** The JDT LS `WorkspaceSymbolHandler` uses Eclipse JDT's Java search engine with `IJavaSearchConstants.METHOD` when this flag is on, not `IJavaSearchConstants.FIELD`. Field search in `workspace/symbol` is simply not implemented.
+**How to avoid:**
+- Never remove fields from existing `structuredContent` shapes. New parameters should be ADDITIVE: add optional params that cause the response to include LESS, but omitting those params must produce the identical response as before.
+- For `read_source`: adding `startLine`/`lineCount` params is safe because omitting them returns full source. The response should ADD new metadata fields (`startLine`, `endLine`, `totalLines`) alongside the existing `source` and `lineCount`.
+- For verbosity reduction: add a `verbosity` or `includeContext` param that defaults to the current (verbose) behavior. Agents opt into compact mode.
+- Test: call every modified tool with NO new parameters and assert the structuredContent is byte-identical to pre-change output.
 
-**Consequences:** The `search_symbols` tool with `kind: 'field'` filter would return empty results even when the setting is enabled, making field search appear broken. Users would lose trust in the tool.
+**Warning signs:**
+- Any test asserting on structuredContent field presence starts failing
+- Agent workflows produce "unexpected undefined" on fields that used to exist
+- A PR removes a field rather than adding an optional parameter
 
-**Prevention:** Do NOT rely on `workspace/symbol` for field search. Use `textDocument/documentSymbol` (already working in `list_members`) to find fields within a known class. For cross-workspace field search, implement a two-step approach: (1) `workspace/symbol` to find types, (2) `textDocument/documentSymbol` on candidate classes to find fields. Alternatively, use the existing `search_classes` + `list_members` pipeline. Document this limitation clearly in tool descriptions.
+**Phase to address:**
+All phases -- this is a cross-cutting constraint. Establish the backward-compatibility rule in Phase 1 and enforce via tests throughout.
 
-**Detection:** Test field search against real JDT LS (not mocks) early. If `search_symbols` with `kind: 'field'` returns zero results on a Minecraft sources workspace, this pitfall has bitten.
+---
 
-**Confidence:** HIGH -- verified from JDT LS Preferences.java source and nvim-jdtls community discussion.
+### Pitfall 2: Off-by-One Errors in Line-Range Extraction
 
-### Pitfall 2: Result Count Explosion After Enabling Method Declarations
+**What goes wrong:**
+Line-range slicing returns wrong content -- missing the first or last line, or including an extra line. This is insidious because the codebase already uses THREE different line-number conventions simultaneously.
 
-**What goes wrong:** With `includeSourceMethodDeclarations: false` (current default), `workspace/symbol` for a broad query like `'*'` or `'get'` returns only type-level symbols (~6,600 classes in Minecraft). With it enabled, the same query now returns types PLUS every method matching the pattern across all source files. Minecraft has thousands of classes with many methods each -- a query like `get` could match tens of thousands of methods.
+**Why it happens:**
+The existing code mixes conventions:
 
-**Why it happens:** The probe-based readiness detection in `waitForWorkspaceSync` queries `workspace/symbol` with `{ query: '*' }` and checks for an array response. With methods included, this probe query returns a massively larger result set, wasting memory and CPU on every workspace sync operation. Regular search queries also balloon.
+1. **LSP positions:** 0-based lines and characters (`loc.range.start.line`, converted at `search-symbols.ts:103`)
+2. **User-facing line numbers:** 1-based (`cascadeResult.line`, `MemberResult.startLine`, `LocateResult.line`)
+3. **Array indices:** 0-based (`lines[targetIdx]`, `Array.slice(start, end)` where end is exclusive)
 
-**Consequences:** (1) Memory pressure from enormous result arrays. (2) Slower `workspace/symbol` responses (~10s reported in JDT LS issue #2075 for large workspaces with classFileContentsSupport). (3) The pagination in `search_symbols` does client-side slicing of the full result array (line 89 of search-symbols.ts), meaning JDT LS still sends ALL results and the server holds them all in memory before slicing. (4) Workspace sync probes become expensive.
-
-**Prevention:**
-- Change the readiness probe query from `'*'` to a narrow probe like `'__mcpProbe__'` (something unlikely to match anything) -- the point is testing responsiveness, not results.
-- Consider whether `workspace/symbol` queries need server-side result limits. JDT LS does not support server-side pagination for `workspace/symbol` (no `partialResults` in current protocol usage). Client-side pagination after receiving all results is the only option.
-- Use specific, narrow queries. Educate tool descriptions that broad queries are expensive.
-- Monitor memory: track result array sizes in debug logging.
-
-**Detection:** After enabling the setting, run `workspace/symbol` with `{ query: 'get' }` and measure response time and result count. If response > 3s or results > 5,000, mitigation is needed.
-
-**Confidence:** HIGH -- JDT LS issue #2075 documents this exact performance problem. The current `waitForWorkspaceSync` probe using `'*'` is directly in `workspace-sync.ts:85`.
-
-### Pitfall 3: Parsing Hover Markdown for Structured Types Is Fragile
-
-**What goes wrong:** JDT LS `textDocument/hover` returns markdown strings, not structured type data. To build `ClassReference` types for method parameters and return types, you must parse markdown like:
-
+The existing `extractContext` in `locate-in-source.ts` converts correctly:
+```typescript
+const startLine = Math.max(1, line - linesBefore);  // 1-based
+const endLine = Math.min(totalLines, line + linesAfter);  // 1-based
+const text = lines.slice(startLine - 1, endLine).join('\n');  // 0-based for slice
 ```
-public void tick(MinecraftClient client, List<Entity> entities)
+
+But `member-extractor.ts` uses a different approach:
+```typescript
+const rangeStartIdx = sym.range.start.line - 1;  // 1-based to 0-based
+const rangeEndIdx = sym.range.end.line;  // "1-based end line = exclusive 0-based slice end"
 ```
 
-Parsing this with regex to extract `MinecraftClient` as a `ClassReference` with FQN `net.minecraft.client.MinecraftClient` is fragile because: (1) generics create nested angle brackets (`Map<String, List<Integer>>`), (2) array types (`int[]`, `Entity[]`), (3) varargs (`String...`), (4) annotations on parameters (`@Nullable Entity`), (5) type bounds (`<T extends Comparable<T>>`), (6) inner class references (`MinecraftClient.Options`), (7) the hover format varies by JDT LS version.
+New line-range code must be unambiguous about which convention it uses at every step.
 
-**Why it happens:** LSP hover is designed for human display, not machine parsing. There is no LSP request that returns structured parameter/return type information with FQNs. `textDocument/signatureHelp` exists but is for active typing, not inspection.
+**How to avoid:**
+- Define the API clearly: `startLine` is 1-based (first line of file is 1), `lineCount` is the number of lines to return. This matches editor conventions and avoids "is the end inclusive or exclusive?" ambiguity.
+- Document the conversion at the slicing site: `// startLine is 1-based, lineCount is count. slice(startLine-1, startLine-1+lineCount)`
+- Add explicit boundary tests: `startLine=1, lineCount=1` returns exactly line 1; `startLine=totalLines, lineCount=1` returns last line; `startLine` past end returns empty with correct metadata; `startLine=0` returns an error.
+- Add a reassembly test: reading the file in N-line chunks and concatenating must produce identical output to reading without range params.
 
-**Consequences:** Brittle regex parsing leads to incorrect ClassReferences, missed generic type parameters, or crashes on unexpected hover format. Every JDT LS update could break the parser.
+**Warning signs:**
+- Tests pass for mid-file ranges but fail for first or last line
+- `startLine=1, lineCount=10` returns 9 or 11 lines
+- Full-read `lineCount` differs from range-reassembled line count
 
-**Prevention:**
-- Use `textDocument/documentSymbol` to get method `detail` fields (which contain the return type) as a simpler starting point.
-- For parameter types, hover on the method name gets the full signature. Parse conservatively: extract the signature from the Java code block, then use a proper tokenizer (not regex) that handles balanced angle brackets.
-- Accept that some complex generic signatures will not resolve to full ClassReferences. Return the raw type string when resolution fails rather than crashing.
-- Test against real Minecraft source methods with complex signatures (e.g., `RegistryKey<Registry<T>>`, `CompletableFuture<Optional<...>>`).
-- Consider `textDocument/hover` on individual parameter names to get their fully-qualified types one at a time, rather than parsing the full signature.
+**Phase to address:**
+Phase 1 (read_source line-range). Boundary condition tests are acceptance criteria.
 
-**Detection:** Unit tests with complex generic signatures. If ClassReference extraction produces wrong FQNs or misses generics, the parser is too fragile.
+---
 
-**Confidence:** HIGH -- the current `get_symbol_info` tool already shows hover returns raw markdown (line 117 of `get-symbol-info.ts`). This is an inherent LSP limitation.
+### Pitfall 3: `offset` Parameter Name Collision Across Tools
 
-### Pitfall 4: Method Overloads Make Name-Only FQNs Ambiguous
+**What goes wrong:**
+`search_classes` and `search_symbols` already use `offset` to mean "pagination offset: skip this many results." If `read_source` also uses `offset` to mean "start at this line number," agents will confuse the two. An agent that learned "`offset` skips results" from search_classes will pass `offset: 50` to read_source expecting to skip 50 results, but instead gets source starting at line 50.
 
-**What goes wrong:** The planned FQN scheme `Class;method()` intentionally omits parameter types for simplicity. But Java methods are heavily overloaded -- Minecraft has many classes with 3-5+ overloads of the same method name (e.g., `Registry;get()` could match `get(Identifier)`, `get(RegistryKey)`, `get(int)`). When a tool takes `SomeClass;method()` as input, which overload does it refer to?
+**Why it happens:**
+`offset` is a generic, overloaded term. In pagination contexts (search_classes, search_symbols) it means "result index." In line-range contexts it means "line number." The milestone description even says "offset + limit" for read_source, matching the pagination terminology exactly.
 
-**Why it happens:** The design decision to omit signatures trades precision for usability. Full Java method signatures are verbose and error-prone to type (`(Lnet/minecraft/util/Identifier;)Lnet/minecraft/block/Block;`).
+**How to avoid:**
+- Use DISTINCT parameter names: `startLine` and `lineCount` for line-range reading. Keep `offset` and `limit` exclusively for pagination.
+- This naming also makes the API self-documenting: `startLine: 50, lineCount: 20` is unambiguous. `offset: 50, limit: 20` on a source-reading tool is not.
+- Audit all tools before implementation to ensure no parameter name means different things on different tools.
 
-**Consequences:** (1) Ambiguous FQN references -- `SomeClass;method()` matches multiple symbols. (2) Tools that accept an FQN must decide: return all overloads? Pick one? Error? (3) If "return all" is chosen, downstream consumers must handle arrays where they expected a single result.
+**Warning signs:**
+- Tool description for read_source says "offset" without clarifying it means line number
+- Agent passes pagination-style offset to a line-range tool or vice versa
+- Test names use "offset" ambiguously
 
-**Prevention:**
-- Design the FQN scheme to be intentionally multi-match: `Class;method()` returns ALL overloads of that method. This is actually useful -- "show me all versions of tick()" is a common workflow.
-- If disambiguation is needed, support an optional extended form like `Class;method(ParamType, ParamType)` with simple (unqualified) type names.
-- `list_members` already returns all methods with their `detail` field showing return types. The workflow is: search broadly with FQN, refine by inspecting the list.
-- Document clearly that `Class;method()` is a "family" reference, not a unique identifier.
+**Phase to address:**
+Phase 1 (first phase that adds parameters). Naming convention must be decided before any implementation.
 
-**Detection:** Test FQN resolution against a class with known overloads (e.g., any Minecraft class with multiple `register()` or `create()` methods). If the system errors instead of returning all overloads, the design is wrong.
+---
 
-**Confidence:** HIGH -- Minecraft codebase is heavily overloaded. This is guaranteed to arise.
+### Pitfall 4: Changing Default Verbosity Breaks Agent Reasoning Without Visible Errors
 
-## Moderate Pitfalls
+**What goes wrong:**
+You reduce the default response of `find_references` by removing `context: ContextSnippet` from each `NavigationResult`. Responses are smaller and faster. But the agent was using those snippets to understand WHAT each reference does -- without them, it cannot distinguish a meaningful reference from a trivial one. Analysis quality degrades silently. No error, no test failure, just worse answers.
 
-### Pitfall 5: `workspace/symbol` Name Format Changes Between Types and Methods
+**Why it happens:**
+The `context` field in `NavigationResult` (defined in `jdtls/types.ts`) is populated by `extractEnclosingContext()` in `context-extractor.ts`, which finds the enclosing method/field/class for each reference location. This is expensive (reads the source file, parses structure) but provides critical semantic context. Removing it saves tokens but removes the information the agent needs to reason about references.
 
-**What goes wrong:** For type symbols, JDT LS `workspace/symbol` returns `name: "MinecraftClient"` with `containerName: "net.minecraft.client"`. For method symbols (when enabled), it returns `name: "tick"` with `containerName: "MinecraftClient"`. The `containerName` semantics differ: for types it is the package, for methods it is the declaring class name (not FQN). The current `search_symbols` tool passes `containerName` through as-is (line 99), which means the same field means different things depending on symbol kind.
+**How to avoid:**
+- NEVER reduce default verbosity. Only add optional parameters that let the agent request LESS when it knows it wants less.
+- Add `includeContext: boolean` (default: `true`) to find_references/find_definition/find_implementations. When `false`, the `context` field is omitted from results.
+- Document the tradeoff in tool descriptions: "Set includeContext=false for large result sets where you only need locations, then use read_source to inspect specific results."
+- The right pattern is progressive disclosure: full details by default, opt-in to compact mode.
 
-**Prevention:** Transform the results to normalize `containerName`. For method/field results, resolve the declaring class FQN by combining `containerName` with the file URI path. Or add a `declaringClass` field to method/field results that always contains the FQN, separate from `containerName`.
+**Warning signs:**
+- Agent starts making more follow-up tool calls after the change (compensating for lost context)
+- Agent analysis of references becomes shallower ("found 47 references" without explaining what they do)
+- No test failures despite meaningful behavior change
 
-**Detection:** Compare `containerName` values for class vs method results in the same `search_symbols` response.
+**Phase to address:**
+The verbosity audit phase. This is the most dangerous phase because "improvements" can be invisible regressions.
 
-**Confidence:** MEDIUM -- based on workspace/symbol LSP spec behavior; needs verification with real JDT LS output.
+---
 
-### Pitfall 6: Test Mocks Hide Real JDT LS Behavior
+### Pitfall 5: Line-Range Without Single-Jar Requirement Creates Ambiguity
 
-**What goes wrong:** All current `search_symbols` tests use `mockEndpointSend` that returns `SAMPLE_SYMBOLS` -- a hand-crafted array. The tests verify pagination, filtering, and error handling, but NOT the actual shape of JDT LS responses. When `includeSourceMethodDeclarations` is enabled, the real response format might differ in subtle ways (e.g., method `name` might include parentheses, `containerName` might be structured differently, `tags` array might have different values).
+**What goes wrong:**
+`read_source` currently searches ALL jars when `jar` is omitted, returning the class from every jar that contains it (see `read-source.ts:63-110`). If line-range params are allowed without requiring a specific jar, you get nonsensical results: line 50-60 from the Minecraft jar is different content than line 50-60 from a mod source jar. The agent gets multiple incompatible line ranges.
 
-**Why it happens:** Integration tests against a real JDT LS require Java 21+, a running JDT LS process, and extracted workspace files -- heavy setup that was deferred.
+**Why it happens:**
+The multi-jar search is useful for "find me this class" but meaningless for "read lines 50-60." Different jars may have different versions of the same class with different line counts.
 
-**Consequences:** Tests pass but production breaks. The existing tests would not have caught the `containerName` semantic difference (Pitfall 5) or the field-search gap (Pitfall 1).
+**How to avoid:**
+- When `startLine` or `lineCount` is provided, REQUIRE the `jar` parameter. Return a clear error if line-range params are given without a single jar.
+- Validate early: check for the invalid combination BEFORE any jar I/O, in the input validation section of the handler.
+- The error message should explain why: "Line-range reading requires a specific jar because different jars may contain different versions of this class."
 
-**Prevention:**
-- Capture real JDT LS responses for Minecraft workspace symbols (types AND methods) and use those as test fixtures. Run JDT LS once, save the raw JSON, use it in tests.
-- Add at least one integration test that spins up real JDT LS and verifies the response shape.
-- Snapshot the response format so that JDT LS upgrades that change it are caught.
+**Warning signs:**
+- Multi-jar + line-range silently returns results from multiple jars with conflicting content
+- Agent gets confused about which jar's line numbers to use in follow-up calls
 
-**Detection:** If a test fixture's `name`, `kind`, `containerName`, or `location` fields don't match what real JDT LS returns, integration will fail.
+**Phase to address:**
+Phase 1 (read_source line-range). Input validation is the first thing to implement.
 
-**Confidence:** HIGH -- the test file at `tests/tools/search-symbols.test.ts` clearly shows all mocked fixtures.
+---
 
-### Pitfall 7: ClassReference Resolution Requires FQN but Hover Only Gives Simple Names
+### Pitfall 6: Trailing Newline Produces Phantom Empty Last Line
 
-**What goes wrong:** To build a `ClassReference` with `{ name: "Entity", fqn: "net.minecraft.entity.Entity", kind: "class" }`, you need the FQN. But hover markdown only shows simple names in method signatures (e.g., `void tick(Entity entity)`). Resolving `Entity` to its FQN requires either: (1) parsing imports from the source file, (2) hovering on the parameter itself to get the FQN, or (3) using `textDocument/definition` on the type reference.
+**What goes wrong:**
+Java source files end with a newline. `source.split('\n')` on `"line1\nline2\n"` produces `["line1", "line2", ""]` -- three elements for two lines of content. The existing `lineCount` field (computed as `source.split('\n').length` in `read-source.ts:39` and `read-source.ts:76`) counts this phantom empty element. When the agent requests the last "line" via range, it gets an empty string. When `totalLines` reports 3 but the file has 2 meaningful lines, pagination logic breaks.
 
-**Why it happens:** Java source files use simple names after import statements. The hover display mirrors source-level conventions.
+**Why it happens:**
+This has been invisible because nobody was paginating by line number before -- agents read the full source. Line-range reading exposes the inconsistency.
 
-**Prevention:**
-- Use `textDocument/hover` on the type name within the source (not the method signature) to get the fully-qualified type.
-- Alternatively, scan the imports at the top of the source file to build a simple-name-to-FQN map. This handles most cases but misses star imports (`import net.minecraft.entity.*`).
-- For types in the same package, no import exists -- fall back to `textDocument/definition` on the type reference.
-- Accept that FQN resolution is a best-effort operation. Return `fqn: null` when resolution fails rather than guessing.
+**How to avoid:**
+- Do NOT change the existing `lineCount` semantics (that would break backward compatibility per Pitfall 1).
+- In the line-range response, use `totalLines` that matches `lineCount` exactly. Be consistent, not clever.
+- If the agent requests beyond end-of-file, clamp and return what exists. Include `startLine` and `endLine` in the response so the agent knows exactly what it received.
+- Add a test: full read vs reading the entire file via `startLine=1, lineCount=totalLines` must produce identical `source` content.
 
-**Detection:** If ClassReferences have `fqn: null` for common Minecraft types that should be resolvable, the resolution strategy needs improvement.
+**Warning signs:**
+- Full-read `lineCount` differs from `totalLines` in line-range response for the same file
+- Chunk-reassembly test fails due to extra empty line at boundary
 
-**Confidence:** MEDIUM -- this is an inherent LSP limitation but the specific behavior needs verification with real hover output.
+**Phase to address:**
+Phase 1 (read_source line-range). The reassembly test catches this.
 
-### Pitfall 8: Changing `initializationOptions` Requires JDT LS Restart
+---
 
-**What goes wrong:** The `includeSourceMethodDeclarations` setting is sent during `initialize` (see `client.ts:220`). Changing it after startup requires either: (1) a `workspace/didChangeConfiguration` notification (which JDT LS may or may not honor for this specific setting), or (2) a full JDT LS restart. If the setting is added to `initializationOptions.settings.java.symbols` and JDT LS does not pick it up at runtime, methods will not appear.
+### Pitfall 7: Context Lines on read_member Overlapping Adjacent Members
 
-**Why it happens:** LSP settings can be static (initialize-time only) or dynamic (changeable at runtime). Not all JDT LS settings support dynamic change.
+**What goes wrong:**
+Adding context lines to `read_member` (e.g., 5 lines before/after) includes raw lines that may contain the end of the previous method or start of the next method. Java classes pack members tightly. The agent gets fragments of unrelated members and may misattribute them to the target member.
 
-**Consequences:** If the setting does not take effect, methods silently do not appear in workspace/symbol results, and debugging why is non-obvious.
+**Why it happens:**
+Context lines are dumb -- they do not respect semantic boundaries. `locate_in_source` already has this exact pattern (`context.linesBefore`, `context.linesAfter`) and it works there because locate finds a POINT in source, not a complete semantic unit. But `read_member` already returns a complete unit (Javadoc + annotations + signature + body via `extractMemberSource` in `member-extractor.ts`). Adding raw line context around a complete unit creates a mixed response.
 
-**Prevention:** Set `includeSourceMethodDeclarations: true` in the `initializationOptions.settings` block during `startJdtLs()` in `client.ts`. This is the safest approach -- it takes effect before any queries. Verify by querying `workspace/symbol` with a known method name immediately after initialization and checking the response includes method-kind results.
+**How to avoid:**
+- Consider whether this feature is necessary at all. The agent can already get surrounding context via `read_source` with a line range around the member's `startLine`/`endLine`.
+- If context IS added, clearly separate the member source from context in the response: `{ memberSource: "...", contextBefore: "...", contextAfter: "..." }`. Do NOT concatenate them into the existing `source` field.
+- Alternatively, use semantic boundaries: extend to the nearest blank line or class-level declaration rather than a fixed line count.
 
-**Detection:** After adding the setting, call `workspace/symbol` with `{ query: 'main' }` or a known method name. If no method-kind results appear, the setting is not taking effect.
-
-**Confidence:** HIGH -- the initialization path is clearly in `client.ts:200-232`.
-
-### Pitfall 9: Extending ClassReference Without Breaking Existing Consumers
-
-**What goes wrong:** The existing `ClassReference` type in `browsing/types.ts` has `{ name, fqn, kind }`. Adding method/field member types may require extending this or creating parallel types. If the same `ClassReference` type is reused for member types with additional fields (e.g., `returnType`, `parameters`), existing code that only expects `name/fqn/kind` may break or silently ignore new fields.
-
-**Prevention:**
-- Create new types for members (`MethodReference`, `FieldReference`) rather than overloading `ClassReference`.
-- Keep `ClassReference` for what it is: a reference to a class/interface/enum. Use it AS a field within the new member types (e.g., `MethodReference.returnType: ClassReference`).
-- Ensure new types are additive, not breaking. The `type-hierarchy.ts` tool and `list-classes.ts` tool already use `ClassReference` -- they must continue working unchanged.
-
-**Detection:** Run existing tests after type changes. If any test that uses `ClassReference` fails, the extension was breaking.
-
-**Confidence:** HIGH -- `ClassReference` is used in type-hierarchy and list-classes outputs.
-
-## Minor Pitfalls
-
-### Pitfall 10: Off-by-One Errors in Position Conversion
-
-**What goes wrong:** LSP uses 0-based line/column positions. The codebase already converts to 1-based (seen in `list-members.ts:17-28` and `search-symbols.ts:103-104`). Adding new code paths for method/field inspection risks introducing inconsistent conversions -- some paths 1-based, some 0-based.
-
-**Prevention:** Centralize position conversion in a single utility function. The `transformSymbol` function in `list-members.ts` already does this. Reuse it or extract it to a shared module rather than reimplementing.
-
-**Detection:** If tool output shows line 0 or line numbers that are 1 off from the source, a conversion is wrong.
-
-**Confidence:** HIGH -- defensive concern based on existing pattern.
-
-### Pitfall 11: Inner Class Methods in FQN Scheme
-
-**What goes wrong:** Inner classes use `$` separator in the codebase (e.g., `MinecraftClient$Options`). The FQN scheme `Class;method()` needs to handle `MinecraftClient$Options;getVideoMode()`. But `$` is special in many contexts (regex, string templates). Also, the `;` separator in the FQN could conflict with Java's internal descriptor format where `;` terminates type references.
-
-**Prevention:** Define the FQN scheme precisely and document it. Use `$` for inner classes (matching existing convention), `;` for member separator, `()` suffix for methods, `:` suffix for fields. Validate FQN parsing with inner class test cases.
-
-**Detection:** Test FQN parsing with `OuterClass$InnerClass;method()` and `OuterClass$InnerClass;field:`.
-
-**Confidence:** HIGH -- the codebase already uses `$` for inner classes throughout.
-
-### Pitfall 12: Synthetic and Bridge Methods in Results
-
-**What goes wrong:** JDT LS may return synthetic methods (compiler-generated bridge methods for generics, lambda accessors, enum `values()`/`valueOf()`) in workspace/symbol and documentSymbol results. These are implementation details that clutter search results and confuse users.
-
-**Prevention:** Filter out methods with synthetic/bridge flags if JDT LS exposes them. At minimum, deprioritize them in results. Check the `tags` array -- JDT LS uses LSP SymbolTag.Deprecated (1) but may not have a synthetic tag. May need to filter by name pattern (e.g., `access$`, `lambda$`, `$VALUES`).
-
-**Detection:** Search for `access$` or `lambda$` in workspace/symbol results against real Minecraft workspace. If they appear, filtering is needed.
-
-**Confidence:** MEDIUM -- depends on JDT LS behavior with source files (synthetics are more common in .class files, less likely in decompiled sources).
-
-### Pitfall 13: `endpoint.send` vs `client` Method Inconsistency
-
-**What goes wrong:** The current codebase uses two different patterns to talk to JDT LS: `endpoint.send('workspace/symbol', ...)` in `search-symbols.ts` and `client.documentSymbol(...)` / `client.hover(...)` in other tools. The `endpoint` is the raw JSON-RPC layer; `client` is the typed LspClient wrapper. New method/field tools might inconsistently mix these, making the codebase harder to maintain.
-
-**Prevention:** Decide on one pattern per request type. Use `client` methods when `ts-lsp-client`'s `LspClient` has a typed method for the request. Use `endpoint.send` only for requests that `LspClient` does not expose. Document the convention.
-
-**Detection:** grep for `endpoint.send` and `client.` calls across tool files. If the same LSP method is invoked both ways in different tools, consolidate.
-
-**Confidence:** HIGH -- the inconsistency already exists between `search-symbols.ts` (endpoint) and `list-members.ts` (client).
-
-## Phase-Specific Warnings
-
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| Enabling `includeSourceMethodDeclarations` | Result explosion (Pitfall 2), readiness probe perf | Change probe query BEFORE enabling setting. Measure response times. |
-| Enabling `includeSourceMethodDeclarations` | Fields not included (Pitfall 1) | Document limitation. Implement field search via documentSymbol pipeline. |
-| Enabling `includeSourceMethodDeclarations` | Setting placement (Pitfall 8) | Set in initializationOptions at startup. Verify with post-init query. |
-| Structured member types / ClassReference | Hover parsing fragility (Pitfall 3) | Use tokenizer not regex. Accept partial failures. Test complex generics. |
-| Structured member types / ClassReference | FQN resolution (Pitfall 7) | Import scanning + hover fallback. Allow null FQN. |
-| Structured member types / ClassReference | Extending existing types (Pitfall 9) | Create new MethodReference/FieldReference types. Keep ClassReference unchanged. |
-| FQN scheme for members | Overload ambiguity (Pitfall 4) | Design as "family" reference returning all overloads. |
-| FQN scheme for members | Inner class handling (Pitfall 11) | Test with `$` separators. Document scheme precisely. |
-| Test infrastructure | Mocked tests hide bugs (Pitfall 6) | Capture real JDT LS response fixtures. Add integration test. |
-| search_symbols enhancement | containerName semantics (Pitfall 5) | Normalize or add declaringClass field for method results. |
+**Warning signs:**
+- Context includes partial method signatures from adjacent members
+- Agent references code from context as if it belongs to the target member
+- Tests check line count of context but not content coherence
+
+**Phase to address:**
+The read_member context phase. Evaluate whether read_source line-range makes this redundant.
+
+---
+
+### Pitfall 8: Pagination on find_references Without Clear "More Results" Signal
+
+**What goes wrong:**
+`find_references` currently returns ALL results (no pagination). If you add a `limit` parameter, the agent might get 50 of 312 results and treat them as the complete set because the response does not clearly signal truncation.
+
+**Why it happens:**
+MCP tools are stateless -- no cursors. The agent must be told there are more results and how to get them. The existing `search_classes` and `search_symbols` tools handle this with `total`/`offset`/`limit` fields. But `find_references` processes results through `processNavigationLocations()` in `tool-helpers.ts`, which returns a flat array with no pagination metadata.
+
+**How to avoid:**
+- Every paginated response must include: `total`, `offset`, `limit`, and ideally `hasMore: boolean` (redundant but explicit for agents).
+- For `find_references`: the default `limit` should be undefined (meaning "all results") to preserve backward compatibility. Pagination only activates when the agent explicitly passes a `limit`.
+- Add `truncated: true/false` when results are implicitly capped (e.g., by a maximum safeguard limit) without explicit agent pagination.
+- Update `TOOL_DESCRIPTIONS.find_references` to mention pagination: "Use limit/offset to paginate large result sets. Response includes total count."
+
+**Warning signs:**
+- Agent says "found 50 references" when there are 312 (only got page 1, didn't notice hasMore)
+- Tests verify result count but not pagination metadata
+
+**Phase to address:**
+The phase adding pagination to navigation tools. Follow the exact pattern from `search_classes`.
+
+---
+
+## Technical Debt Patterns
+
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Using `offset`/`limit` names for line-range params | Matches milestone description terminology | Agents confuse line-range offset with pagination offset | Never. Use `startLine`/`lineCount` for line ranges. |
+| Slicing results in the tool handler while JDT LS returns all | Quick pagination implementation | Full work still done server-side; pagination only saves response size | Acceptable -- JDT LS has no server-side pagination for workspace/symbol or references |
+| Silently clamping invalid ranges | No error responses to handle | Agent doesn't know its request was modified | Only for boundary clamping (past-end-of-file). Invalid combos (line-range without jar) should be hard errors |
+| Adding context param to read_member when read_source line-range exists | Convenience for agents | Two ways to get surrounding context; inconsistent patterns | Evaluate whether read_source line-range makes it redundant before building |
+
+## Integration Gotchas
+
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| MCP SDK inputSchema | Adding new optional params and assuming old agents send `undefined` for them | Zod `.optional()` handles this correctly. Test that omitting the param calls the handler with `undefined` and produces backward-compatible output. |
+| structuredContent envelope | Changing the `makeSuccess` data shape without updating `browsing/types.ts` | The existing TS errors (ToolError/ToolSuccess index signature) already show type drift. Adding new fields to response types must update types AND test factories. |
+| TOOL_DESCRIPTIONS | Adding params without updating the tool description | Agents read descriptions to learn how to use tools. New params not mentioned in descriptions will not be used. Update `descriptions.ts` for every param addition. |
+| processNavigationLocations | Adding pagination after this function returns all results | Pagination must wrap around the full results array, not inside processNavigationLocations. Keep the helper returning all results; the tool handler slices. |
+| extractEnclosingContext | Assuming it's cheap to call for every result | It reads the source file and parses structure for each location. For 300 references, this means reading up to 300 files. The sourceCache in processNavigationLocations helps but semantic parsing still scales linearly. |
+
+## Performance Traps
+
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| Reading full source then slicing for line-range | Latency same as full read for 5-line request | Acceptable: node-stream-zip reads entire entries from the jar. String splitting is negligible for Java files (largest MC classes ~5K lines). | Never at this project's scale |
+| find_references with 500+ results including full context snippets | Large response payloads, context window overflow | This is the EXACT problem v1.3 aims to solve. Add optional `limit` param. | Already an issue for heavily-referenced symbols like `Identifier.of()` |
+| enrichSymbols pipeline for read_member context | 100ms+ per call for full symbol enrichment | Context lines don't require enrichment -- they're raw source lines. If implementing context on read_member, don't re-enrich just to get line ranges. | Not expected to be a real issue |
+
+## UX Pitfalls (Agent Experience)
+
+| Pitfall | Agent Impact | Better Approach |
+|---------|-------------|-----------------|
+| Same param name (`offset`) meaning different things on different tools | Agent applies line-number offset to a pagination tool or vice versa | `startLine`/`lineCount` for line ranges, `offset`/`limit` for pagination. Distinct names. |
+| Silent truncation without metadata | Agent treats truncated results as complete, misses references | Always include `total`, `returned`, `hasMore` in paginated responses |
+| Compact mode removing context the agent needs | Analysis quality degrades silently | Default to full verbosity. Agent opts into compact. Document what compact removes. |
+| Error message for line-range without jar doesn't explain why | Agent retries without jar, gets same error | Error: "Line-range requires a specific jar because different jars may have different versions of this class." |
+| Adding `lineCount` param that collides with response field `lineCount` | Confusion between the request param and the response field | Use `lineCount` as the request param (how many lines to read), keep `lineCount` in response (how many lines returned). OR rename the request param to `maxLines` to disambiguate. |
+
+## "Looks Done But Isn't" Checklist
+
+- [ ] **read_source line-range:** Boundary tests -- `startLine=1, lineCount=1` returns first line; `startLine=totalLines, lineCount=1` returns last line; beyond-end returns empty with metadata; `startLine=0` errors
+- [ ] **read_source line-range:** Reassembly test -- reading file in N-line chunks and concatenating produces identical output to full read
+- [ ] **read_source line-range:** Input validation -- `startLine` or `lineCount` without `jar` returns clear error
+- [ ] **read_source line-range:** Response metadata -- includes `startLine`, `endLine`, `totalLines` alongside `source`
+- [ ] **Pagination on navigation tools:** Response includes `total` even when limit is applied, not just array length
+- [ ] **Pagination on navigation tools:** TOOL_DESCRIPTIONS updated to mention pagination params and usage pattern
+- [ ] **Verbosity controls:** Calling tool with NO new params produces structuredContent identical to pre-change version
+- [ ] **read_member context:** Context output doesn't include partial fragments of adjacent members
+- [ ] **Parameter naming:** All line-range params use same names across tools, all pagination params use same names, no collisions between the two
+
+## Recovery Strategies
+
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Broke structuredContent contract | MEDIUM | Add back removed fields, release patch. Agents that cached broken schema need tool refresh. |
+| Off-by-one in line range | LOW | Fix slicing math, update tests. Read-only server, no data corruption possible. |
+| Pagination missing total count | LOW | Add `total` field. Additive change, backward compatible. |
+| Changed default verbosity | HIGH | Reverting is easy but damage (degraded agent reasoning) already happened. Cannot undo bad analysis. |
+| Parameter name collision | MEDIUM | Renaming params is breaking for agents that learned old names. Get it right first time. |
+| Line-range without jar validation | LOW | Add validation check. No data corruption, just confusing results to fix. |
+
+## Pitfall-to-Phase Mapping
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| Breaking structuredContent contracts | All phases (cross-cutting rule) | Test: omitting new params produces identical structuredContent |
+| Off-by-one in line-range | read_source line-range phase | Boundary tests + reassembly test |
+| Parameter name collision (offset) | First phase (naming convention decision) | Audit: no param name means different things on different tools |
+| Silent verbosity degradation | Verbosity audit phase | Before/after structuredContent comparison with no new params |
+| Line-range without jar | read_source line-range phase | Test: line-range params without jar returns clear error |
+| Trailing newline inconsistency | read_source line-range phase | Test: full read vs range-reassembled content is identical |
+| Context lines overlapping members | read_member context phase | Test: context doesn't contain partial adjacent member signatures |
+| Pagination without hasMore signal | Navigation pagination phase | Test: response includes total/offset/limit/hasMore metadata |
 
 ## Sources
 
-- [JDT LS Preferences.java - includeSourceMethodDeclarations](https://github.com/eclipse-jdtls/eclipse.jdt.ls/blob/main/org.eclipse.jdt.ls.core/src/org/eclipse/jdt/ls/core/internal/preferences/Preferences.java) -- HIGH confidence
-- [JDT LS Issue #2075 - Slow dynamic workspace symbols](https://github.com/eclipse-jdtls/eclipse.jdt.ls/issues/2075) -- HIGH confidence
-- [JDT LS Issue #1712 - Partial results for workspace/symbol](https://github.com/eclipse-jdtls/eclipse.jdt.ls/issues/1712) -- HIGH confidence
-- [nvim-jdtls Discussion #676 - Workspace symbols other than class](https://github.com/mfussenegger/nvim-jdtls/discussions/676) -- HIGH confidence
-- [LSP-jdtls Sublime settings](https://github.com/sublimelsp/LSP-jdtls/blob/main/LSP-jdtls.sublime-settings) -- MEDIUM confidence
-- Codebase: `src/jdtls/client.ts` (initialization options, line 220) -- HIGH confidence
-- Codebase: `src/tools/search-symbols.ts` (workspace/symbol query, client-side pagination) -- HIGH confidence
-- Codebase: `src/tools/list-members.ts` (documentSymbol, transformSymbol) -- HIGH confidence
-- Codebase: `src/tools/get-symbol-info.ts` (hover markdown extraction) -- HIGH confidence
-- Codebase: `src/jdtls/workspace-sync.ts` (readiness probe with '*' query, line 85) -- HIGH confidence
-- Codebase: `src/browsing/types.ts` (ClassReference, TransformedSymbol types) -- HIGH confidence
-- Codebase: `tests/tools/search-symbols.test.ts` (mocked endpoint fixtures) -- HIGH confidence
+- Codebase: `src/tools/read-source.ts` -- current full-source response pattern, `lineCount` via `split('\n').length`
+- Codebase: `src/tools/read-member.ts` -- member extraction pipeline, enrichSymbols dependency
+- Codebase: `src/tools/find-references.ts` -- no pagination, full result return via processNavigationLocations
+- Codebase: `src/tools/search-classes.ts` -- existing pagination pattern with offset/limit/total
+- Codebase: `src/tools/search-symbols.ts` -- existing pagination pattern, client-side slicing of JDT LS results
+- Codebase: `src/tools/locate-in-source.ts` -- existing `context` parameter pattern with linesBefore/linesAfter
+- Codebase: `src/tools/tool-helpers.ts` -- processNavigationLocations, resolveClassSource, sourceCache pattern
+- Codebase: `src/browsing/member-extractor.ts` -- line-number conventions (1-based to 0-based conversions)
+- Codebase: `src/browsing/types.ts` -- SourceResult, MemberResult, LocateResult contracts
+- Codebase: `src/jdtls/types.ts` -- NavigationResult, ContextSnippet contracts
+- Codebase: `src/jdtls/context-extractor.ts` -- semantic context extraction, enclosing-unit detection
+
+---
+*Pitfalls research for: Adding context management controls to MinecraftDevMCP v1.3*
+*Researched: 2026-04-14*

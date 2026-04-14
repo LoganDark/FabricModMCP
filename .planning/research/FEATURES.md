@@ -1,124 +1,97 @@
-# Feature Landscape
+# Feature Landscape: v1.3 Context Management
 
-**Domain:** Symbol resolution and structured member inspection for Minecraft mod development MCP server
+**Domain:** MCP server response size control for code navigation tools
 **Researched:** 2026-04-14
 
 ## Table Stakes
 
-Features the user explicitly requires or that are expected for methods/fields to be "first-class citizens."
+Features agents expect from code navigation tools with context management. Missing = agents waste context window or fail on large results.
 
-| Feature | Why Expected | Complexity | Dependencies | Notes |
-|---------|--------------|------------|--------------|-------|
-| search_symbols returns methods | The tool description already claims it finds "methods, fields, classes, constructors" but currently only returns types. Broken promise. | Low | JDT LS `java.symbols.includeSourceMethodDeclarations` setting | Add setting to initializationOptions in `client.ts`. One-line config change plus test updates. |
-| search_symbols results include container class | When methods are returned, users need to know which class they belong to. JDT LS already provides `containerName` on SymbolInformation. | Low | Enabled method declarations | Already in the LSP response; just needs to be included in the transformed output (currently captured but not surfaced well). |
-| FQN scheme for methods: `Class;method()` | Unambiguous identification of methods, needed for future Mixin target specs and for passing method references between tools. | Medium | None (convention definition) | Must handle overloads. The semicolon separator avoids collision with Java's dot notation. Parentheses distinguish methods from fields. |
-| FQN scheme for fields: `Class;field:` | Same rationale as methods. Colon suffix distinguishes fields from methods. | Low | None (convention definition) | Simpler than methods -- no overload disambiguation needed. |
-| Structured method representation with typed parameters | `list_members` currently returns `detail: string` (raw signature text from JDT LS). Methods need structured `parameters: [{name, type: ClassReference}]` and `returnType: ClassReference`. | High | ClassReference type (exists), JDT LS documentSymbol response parsing | This is the core complexity. JDT LS `detail` field contains the signature as a string; parsing it into structured types requires understanding Java signature syntax. |
-| Structured field representation with typed value | Fields need `type: ClassReference` extracted from `detail`. | Medium | ClassReference type (exists) | Simpler than methods -- just one type to extract, not a parameter list. |
-| Method/field inspection via get_symbol_info | Currently works -- cascading regex can target any symbol position, and hover returns type info. | Low (already works) | None | Already functional. The "parity" gap is discoverability, not capability. |
-| Method/field inspection via find_definition | Same -- already works when you can provide patterns. | Low (already works) | None | Already functional for methods/fields. |
-| Method/field inspection via find_references | Same pattern. | Low (already works) | None | Already functional. |
+| Feature | Why Expected | Complexity | Depends On | Notes |
+|---------|--------------|------------|------------|-------|
+| Line-range reading on `read_source` | Minecraft classes are 500-5000+ lines. Agents often need only a specific region (e.g., lines 200-250 around a method found via `list_members`). Returning the full file wastes context budget. Every IDE and code browsing tool supports this. | Low | Requires `jar` parameter (single jar only -- offset/limit is meaningless across multiple jars with different content) | Add `offset` (1-based line) and `limit` (line count) params. When omitted, return full source (backward compatible). Return metadata: `totalLines`, `startLine`, `endLine` so agents know where they are in the file. |
+| Pagination on `find_references` | References can return 50-200+ results for commonly-used symbols (e.g., `World.getBlockState`). Currently returns ALL results with full context snippets via `processNavigationLocations`. This is the single biggest source of context overflow. | Medium | Existing `find_references` tool, existing `processNavigationLocations` helper | Add `limit` (default: 20) and `offset` (default: 0). Return `total` count so agents know how many exist. Sort results by category priority (minecraft > mod-source > fabric-api > library) so most relevant results appear first. |
+| Pagination on `find_implementations` | Same problem as references -- popular interfaces like `Inventory`, `BlockEntity` can have dozens of implementations, each with a full context snippet. | Medium | Existing `find_implementations` tool, same `processNavigationLocations` helper | Same pattern as references: `limit`/`offset`/`total`. Lower default limit (10) since implementations are usually fewer but each is more significant. |
+| Snippet verbosity control on navigation tools | Each `NavigationResult` includes a `ContextSnippet` from `extractEnclosingContext` which can be an entire method body. For a 100-line method, that is 100 lines per reference. With 30 references that is 3000 lines of snippets. The current context extractor is aggressive -- it returns the full enclosing method, not just a useful preview. | Low | Existing `extractEnclosingContext` in `context-extractor.ts`, existing `NavigationResult` type | Add a `snippetMode` parameter: `"signature"` (just the declaration line + a few lines), `"context"` (current behavior, full enclosing unit), `"none"` (location only, no source text). Default to `"context"` for backward compatibility. Agents doing bulk reference scans should pass `"signature"`. |
 
 ## Differentiators
 
-Features that go beyond table stakes and provide real workflow improvement.
+Features that would make the tool notably better than typical code navigation MCP servers. Not expected, but high value.
 
-| Feature | Value Proposition | Complexity | Dependencies | Notes |
-|---------|-------------------|------------|--------------|-------|
-| FQN-based member navigation (accept FQN instead of class+patterns) | Instead of `class: "MinecraftClient", patterns: ["void tick\\(", "tick"]`, accept `MinecraftClient;tick()` and auto-resolve the position. Massive UX improvement -- search_symbols returns FQNs, user passes them directly to inspection tools. | High | FQN scheme, member position resolution | This is the key differentiator for "inspection parity." Without it, the workflow is: search -> get result -> manually construct class+patterns. With it: search -> pass FQN -> done. |
-| Overload disambiguation in FQN scheme | `Class;method(int,String)` to distinguish overloaded methods. Matches Mixin target descriptor conventions. | Medium | FQN scheme | Important for Minecraft where overloads are common. Start with simple type names; full JVM descriptors later. |
-| ClassReference enrichment with jar provenance | ClassReferences in method params/return types could include which jar contains the type's source. | Low | ClassReference type | Useful for navigation: "this method returns a `BlockState` -- where is that defined?" |
-| search_symbols with FQN in results | Return member FQN (`MinecraftClient;tick()`) directly in search results so Claude can immediately pass it to other tools. | Low | FQN scheme | Transforms search from "informational" to "actionable." |
-| Member search across specific jars | search_symbols currently searches the entire JDT LS workspace. Filtering by jar scope would reduce noise. | Medium | JDT LS workspace/symbol limitations | JDT LS workspace/symbol has no built-in jar filtering. Would need post-filtering by URI mapping. |
+| Feature | Value Proposition | Complexity | Depends On | Notes |
+|---------|-------------------|------------|------------|-------|
+| Context lines on `read_member` | When reading a method body, agents sometimes need surrounding context (preceding field, following method, nearby imports). `locate_in_source` already has this exact pattern with its `context: { linesBefore, linesAfter }` parameter. | Low | Existing `read_member` tool, existing `extractMemberSource` in `member-extractor.ts` | Add optional `contextLinesBefore` / `contextLinesAfter` params. Extend the extracted source region by N lines in each direction. Return adjusted `startLine`/`endLine`. Follows established pattern from `locate_in_source`. |
+| Compact mode for search results | `search_classes` returns full `ClassInfo` objects with inner classes, access modifiers, jars list, etc. For broad searches agents often just need the FQN list to decide which class to investigate. | Low | Existing `search_classes` tool | Add `compact: boolean` param. When true, return only `{ fqn, kind, jar }` per result instead of full `ClassInfo`. Reduces per-result size by ~60-80%. |
+| Grouped reference counts | Instead of only paginated results, also return a package-level distribution: "30 references: 12 in net.minecraft.client.*, 8 in net.minecraft.world.*, 10 in fabric-api". Agent sees the distribution at a glance and can target specific groups. | Medium | Pagination on `find_references` (build on top of it) | Add `groupedCounts` to the response envelope -- a map of package prefix to count. Computed from the full LSP result set before pagination. Zero extra tool calls needed; agent gets distribution metadata with the first page. |
+| `search_symbols` result deduplication | JDT LS workspace/symbol can return the same symbol from multiple workspace copies (extracted jars). Results should be deduplicated by FQN, keeping highest-priority source. | Low | Existing `search_symbols` tool, existing `CATEGORY_PRIORITY` from `tool-helpers.ts` | Currently results may include duplicates from the workspace extraction. Dedup by FQN, preferring minecraft > mod-source > fabric-api > library priority. Quick quality win. |
 
 ## Anti-Features
 
-Features to explicitly NOT build in this milestone.
+Features to explicitly NOT build for v1.3.
 
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| Mixin target validation | Conflates symbol resolution with Mixin-specific semantics. v2 concern. | Build the FQN scheme cleanly so Mixin tooling can consume it later. |
-| Automatic Mixin descriptor generation | Generating `Lnet/minecraft/client/MinecraftClient;tick()V` JVM descriptors from FQNs. Useful but scope creep. | FQN scheme should be designed to be convertible to JVM descriptors, but don't build the converter yet. |
-| Field value inspection (runtime values) | This is a read-only source analysis server, not a debugger. | get_symbol_info already provides type information from hover. |
-| Full Java signature parsing library | Building a complete Java type signature parser (generics, wildcards, arrays, etc.) is a rabbit hole. | Parse what JDT LS gives us pragmatically. Handle common cases (simple types, parameterized types, arrays). Fall back to raw string for exotic signatures. |
-| Workspace-wide field search | JDT LS `includeSourceMethodDeclarations` only adds methods, NOT fields, to workspace/symbol results. There is no `includeSourceFieldDeclarations` setting in JDT LS. Building custom field indexing is out of scope. | Fields are discoverable via `list_members` on a known class. Document this limitation clearly in the search_symbols tool description. |
-| Changing existing tool required params | Adding new tools or optional params is fine. Changing required params on existing tools breaks Claude's learned patterns. | Add new optional parameters (e.g., `member` FQN param) alongside existing `class`+`patterns` params. |
+| Automatic truncation / server-side hard limits | The agent should control what it gets, not be surprised by silently truncated data. Hard limits (e.g., "never return more than 100 lines") break trust -- the agent cannot distinguish complete data from truncated data. The MCP community discussion (#2211) explicitly warns against silent truncation. | Provide explicit `limit`/`offset` params and always report `total` so the agent makes informed choices. |
+| Token-based response sizing | Counting tokens server-side requires a tokenizer dependency, adds complexity, and couples the server to specific model tokenization. Token limits are the client/host's concern per the MCP architecture. | Use line counts and result counts as the sizing primitive. Lines are universal, predictable, and cheap to compute. |
+| Streaming / chunked tool results | MCP tool results are atomic in the SDK -- the `CallToolResult` type does not support incremental delivery. Streamable HTTP is a transport-level concern, not a tool result concern. | Pagination (multiple sequential tool calls) achieves the same progressive loading within MCP's design. |
+| Cursor-based pagination for tool results | MCP's cursor-based pagination spec is for protocol-level listing operations (`resources/list`, `tools/list`). Tool results in this codebase already use offset/limit (established in `search_classes` and `search_symbols`). Switching to cursors would be inconsistent and add statefulness. | Keep offset/limit pagination. Stateless, predictable, already the pattern in this codebase. |
+| Separate summary tools (`find_references_summary`, etc.) | Each tool definition costs 550-1400 tokens in the agent's system prompt. Adding parallel summary variants doubles tool surface area. With 22 tools already, this is a real concern. | Add summary/compact modes as parameters on existing tools. One tool, multiple verbosity levels. |
+| Per-project response size configuration | Adds state management complexity for marginal benefit. The agent can pass smaller limits per call. | Let agents control verbosity per-call via parameters. Stateless is simpler. |
 
 ## Feature Dependencies
 
 ```
-Enable includeSourceMethodDeclarations ──> search_symbols returns methods
-                                              │
-Define FQN scheme ──────────────────────────> FQN in search results
-                                              │
-Structured member types ─────────────────> ClassReference for params/returns
-    │                                         │
-    └── Signature string parsing              │
-                                              v
-                                    FQN-based member navigation (differentiator)
-                                              │
-                                              v
-                                    Inspection parity complete
+Line-range read_source requires jar parameter (single jar constraint)
+    read_source [jar + offset + limit] --> slice with totalLines/startLine/endLine metadata
+
+Pagination on find_references/find_implementations
+    find_references [limit + offset] --> { results[], total, limit, offset }
+    find_implementations [limit + offset] --> same shape
+
+Snippet mode is independent of pagination (but composes well)
+    find_references [snippetMode] --> controls extractEnclosingContext behavior
+    find_implementations [snippetMode] --> same
+    find_definition [snippetMode] --> same
+
+Context lines on read_member follows locate_in_source pattern
+    locate_in_source [context: {linesBefore, linesAfter}] --> existing pattern
+    read_member [contextLinesBefore, contextLinesAfter] --> same approach
+
+Grouped reference counts builds on pagination
+    find_references [limit + offset] --> prerequisite
+    find_references [groupedCounts] --> computed from full result set, returned alongside page
+
+Compact search_classes is independent
+    search_classes [compact] --> reduced ClassInfo output
 ```
 
-Key ordering:
-1. FQN scheme definition (convention) -- no code dependency, but everything else references it
-2. `includeSourceMethodDeclarations` setting -- trivial, unblocks method search
-3. Structured member types with ClassReference -- the hard part, needed for rich results
-4. FQN in search/list_members results -- wiring, depends on 1+3
-5. FQN-based navigation (optional differentiator) -- depends on 1+2+3+4
-
-## Critical Limitation: Fields NOT Searchable via workspace/symbol
-
-JDT LS provides exactly two `java.symbols.*` settings:
-- `includeSourceMethodDeclarations` (enables methods in workspace/symbol)
-- `includeGeneratedCode` (enables Lombok-generated symbols in documentSymbol)
-
-There is **no** `includeSourceFieldDeclarations` setting. This is a deliberate JDT LS design choice for performance reasons -- the Java type index used by workspace/symbol does not index fields.
-
-**Impact on the milestone**: The search_symbols tool will return types + methods but NOT fields. Fields remain discoverable only through `list_members` (which uses documentSymbol on a specific class). This is an inherent JDT LS limitation, not something we can fix.
-
-**Mitigation**: Update the search_symbols tool description to accurately state what it can find. Consider adding a note to search results when kind="field" is requested, explaining fields must be found via list_members.
+No circular dependencies. All features are additive (new optional params on existing tools).
 
 ## MVP Recommendation
 
-Prioritize:
-1. **FQN scheme definition** -- Convention only, zero code. Must be decided first because it appears in every other feature's output format. Design it to be forward-compatible with JVM descriptors (for future Mixin support).
-2. **Enable `includeSourceMethodDeclarations`** -- One setting addition to `client.ts` initializationOptions. Instantly fixes the "search_symbols only returns types" issue. Test that methods appear in results.
-3. **Structured member types** -- Extend or replace `TransformedSymbol` with new `StructuredMethod`/`StructuredField` types using `ClassReference` for parameter types and return types. Parse JDT LS `detail` strings. This is where most engineering effort goes.
-4. **FQN in tool outputs** -- Wire the FQN scheme into search_symbols results and list_members results. Makes search results actionable.
+Prioritize for v1.3 in this order:
 
-Defer:
-- **FQN-based member navigation** (accept member FQN in inspection tools): High value but high complexity. Can be a follow-up within v1.2 or deferred to v1.3. Table-stakes features are useful without it -- Claude can still use class+patterns for inspection.
-- **Overload disambiguation with parameter types**: Start with simple `Class;method()` and add parameter-based disambiguation only when overloads are actually encountered.
+1. **Pagination on `find_references` + `find_implementations`** -- Highest impact. These tools produce the largest responses because they return unbounded result arrays with full context snippets. Add `limit`/`offset`/`total`. Default limits: 20 for references, 10 for implementations. This alone addresses the majority of context overflow incidents.
 
-## Complexity Budget
+2. **Snippet verbosity control** -- Pairs with pagination. Add `snippetMode` parameter (`"signature"` | `"context"` | `"none"`) to `find_references`, `find_implementations`, and `find_definition`. When doing bulk reference scanning, agents pass `"signature"` to get compact results. Default `"context"` preserves backward compatibility.
 
-| Feature | Estimated Effort | Risk |
-|---------|-----------------|------|
-| FQN scheme definition | Hours | Low -- convention, not code |
-| Enable method declarations setting | Hours | Low -- config change |
-| Signature string parsing | Days | Medium -- JDT LS detail format varies |
-| Structured member types | Days | Medium -- type design + parsing |
-| FQN wiring in outputs | Hours | Low -- mechanical |
-| FQN-based navigation (differentiator) | Days | High -- new resolution path |
+3. **Line-range reading on `read_source`** -- Second highest impact for daily use. Large Minecraft classes are 2000-5000 lines. Add `offset` (1-based line number) and `limit` (number of lines). Require `jar` parameter when offset/limit are used. Return `totalLines`/`startLine`/`endLine` metadata.
 
-## Key Design Decisions to Make
+4. **Context lines on `read_member`** -- Low effort, follows existing `locate_in_source` pattern. Add optional `contextLinesBefore`/`contextLinesAfter` params.
 
-1. **FQN separator**: The milestone context specifies `;` (e.g., `SomeClass;method()`). This avoids ambiguity with Java's `.` and `$`. Full examples: `net.minecraft.client.MinecraftClient;tick()`, `net.minecraft.client.MinecraftClient;worldRenderer:`.
-
-2. **Overload handling**: Start with `Class;method()` (no params in parens). If the method name is unambiguous within the class, this suffices. For overloads, extend to `Class;method(BlockPos,BlockState)` using simple type names. Full JVM descriptors (`(Lnet/minecraft/util/math/BlockPos;)V`) are a Mixin concern for later.
-
-3. **ClassReference for primitives**: `int`, `void`, `boolean` are not classes. For primitives: `{name: "int", fqn: "int", kind: "primitive"}`. For arrays: `{name: "int[]", fqn: "int[]", kind: "array"}`.
-
-4. **Generics in ClassReference**: `List<String>` -- start simple with raw type only (`{name: "List", fqn: "java.util.List", kind: "class"}`). Add `typeArguments` if JDT LS detail parsing makes it tractable.
-
-5. **Where structured types live**: Create separate types (`StructuredMethod`, `StructuredField`) rather than extending `TransformedSymbol`. The current `TransformedSymbol` is generic LSP output; structured types are domain-specific enrichment.
+**Defer to follow-up or bundle as quick wins:**
+- **Compact `search_classes`**: Low priority -- search results are already paginated and individual results are not huge.
+- **Grouped reference counts**: Medium value but adds complexity to the find_references response shape. Add after pagination is proven useful.
+- **`search_symbols` deduplication**: Quality fix, not a context management feature. Could be a quick win bundled in if time permits.
 
 ## Sources
 
-- [nvim-jdtls Discussion #676 - Workspace symbols beyond class](https://github.com/mfussenegger/nvim-jdtls/discussions/676) -- Confirms `java.symbols.includeSourceMethodDeclarations` enables methods in workspace/symbol. No equivalent for fields. MEDIUM confidence.
-- [Eclipse JDT LS Preferences.java](https://github.com/eclipse-jdtls/eclipse.jdt.ls/blob/main/org.eclipse.jdt.ls.core/src/org/eclipse/jdt/ls/core/internal/preferences/Preferences.java) -- Only two `java.symbols.*` settings exist: `includeSourceMethodDeclarations` and `includeGeneratedCode`. No field equivalent. HIGH confidence.
-- [LSP Specification 3.17 - workspace/symbol](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/) -- SymbolInformation includes `containerName` field. HIGH confidence.
-- [Fabric Wiki - @Inject](https://wiki.fabricmc.net/tutorial:mixin_injects) -- Mixin method target format uses JVM descriptors: `Lpackage/Class;method(params)returnType`. HIGH confidence.
-- [SpongePowered Mixin - Obfuscation](https://github.com/SpongePowered/Mixin/wiki/Introduction-to-Mixins---Obfuscation-and-Mixins) -- Mixin descriptor conventions for method/field targeting. HIGH confidence.
+- [MCP Pagination Specification](https://modelcontextprotocol.io/specification/2025-03-26/server/utilities/pagination) -- Opaque cursor pagination for protocol-level listing; offset/limit is the correct pattern for tool results
+- [MCP Response Size Limit Discussion #2211](https://github.com/modelcontextprotocol/modelcontextprotocol/discussions/2211) -- Community consensus: servers should provide explicit controls, not silently truncate; capability negotiation discussed but not specced
+- [15 Best Practices for Building MCP Servers in Production](https://thenewstack.io/15-best-practices-for-building-mcp-servers-in-production/) -- Cap data at reasonable thresholds, always report total_count
+- [MCP and Context Overload](https://eclipsesource.com/blogs/2026/01/22/mcp-context-overload/) -- Each tool definition costs 550-1400 tokens; minimize tool count, maximize parameter flexibility
+- [Solving Context Window Overflow in AI Agents](https://arxiv.org/html/2511.22729v1) -- Progressive disclosure and chunking approaches
+- [LSP Skill for Code Analysis](https://github.com/lsp-client/lsp-skill/blob/main/skills/lsp-code-analysis/SKILL.md) -- Outline-first progressive disclosure pattern, `--max-items` for pagination
+- [Context Mode MCP Server](https://github.com/mksglu/context-mode) -- Sandbox approach achieving 98% context reduction (reference for scale of problem)
+- [Truncated MCP Tool Responses - Claude Code #2638](https://github.com/anthropics/claude-code/issues/2638) -- Real-world truncation causing agent workflow failures
+- [MCP Tool Response Fills Context Window - Open WebUI #15884](https://github.com/open-webui/open-webui/discussions/15884) -- Another host experiencing the same context overflow problem
