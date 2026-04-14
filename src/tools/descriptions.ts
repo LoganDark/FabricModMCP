@@ -78,6 +78,12 @@ export const PARAMS = {
 	/** Optional number of source lines to include after the member. */
 	linesAfter: z.number().int().min(0).optional()
 		.describe('Number of source lines to include after the member'),
+	/** Optional maximum number of results to return. Omit for all results. */
+	limit: z.number().int().min(1).optional()
+		.describe('Maximum number of results to return. Omit for all results.'),
+	/** Optional number of results to skip (0-based). Default: 0. */
+	offset: z.number().int().min(0).optional()
+		.describe('Number of results to skip (0-based). Default: 0.'),
 } as const;
 
 // ---------------------------------------------------------------------------
