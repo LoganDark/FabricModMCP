@@ -44,7 +44,7 @@
 
 - [x] **Phase 15: Enable Method Search** — JDT LS config unlock, readiness probe fix, search_symbols returns methods (completed 2026-04-14)
 - [x] **Phase 16: Member Parser Domain Module** — MemberReference types and detail string parser for structured method/field representations (completed 2026-04-14)
-- [ ] **Phase 17: Structured Member Output** — Wire parser into list_members and search_symbols with member FQNs
+- [x] **Phase 17: Structured Member Output** — Wire parser into list_members and search_symbols with member FQNs (completed 2026-04-14)
 
 ## Phase Details
 
@@ -89,7 +89,7 @@ Plans:
 
 Plans:
 - [x] 17-01-PLAN.md — Domain functions: buildMemberFqn, EnrichedSymbol types, createResolvePackage, enrichSymbols pipeline
-- [ ] 17-02-PLAN.md — Wire enrichment into list_members and add memberFqn to search_symbols
+- [x] 17-02-PLAN.md — Wire enrichment into list_members and add memberFqn to search_symbols
 
 ## Progress
 
@@ -114,4 +114,4 @@ Phases execute in numeric order: 15 → 16 → 17
 | 14. JDT LS Workspace Sync | v1.1 | 2/2 | Complete | 2026-04-14 |
 | 15. Enable Method Search | v1.2 | 1/1 | Complete    | 2026-04-14 |
 | 16. Member Parser Domain Module | v1.2 | 2/2 | Complete    | 2026-04-14 |
-| 17. Structured Member Output | v1.2 | 1/2 | In Progress|  |
+| 17. Structured Member Output | v1.2 | 2/2 | Complete   | 2026-04-14 |

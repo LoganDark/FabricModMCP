@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Symbol Resolution
 status: unknown
-stopped_at: Completed 17-01-PLAN.md
-last_updated: "2026-04-14T11:57:41.906Z"
+stopped_at: Completed 17-02-PLAN.md
+last_updated: "2026-04-14T12:03:09.466Z"
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
@@ -50,6 +50,7 @@ Plan: 2 of 2
 | Phase 16-member-parser P01 | 2min | 2 tasks | 4 files |
 | Phase 16-member-parser P02 | 2min | 1 tasks | 2 files |
 | Phase 17-structured-member-output P01 | 2min | 2 tasks | 7 files |
+| Phase 17-structured-member-output P02 | 4min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,8 @@ Recent decisions affecting current work:
 - [Phase 16-member-parser]: No-arg methods detected by absence of parens; generics stripped via depth-counting loop
 - [Phase 17-structured-member-output]: FQN uses # separator (Class#method(), Class#field:) matching Javadoc convention
 - [Phase 17-structured-member-output]: EnrichedClassSymbol has no memberFqn -- classes are containers, not members
+- [Phase 17-structured-member-output]: Multi-jar resolvePackage built inline in list-members (cached EntryIndex, O(1) after first call)
+- [Phase 17-structured-member-output]: enrichOne falls back to kind-based classification when detail is null (constructors/fields still get memberFqn)
 
 ### Pending Todos
 
@@ -78,6 +81,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-14T11:57:41.904Z
-Stopped at: Completed 17-01-PLAN.md
+Last session: 2026-04-14T12:03:09.464Z
+Stopped at: Completed 17-02-PLAN.md
 Resume file: None
