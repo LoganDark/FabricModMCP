@@ -37,6 +37,10 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - [x] Study jars selectable via existing `jars` parameter — Validated in Phase 12: existing-tool-integration
 - [x] Auto-include study jars appear in default jar set — Validated in Phase 12: existing-tool-integration
 
+#### JDT LS Workspace Sync
+- [x] Study jar sources extracted incrementally to JDT LS workspace — Validated in Phase 14: jdtls-workspace-sync
+- [x] Classpath regenerated and JDT LS notified on add/remove without full reload — Validated in Phase 14: jdtls-workspace-sync
+
 ## Current Milestone: v1.1 Study Jars
 
 **Goal:** Enable adding arbitrary source jars to projects for study, with opt-in inclusion in default tool resolution.
@@ -60,6 +64,7 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - **Phase 11 complete:** StudyJar type system, jar handle management (add/remove with ref-counting), cache eviction, domain service module (7 functions), refresh_dependencies wiring — 361 tests
 - **Phase 12 complete:** Unified dependency resolver integrating study jars into all 11 existing tools via `getDependenciesForTool` — 379 tests
 - **Phase 13 complete:** Four MCP tools for study jar CRUD (add, remove, list, configure) with 18 integration tests — 397 tests
+- **Phase 14 complete:** JDT LS workspace sync — incremental study jar extraction, classpath regeneration, LSP notification, probe-based readiness detection. 26 new tests — 423 tests
 - **Tech stack:** TypeScript 5.7+, Node.js 22 LTS, official MCP SDK 1.29.x, Zod 4, node-stream-zip, JDT LS via ts-lsp-client
 - **Architecture:** Layered domain → tool pattern. Domain modules handle logic; tool layer wires Zod schemas and MCP registration. Shared abstractions: ProjectStore, JarReader, EntryIndex, SourceAdapter, cascadeRegex, resolveSymbolPosition
 - **Ecosystem:** Fabric mod development uses Gradle with Fabric Loom. Loom's genSources decompiles Minecraft into a sources jar (~6,600 .java files) in `~/.gradle/caches/fabric-loom/minecraftMaven/`
@@ -105,4 +110,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-14 after Phase 13 completion*
+*Last updated: 2026-04-14 after Phase 14 completion*
