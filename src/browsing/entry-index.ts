@@ -30,12 +30,12 @@ export function decomposeEntryPath(entryPath: string): DecomposedEntry | null {
 	return { packageName, className, isInnerClass, outerClassName, isAnonymous };
 }
 
-export interface ClassInfo {
+export interface ClassIndexEntry {
 	className: string;
 	innerClassNames: string[];
 }
 
-export interface FlatClassInfo {
+export interface FlatClassIndexEntry {
 	fqn: string;
 	className: string;
 	packageName: string;
@@ -110,11 +110,11 @@ export class EntryIndex {
 		return result.sort();
 	}
 
-	getClasses(packageName: string): ClassInfo[] {
+	getClasses(packageName: string): ClassIndexEntry[] {
 		const classNames = this.packages.get(packageName);
 		if (!classNames) return [];
 
-		const result: ClassInfo[] = [];
+		const result: ClassIndexEntry[] = [];
 		for (const className of classNames) {
 			const fqn = packageName ? `${packageName}.${className}` : className;
 			const innerClassNames = this.innerClasses.get(fqn) ?? [];
@@ -128,8 +128,8 @@ export class EntryIndex {
 		return this.packages.get(packageName)?.size ?? 0;
 	}
 
-	getAllClasses(): FlatClassInfo[] {
-		const result: FlatClassInfo[] = [];
+	getAllClasses(): FlatClassIndexEntry[] {
+		const result: FlatClassIndexEntry[] = [];
 
 		for (const [packageName, classNames] of this.packages) {
 			for (const className of classNames) {

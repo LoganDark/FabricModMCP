@@ -6,7 +6,7 @@ import { resolveSymbolPosition } from './resolve-symbol-position.js';
 import { createUriMapper, entryPathToClassName } from '../jdtls/uri-mapper.js';
 import { extractEnclosingContext } from '../jdtls/context-extractor.js';
 import { logger } from '../logging/logger.js';
-import { handleSymbolPositionError, resolveProjectSafely, returnError, withLspDocument } from './tool-helpers.js';
+import { handleSymbolPositionError, normalizeLocations, resolveProjectSafely, returnError, withLspDocument } from './tool-helpers.js';
 import type { NavigationResult } from '../jdtls/types.js';
 
 export function registerFindReferencesTool(server: McpServer): void {
@@ -67,7 +67,7 @@ export function registerFindReferencesTool(server: McpServer): void {
 				});
 
 				// Process reference results -- refResult is Location[] | null
-				const locations: Array<{ uri: string; range: { start: { line: number; character: number }; end: { line: number; character: number } } }> = refResult ?? [];
+				const locations = normalizeLocations(refResult);
 				const results: NavigationResult[] = [];
 
 				for (const loc of locations) {
