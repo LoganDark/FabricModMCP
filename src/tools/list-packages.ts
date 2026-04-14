@@ -11,9 +11,9 @@ import { logger } from '../logging/logger.js';
 import type { PackageEntry } from '../browsing/types.js';
 
 // Cache EntryIndex per jar path to avoid rebuilding on repeated calls
-const entryIndexCache = new Map<string, EntryIndex>();
+export const entryIndexCache = new Map<string, EntryIndex>();
 
-function getOrBuildIndex(entries: string[], cacheKey: string): EntryIndex {
+export function getOrBuildIndex(entries: string[], cacheKey: string): EntryIndex {
 	const cached = entryIndexCache.get(cacheKey);
 	if (cached) return cached;
 
