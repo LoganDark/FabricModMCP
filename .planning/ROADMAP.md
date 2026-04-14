@@ -45,10 +45,11 @@
   2. Removing a study jar evicts its entry index cache so re-adding a rebuilt jar returns fresh data
   3. Study jar IDs use `study:` namespace prefix and collisions with existing dependency IDs are detected
   4. The `studyJars` map on LoadedProject survives `refresh_dependencies` without data loss
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 11-01: TBD
+- [ ] 11-01-PLAN.md — Types and infrastructure extensions (StudyJar types, JarReader add/remove, cache eviction)
+- [ ] 11-02-PLAN.md — Study jar domain service and refresh_dependencies integration
 
 ### Phase 12: Existing Tool Integration
 **Goal**: All existing jar-aware tools see study jars through a unified dependency resolution path
@@ -99,7 +100,7 @@ Phases execute in numeric order: 11 -> 12 -> 13 -> 14
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 11. Types and Domain Logic | v1.1 | 0/? | Not started | - |
+| 11. Types and Domain Logic | v1.1 | 0/2 | Not started | - |
 | 12. Existing Tool Integration | v1.1 | 0/? | Not started | - |
 | 13. Study Jar Management Tools | v1.1 | 0/? | Not started | - |
 | 14. JDT LS Workspace Sync | v1.1 | 0/? | Not started | - |
