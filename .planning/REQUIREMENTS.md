@@ -9,10 +9,10 @@ Requirements for v1.1 Study Jars milestone. Each maps to roadmap phases.
 
 ### Study Jar Management
 
-- [ ] **STUDY-01**: User can add a named source jar to a loaded project by file path
-- [ ] **STUDY-02**: User can remove a study jar from a project by name
-- [ ] **STUDY-03**: User can list all study jars on a project with their auto-include status
-- [ ] **STUDY-04**: User can set a study jar's auto-include flag (default: off)
+- [x] **STUDY-01**: User can add a named source jar to a loaded project by file path
+- [x] **STUDY-02**: User can remove a study jar from a project by name
+- [x] **STUDY-03**: User can list all study jars on a project with their auto-include status
+- [x] **STUDY-04**: User can set a study jar's auto-include flag (default: off)
 
 ### Tool Integration
 
@@ -55,10 +55,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-02 | Phase 11 | Complete |
 | INTG-01 | Phase 12 | Complete |
 | INTG-02 | Phase 12 | Complete |
-| STUDY-01 | Phase 13 | Pending |
-| STUDY-02 | Phase 13 | Pending |
-| STUDY-03 | Phase 13 | Pending |
-| STUDY-04 | Phase 13 | Pending |
+| STUDY-01 | Phase 13 | Complete |
+| STUDY-02 | Phase 13 | Complete |
+| STUDY-03 | Phase 13 | Complete |
+| STUDY-04 | Phase 13 | Complete |
 | LSP-01 | Phase 14 | Pending |
 | LSP-02 | Phase 14 | Pending |
 

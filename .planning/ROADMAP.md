@@ -79,7 +79,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 13-01-PLAN.md — Tool descriptions, four tool implementations, and registerAllTools wiring
+- [x] 13-01-PLAN.md — Tool descriptions, four tool implementations, and registerAllTools wiring
 - [ ] 13-02-PLAN.md — Integration tests for all four study jar management tools
 
 ### Phase 14: JDT LS Workspace Sync
@@ -104,5 +104,5 @@ Phases execute in numeric order: 11 -> 12 -> 13 -> 14
 |-------|-----------|----------------|--------|-----------|
 | 11. Types and Domain Logic | v1.1 | 2/2 | Complete    | 2026-04-14 |
 | 12. Existing Tool Integration | v1.1 | 2/2 | Complete    | 2026-04-14 |
-| 13. Study Jar Management Tools | v1.1 | 0/2 | Not started | - |
+| 13. Study Jar Management Tools | v1.1 | 1/2 | In Progress|  |
 | 14. JDT LS Workspace Sync | v1.1 | 0/? | Not started | - |
