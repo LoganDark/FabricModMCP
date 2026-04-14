@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Study Jars
 status: unknown
-last_updated: "2026-04-14T07:30:44.764Z"
+last_updated: "2026-04-14T07:34:49.966Z"
 last_activity: 2026-04-14
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
@@ -53,6 +53,8 @@ See PROJECT.md Key Decisions table for full decision log from v1.0.
 - [Phase 13]: Pre-validate all names before mutation in batch operations (remove, configure) for fail-fast
 - [Phase 13]: Tests register project with shared jarReader in addition to projectStore to match tool runtime requirements
 - [Phase 14]: Probe with workspace/symbol query '*' for readiness detection -- contents of arbitrary study jars unknown
+- [Phase 14]: Warning appended as newline suffix to success text rather than separate content block
+- [Phase 14]: unsyncStudyJarFromWorkspace called before removeProjectJar to update JDT LS before jar handle removal
 
 ### Blockers/Concerns
 
