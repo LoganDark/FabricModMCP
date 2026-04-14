@@ -2,6 +2,8 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { discoverDependencies } from '../project/dependency-discovery.js';
+import { clearEntryIndexCache } from '../browsing/entry-index-cache.js';
+import { jarReader } from './shared-jar-reader.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely } from './tool-helpers.js';
 
@@ -22,6 +24,9 @@ export function registerRefreshDependenciesTool(server: McpServer): void {
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
 
+			// Close old jar handles before re-discovering
+			await jarReader.closeProject(loadedProject.name);
+
 			const result = await discoverDependencies(
 				loadedProject.gradleConfig,
 				loadedProject.sourcesJar.path,
@@ -29,6 +34,16 @@ export function registerRefreshDependenciesTool(server: McpServer): void {
 			);
 
 			loadedProject.dependencyJars = result.dependencies;
+
+			// Re-register jar paths with the jar reader
+			const jarPaths = new Set<string>();
+			for (const dep of result.dependencies.values()) {
+				if (dep.sourcesJarPath) jarPaths.add(dep.sourcesJarPath);
+			}
+			jarReader.registerProject(loadedProject.name, jarPaths);
+
+			// Clear entry index cache — jar contents may have changed
+			clearEntryIndexCache();
 
 			const suggestions: string[] = [];
 			if (result.summary.withoutSources > 0) {
