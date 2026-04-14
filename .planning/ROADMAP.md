@@ -56,7 +56,7 @@
 **Milestone Goal:** Give agents control over response size to prevent context window overflow from large tool results.
 
 - [x] **Phase 19: Line-Range Reading** - read_source returns specific line ranges with metadata instead of full source files (completed 2026-04-14)
-- [ ] **Phase 20: Member Context Lines** - read_member includes surrounding source context on demand
+- [x] **Phase 20: Member Context Lines** - read_member includes surrounding source context on demand (completed 2026-04-14)
 - [ ] **Phase 21: Navigation Pagination** - find_references, find_implementations, and find_definition accept pagination controls
 - [ ] **Phase 22: Verbosity Audit** - Measure and reduce response sizes across search and navigation tools
 
@@ -89,7 +89,7 @@ Plans:
 
 Plans:
 - [x] 20-01-PLAN.md — Extend interfaces and extractMemberSource with context expansion logic and unit tests
-- [ ] 20-02-PLAN.md — Wire linesBefore/linesAfter into read_member tool handler with integration tests
+- [x] 20-02-PLAN.md — Wire linesBefore/linesAfter into read_member tool handler with integration tests
 
 ### Phase 21: Navigation Pagination
 **Goal**: Agents can paginate large navigation result sets instead of receiving unbounded results
@@ -145,6 +145,6 @@ Phases execute in numeric order: 19 → 20 → 21 → 22
 | 17. Structured Member Output | v1.2 | 2/2 | Complete | 2026-04-14 |
 | 18. Member Inspection & Context Lines | v1.2 | 2/2 | Complete | 2026-04-14 |
 | 19. Line-Range Reading | v1.3 | 2/2 | Complete    | 2026-04-14 |
-| 20. Member Context Lines | v1.3 | 1/2 | In Progress|  |
+| 20. Member Context Lines | v1.3 | 2/2 | Complete   | 2026-04-14 |
 | 21. Navigation Pagination | v1.3 | 0/? | Not started | - |
 | 22. Verbosity Audit | v1.3 | 0/? | Not started | - |
