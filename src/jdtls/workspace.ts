@@ -98,7 +98,7 @@ function generateProjectFile(): string {
 `;
 }
 
-function generateClasspathFile(sourceDirs: string[]): string {
+export function generateClasspathFile(sourceDirs: string[]): string {
 	const srcEntries = sourceDirs
 		.map(dir => `  <classpathentry kind="src" path="${dir}"/>`)
 		.join('\n');

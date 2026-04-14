@@ -1,0 +1,190 @@
+/**
+ * Workspace Sync -- Incremental extraction of study jar sources to JDT LS workspace
+ *
+ * Handles adding/removing individual study jars from the JDT LS workspace without
+ * re-extracting all existing jars. Updates .classpath, notifies JDT LS of changes,
+ * and uses probe-based readiness detection to confirm indexing is complete.
+ */
+
+import { mkdir, writeFile, rm } from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { jarIdToDirName } from './uri-mapper.js';
+import { createJarAdapter } from '../browsing/source-adapter.js';
+import { generateClasspathFile } from './workspace.js';
+import type { JarReader } from '../project/jar-reader.js';
+import type { StudyJar } from '../project/types.js';
+import type { JdtLsSession } from './types.js';
+import type { JSONRPCEndpoint } from 'ts-lsp-client';
+
+/**
+ * Extract a single study jar's .java files into the JDT LS temp directory.
+ *
+ * Creates a subdirectory named after the study jar ID (e.g., "study__myjar")
+ * and writes all .java entries from the jar into it.
+ *
+ * @returns The directory name (relative to tempDir) where files were extracted
+ */
+export async function extractStudyJarToWorkspace(
+	studyJar: StudyJar,
+	tempDir: string,
+	jarReader: JarReader,
+): Promise<string> {
+	const dirName = jarIdToDirName('study:' + studyJar.name);
+	const depDir = join(tempDir, dirName);
+
+	try {
+		const adapter = createJarAdapter(jarReader, studyJar.jarPath);
+		const entries = await adapter.listJavaEntries();
+
+		for (const entryPath of entries) {
+			const targetPath = join(depDir, entryPath);
+			await mkdir(dirname(targetPath), { recursive: true });
+			const content = await adapter.readEntry(entryPath);
+			await writeFile(targetPath, content);
+		}
+
+		return dirName;
+	} catch (err) {
+		await rm(depDir, { recursive: true, force: true });
+		throw err;
+	}
+}
+
+/**
+ * Remove a study jar's extracted directory from the JDT LS temp directory.
+ */
+export async function removeStudyJarFromWorkspace(
+	studyJarName: string,
+	tempDir: string,
+): Promise<void> {
+	const dirName = jarIdToDirName('study:' + studyJarName);
+	const depDir = join(tempDir, dirName);
+	await rm(depDir, { recursive: true, force: true });
+}
+
+/**
+ * Wait for JDT LS to finish processing a workspace change by probing with
+ * workspace/symbol requests.
+ *
+ * Uses exponential backoff: initial delay 500ms, multiply by 1.5, cap at 5000ms.
+ * Resolves when endpoint responds with an array (even empty).
+ * Throws if timeout expires before a successful response.
+ */
+export async function waitForWorkspaceSync(
+	endpoint: JSONRPCEndpoint,
+	timeoutMs: number,
+): Promise<void> {
+	const deadline = Date.now() + timeoutMs;
+	let delay = 500;
+
+	await new Promise<void>(resolve => setTimeout(resolve, delay));
+
+	while (Date.now() < deadline) {
+		try {
+			const result = await endpoint.send('workspace/symbol', { query: '*' });
+			if (Array.isArray(result)) {
+				return;
+			}
+		} catch {
+			// JDT LS not ready yet, retry
+		}
+
+		delay = Math.min(delay * 1.5, 5000);
+		if (Date.now() + delay > deadline) {
+			break;
+		}
+		await new Promise<void>(resolve => setTimeout(resolve, delay));
+	}
+
+	throw new Error(`JDT LS did not complete workspace sync within ${timeoutMs}ms`);
+}
+
+/**
+ * Check whether a study jar is currently synced to the JDT LS workspace.
+ */
+export function isWorkspaceSynced(
+	studyJarName: string,
+	jdtls: JdtLsSession | undefined,
+): boolean {
+	if (!jdtls?.available) return false;
+	return jdtls.jarIdToDirName.has('study:' + studyJarName);
+}
+
+/**
+ * Sync a study jar to the JDT LS workspace: extract sources, update .classpath,
+ * notify JDT LS, and wait for indexing to complete.
+ *
+ * Returns { synced: true } on success, or { synced: false, warning } when
+ * JDT LS is unavailable or sync fails.
+ */
+export async function syncStudyJarToWorkspace(
+	studyJar: StudyJar,
+	jdtls: JdtLsSession | undefined,
+	jarReader: JarReader,
+): Promise<{ synced: boolean; warning?: string }> {
+	if (!jdtls?.available || !jdtls.endpoint) {
+		return { synced: false, warning: 'Note: JDT LS unavailable -- semantic navigation disabled' };
+	}
+
+	try {
+		const dirName = await extractStudyJarToWorkspace(studyJar, jdtls.tempDir, jarReader);
+		jdtls.jarIdToDirName.set('study:' + studyJar.name, dirName);
+
+		const allDirs = Array.from(jdtls.jarIdToDirName.values());
+		const classpathXml = generateClasspathFile(allDirs);
+		const resolvedTempDir = realpathSync(jdtls.tempDir);
+		await writeFile(join(resolvedTempDir, '.classpath'), classpathXml);
+
+		jdtls.endpoint.notify('workspace/didChangeWatchedFiles', {
+			changes: [{ uri: 'file://' + resolvedTempDir + '/.classpath', type: 2 }],
+		});
+
+		await waitForWorkspaceSync(jdtls.endpoint, 120_000);
+
+		return { synced: true };
+	} catch (err) {
+		jdtls.jarIdToDirName.delete('study:' + studyJar.name);
+		return {
+			synced: false,
+			warning: 'Workspace sync failed: ' + (err instanceof Error ? err.message : String(err)),
+		};
+	}
+}
+
+/**
+ * Remove a study jar from the JDT LS workspace: delete extracted directory,
+ * update .classpath, notify JDT LS, and wait for re-indexing.
+ *
+ * Returns { synced: true } on success, or { synced: false } when JDT LS
+ * is unavailable or the operation fails.
+ */
+export async function unsyncStudyJarFromWorkspace(
+	studyJarName: string,
+	jdtls: JdtLsSession | undefined,
+): Promise<{ synced: boolean }> {
+	if (!jdtls?.available || !jdtls.endpoint) {
+		return { synced: false };
+	}
+
+	try {
+		await removeStudyJarFromWorkspace(studyJarName, jdtls.tempDir);
+		jdtls.jarIdToDirName.delete('study:' + studyJarName);
+
+		const allDirs = Array.from(jdtls.jarIdToDirName.values());
+		const classpathXml = generateClasspathFile(allDirs);
+		const resolvedTempDir = realpathSync(jdtls.tempDir);
+		await writeFile(join(resolvedTempDir, '.classpath'), classpathXml);
+
+		jdtls.endpoint.notify('workspace/didChangeWatchedFiles', {
+			changes: [{ uri: 'file://' + resolvedTempDir + '/.classpath', type: 2 }],
+		});
+
+		await waitForWorkspaceSync(jdtls.endpoint, 120_000);
+
+		return { synced: true };
+	} catch {
+		jdtls.jarIdToDirName.delete('study:' + studyJarName);
+		return { synced: false };
+	}
+}
