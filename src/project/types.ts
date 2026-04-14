@@ -3,7 +3,7 @@ import type { JdtLsSession } from '../jdtls/types.js';
 export type MappingEra = 'yarn' | 'unobfuscated';
 
 export interface DependencyCoordinate {
-	configuration: string;  // "minecraft", "mappings", "modImplementation", etc.
+	configuration: string;  // "minecraft", "mappings", "modImplementation", "implementation", etc.
 	group: string;          // "com.mojang", "net.fabricmc"
 	artifact: string;       // "minecraft", "yarn", "fabric-loader"
 	version: string;        // "1.21.11", "1.21.11+build.4"
