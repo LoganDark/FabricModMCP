@@ -63,9 +63,9 @@ export function registerListMembersTool(server: McpServer): void {
 			title: 'List Members',
 			description: 'List all members (fields, methods, inner classes) of a Java class as a tree. Returns name, kind, type signature, line ranges, and nested children. More useful than reading raw source for understanding class structure.',
 			inputSchema: {
-				class: z.string().describe('Fully-qualified class name using dot notation (e.g., net.minecraft.client.MinecraftClient)'),
-				jar: z.string().optional().describe('Specific jar ID (default: search all jars for the class)'),
 				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
+				jar: z.string().optional().describe('Specific jar ID (default: search all jars for the class)'),
+				class: z.string().describe('Fully-qualified class name using dot notation (e.g., net.minecraft.client.MinecraftClient)'),
 			},
 		},
 		async ({ class: className, jar, project }) => {
