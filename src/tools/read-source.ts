@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
@@ -6,7 +5,7 @@ import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, handleClassSourceError, sortByPriority, resolveProjectSafely, returnError, resolveClassSource } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS } from './descriptions.js';
+import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import type { SourceResult } from '../browsing/types.js';
 
 export function registerReadSourceTool(server: McpServer): void {
@@ -16,9 +15,9 @@ export function registerReadSourceTool(server: McpServer): void {
 			title: 'Read Source',
 			description: TOOL_DESCRIPTIONS.read_source,
 			inputSchema: {
-				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
-				jar: z.string().optional().describe('Specific jar ID to read from (default: search all jars)'),
-				class: z.string().describe('Fully-qualified class name using dot notation (e.g., net.minecraft.client.MinecraftClient)'),
+				project: PARAMS.project,
+				jar: PARAMS.jar,
+				class: PARAMS.class,
 			},
 		},
 		async ({ project, jar, class: className }) => {

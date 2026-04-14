@@ -6,7 +6,7 @@ import { clearEntryIndexCache } from '../browsing/entry-index-cache.js';
 import { jarReader } from './shared-jar-reader.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS } from './descriptions.js';
+import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 
 export function registerRefreshDependenciesTool(server: McpServer): void {
 	server.registerTool(
@@ -15,7 +15,7 @@ export function registerRefreshDependenciesTool(server: McpServer): void {
 			title: 'Refresh Dependencies',
 			description: TOOL_DESCRIPTIONS.refresh_dependencies,
 			inputSchema: {
-				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
+				project: PARAMS.project,
 			},
 		},
 		async ({ project }) => {

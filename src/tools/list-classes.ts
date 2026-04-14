@@ -8,7 +8,7 @@ import { parseClassDeclaration } from '../browsing/class-parser.js';
 import { getOrBuildIndex } from '../browsing/entry-index-cache.js';
 import { logger } from '../logging/logger.js';
 import { filterDependenciesByJarPattern, resolveProjectSafely } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS } from './descriptions.js';
+import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import type { SourceAdapter } from '../browsing/source-adapter.js';
 import type { ClassInfo, InnerClassInfo } from '../browsing/types.js';
 
@@ -40,8 +40,8 @@ export function registerListClassesTool(server: McpServer): void {
 			title: 'List Classes',
 			description: TOOL_DESCRIPTIONS.list_classes,
 			inputSchema: {
-				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
-				jars: z.array(z.string()).optional().describe('Jar IDs or glob patterns to scope to (default: all jars)'),
+				project: PARAMS.project,
+				jars: PARAMS.jars,
 				package: z.string().describe('Fully-qualified package name to list classes from (required)'),
 				depth: z.number().int().min(1).optional().describe('Include classes from sub-packages up to this depth (default: 1, this package only)'),
 			},

@@ -4,7 +4,7 @@ import { makeSuccess } from '../types/envelope.js';
 import { jarReader } from './shared-jar-reader.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely, returnError } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS } from './descriptions.js';
+import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 
 export function registerReadJarEntryTool(server: McpServer): void {
 	server.registerTool(
@@ -13,7 +13,7 @@ export function registerReadJarEntryTool(server: McpServer): void {
 			title: 'Read Jar Entry',
 			description: TOOL_DESCRIPTIONS.read_jar_entry,
 			inputSchema: {
-				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
+				project: PARAMS.project,
 				jar: z.string().describe('Jar identifier (e.g., "minecraft", "com.google.code.gson:gson")'),
 				path: z.string().describe('File path within the jar (e.g., "net/minecraft/client/MinecraftClient.java")'),
 			},

@@ -1,11 +1,10 @@
-import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { SYMBOL_KIND_NAME } from '../jdtls/symbol-kind.js';
 import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, handleClassSourceError, resolveProjectSafely, returnError, withLspDocument, resolveClassSource } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS } from './descriptions.js';
+import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import type { TransformedSymbol } from '../browsing/types.js';
 
 /**
@@ -64,9 +63,9 @@ export function registerListMembersTool(server: McpServer): void {
 			title: 'List Members',
 			description: TOOL_DESCRIPTIONS.list_members,
 			inputSchema: {
-				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
-				jar: z.string().optional().describe('Specific jar ID (default: search all jars for the class)'),
-				class: z.string().describe('Fully-qualified class name using dot notation (e.g., net.minecraft.client.MinecraftClient)'),
+				project: PARAMS.project,
+				jar: PARAMS.jar,
+				class: PARAMS.class,
 			},
 		},
 		async ({ class: className, jar, project }) => {

@@ -4,7 +4,7 @@ import { makeSuccess } from '../types/envelope.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS } from './descriptions.js';
+import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 
 export function registerConfigureFiltersTool(server: McpServer): void {
 	server.registerTool(
@@ -13,7 +13,7 @@ export function registerConfigureFiltersTool(server: McpServer): void {
 			title: 'Configure Dependency Filters',
 			description: TOOL_DESCRIPTIONS.configure_filters,
 			inputSchema: {
-				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
+				project: PARAMS.project,
 				mode: z.enum(['include-all', 'exclude-all']).optional().describe(
 					'Filter mode. include-all (default): patterns define what to EXCLUDE. exclude-all: patterns define what to INCLUDE.',
 				),

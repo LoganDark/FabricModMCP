@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
@@ -7,7 +6,7 @@ import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { cascadeRegex } from '../browsing/cascading-regex.js';
 import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS } from './descriptions.js';
+import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import type { LocateFailure } from './tool-helpers.js';
 import type { LocateResult } from '../browsing/types.js';
 
@@ -18,10 +17,10 @@ export function registerLocateInSourceTool(server: McpServer): void {
 			title: 'Locate in Source',
 			description: TOOL_DESCRIPTIONS.locate_in_source,
 			inputSchema: {
-				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
-				jar: z.string().optional().describe('Specific jar ID to search (default: search all jars containing the class)'),
-				class: z.string().describe('Fully-qualified class name using dot notation (e.g., net.minecraft.client.MinecraftClient)'),
-				patterns: z.array(z.string()).min(1).describe('Array of regex patterns. Each searches within the previous match. First searches entire source. Use (?i), (?s), (?m) prefixes for per-pattern flags.'),
+				project: PARAMS.project,
+				jar: PARAMS.jar,
+				class: PARAMS.class,
+				patterns: PARAMS.patterns,
 			},
 		},
 		async ({ project, jar, class: className, patterns }) => {

@@ -1,9 +1,11 @@
 /**
- * Centralized tool descriptions and server instructions.
+ * Centralized tool descriptions, server instructions, and shared parameter schemas.
  *
  * All MCP-facing text lives here so it's easy to review, refactor,
  * and keep consistent across the 21 tools.
  */
+
+import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
 // Server-level instructions (sent during MCP initialize handshake)
@@ -48,6 +50,23 @@ More examples:
 
 **Mapping eras**: Projects are either \`mapped\` (Yarn-deobfuscated names like MinecraftClient, getBlockState) \
 or \`unmapped\` (Mojang's unobfuscated names in newer versions). This affects which source jar format is used.`;
+
+// ---------------------------------------------------------------------------
+// Shared parameter schemas (reused across multiple tools)
+// ---------------------------------------------------------------------------
+
+export const PARAMS = {
+	/** Optional project name — used by 16+ tools. */
+	project: z.string().optional().describe('Project name (omit if only one project loaded or default is set)'),
+	/** Fully-qualified class name — used by 8 tools. */
+	class: z.string().describe('Fully-qualified class name (e.g., net.minecraft.client.MinecraftClient)'),
+	/** Optional single jar ID — used by 8 tools. */
+	jar: z.string().optional().describe('Jar ID to scope to (default: search all jars containing the class)'),
+	/** Optional jar array with glob support — used by 3 tools. */
+	jars: z.array(z.string()).optional().describe('Jar IDs or glob patterns to scope to (default: all jars)'),
+	/** Cascading regex patterns — used by 5 tools. */
+	patterns: z.array(z.string()).min(1).describe('Cascading regex patterns to locate the symbol. Each narrows within the previous match.'),
+} as const;
 
 // ---------------------------------------------------------------------------
 // Tool descriptions

@@ -4,7 +4,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS } from './descriptions.js';
+import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import type { LoadedProject } from '../project/types.js';
 
 function buildProjectInfo(project: LoadedProject) {
@@ -92,7 +92,7 @@ export function registerGetProjectMetadataTool(server: McpServer): void {
 			title: 'Get Project Metadata',
 			description: TOOL_DESCRIPTIONS.get_project_metadata,
 			inputSchema: {
-				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
+				project: PARAMS.project,
 				include_project_info: z.boolean().optional().describe('Include version/mappings info'),
 				include_mod_info: z.boolean().optional().describe('Include fabric.mod.json metadata'),
 				include_jar_inventory: z.boolean().optional().describe('Include all source jar entries'),

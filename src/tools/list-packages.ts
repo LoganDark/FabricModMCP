@@ -7,7 +7,7 @@ import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { getOrBuildIndex } from '../browsing/entry-index-cache.js';
 import { logger } from '../logging/logger.js';
 import { filterDependenciesByJarPattern, resolveProjectSafely } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS } from './descriptions.js';
+import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import type { PackageEntry } from '../browsing/types.js';
 
 export function registerListPackagesTool(server: McpServer): void {
@@ -17,8 +17,8 @@ export function registerListPackagesTool(server: McpServer): void {
 			title: 'List Packages',
 			description: TOOL_DESCRIPTIONS.list_packages,
 			inputSchema: {
-				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
-				jars: z.array(z.string()).optional().describe('Jar IDs or glob patterns to scope to (default: all jars)'),
+				project: PARAMS.project,
+				jars: PARAMS.jars,
 				package: z.string().optional().describe('Parent package to list children of (default: top-level packages)'),
 				depth: z.number().int().min(1).optional().describe('How many levels deep to list (default: 1)'),
 			},

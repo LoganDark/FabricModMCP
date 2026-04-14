@@ -5,7 +5,7 @@ import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { SYMBOL_KIND_NAME } from '../jdtls/symbol-kind.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely, returnError } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS } from './descriptions.js';
+import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 
 const KIND_NAME_TO_NUMBER: Record<string, number> = {
 	'class': 5,
@@ -29,7 +29,7 @@ export function registerSearchSymbolsTool(server: McpServer): void {
 				kind: z.enum(['class', 'method', 'field', 'interface', 'enum', 'constructor', 'constant', 'property']).optional().describe('Filter results by symbol kind'),
 				limit: z.number().int().min(1).max(200).default(50).optional().describe('Maximum results per page (default: 50)'),
 				offset: z.number().int().min(0).default(0).optional().describe('Pagination offset (default: 0)'),
-				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
+				project: PARAMS.project,
 			},
 		},
 		async ({ query, kind, limit, offset, project }) => {

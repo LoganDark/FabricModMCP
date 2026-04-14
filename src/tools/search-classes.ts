@@ -5,7 +5,7 @@ import { jarReader } from './shared-jar-reader.js';
 import { searchClasses } from '../browsing/search.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS } from './descriptions.js';
+import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 
 export function registerSearchClassesTool(server: McpServer): void {
 	server.registerTool(
@@ -17,10 +17,10 @@ export function registerSearchClassesTool(server: McpServer): void {
 				pattern: z.string().describe('Glob pattern to match against fully-qualified class names. * matches one segment, ** crosses package boundaries.'),
 				caseSensitive: z.boolean().optional().describe('Case-sensitive matching (default: false)'),
 				kind: z.array(z.string()).optional().describe('Filter by class type: "class", "interface", "enum", "record", "@interface"'),
-				jars: z.array(z.string()).optional().describe('Jar IDs or glob patterns to scope search (default: all jars)'),
+				jars: PARAMS.jars,
 				offset: z.number().int().min(0).optional().describe('Pagination offset (default: 0)'),
 				limit: z.number().int().min(1).optional().describe('Maximum results to return (default: 250)'),
-				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
+				project: PARAMS.project,
 			},
 		},
 		async ({ pattern, caseSensitive, kind, jars, offset, limit, project }) => {

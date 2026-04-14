@@ -1,10 +1,9 @@
-import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { resolveSymbolPosition } from './resolve-symbol-position.js';
 import { logger } from '../logging/logger.js';
 import { handleSymbolPositionError, resolveProjectSafely, returnError, withLspDocument } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS } from './descriptions.js';
+import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 
 /**
  * Extract markdown text from an LSP hover contents field.
@@ -48,10 +47,10 @@ export function registerGetSymbolInfoTool(server: McpServer): void {
 			title: 'Get Symbol Info',
 			description: TOOL_DESCRIPTIONS.get_symbol_info,
 			inputSchema: {
-				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
-				jar: z.string().optional().describe('Specific jar ID where the symbol is located (default: search all jars containing the class)'),
-				class: z.string().describe('Fully-qualified class name using dot notation (e.g., net.minecraft.client.MinecraftClient)'),
-				patterns: z.array(z.string()).min(1).describe('Array of cascading regex patterns to locate the symbol position. Each pattern narrows within the previous match.'),
+				project: PARAMS.project,
+				jar: PARAMS.jar,
+				class: PARAMS.class,
+				patterns: PARAMS.patterns,
 			},
 		},
 		async ({ project, jar, class: className, patterns }) => {

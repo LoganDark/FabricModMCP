@@ -5,7 +5,7 @@ import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { SYMBOL_KIND_NAME } from '../jdtls/symbol-kind.js';
 import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, handleClassSourceError, resolveProjectSafely, returnError, withLspDocument, resolveClassSource } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS } from './descriptions.js';
+import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import type { ClassReference } from '../browsing/types.js';
 
 function toClassReference(item: any): ClassReference {
@@ -26,9 +26,9 @@ export function registerTypeHierarchyTool(server: McpServer): void {
 			title: 'Type Hierarchy',
 			description: TOOL_DESCRIPTIONS.type_hierarchy,
 			inputSchema: {
-				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
-				jar: z.string().optional().describe('Specific jar ID to find the class in (default: search all jars)'),
-				class: z.string().describe('Fully-qualified class name using dot notation (e.g., net.minecraft.client.MinecraftClient)'),
+				project: PARAMS.project,
+				jar: PARAMS.jar,
+				class: PARAMS.class,
 				depth: z.number().int().min(0).max(10).default(1).optional().describe('Maximum depth for subtype traversal (default: 1, direct subtypes only)'),
 			},
 		},
