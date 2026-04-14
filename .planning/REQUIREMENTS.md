@@ -16,7 +16,7 @@ Requirements for v1.1 Study Jars milestone. Each maps to roadmap phases.
 
 ### Tool Integration
 
-- [ ] **INTG-01**: Study jars are selectable via existing `jars` parameter on all jar-aware tools
+- [ ] **INTG-01**: Study jars selectable via existing `jars` parameter on all jar-aware tools
 - [ ] **INTG-02**: Study jars with auto-include=true are included in the default jar set when `jars` is omitted
 
 ### Infrastructure
@@ -51,22 +51,22 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STUDY-01 | — | Pending |
-| STUDY-02 | — | Pending |
-| STUDY-03 | — | Pending |
-| STUDY-04 | — | Pending |
-| INTG-01 | — | Pending |
-| INTG-02 | — | Pending |
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| LSP-01 | — | Pending |
-| LSP-02 | — | Pending |
+| INFRA-01 | Phase 11 | Pending |
+| INFRA-02 | Phase 11 | Pending |
+| INTG-01 | Phase 12 | Pending |
+| INTG-02 | Phase 12 | Pending |
+| STUDY-01 | Phase 13 | Pending |
+| STUDY-02 | Phase 13 | Pending |
+| STUDY-03 | Phase 13 | Pending |
+| STUDY-04 | Phase 13 | Pending |
+| LSP-01 | Phase 14 | Pending |
+| LSP-02 | Phase 14 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 10 total
-- Mapped to phases: 0
-- Unmapped: 10 ⚠️
+- Mapped to phases: 10
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-13*
-*Last updated: 2026-04-13 after initial definition*
+*Last updated: 2026-04-13 after roadmap creation*
