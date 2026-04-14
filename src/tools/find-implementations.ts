@@ -6,7 +6,7 @@ import { resolveSymbolPosition } from './resolve-symbol-position.js';
 import { createUriMapper, entryPathToClassName } from '../jdtls/uri-mapper.js';
 import { extractEnclosingContext } from '../jdtls/context-extractor.js';
 import { logger } from '../logging/logger.js';
-import { normalizeLocations, resolveProjectSafely, returnError } from './tool-helpers.js';
+import { normalizeLocations, resolveProjectSafely, returnError, withLspDocument } from './tool-helpers.js';
 import type { NavigationResult } from '../jdtls/types.js';
 
 export function registerFindImplementationsTool(server: McpServer): void {
@@ -97,26 +97,13 @@ export function registerFindImplementationsTool(server: McpServer): void {
 
 			const { sourceJarId, sourceText, cascadeResult, fileUri } = posResult;
 
-			// didOpen
-			await lspClient.didOpen({
-				textDocument: {
-					uri: fileUri,
-					languageId: 'java',
-					version: 1,
-					text: sourceText,
-				},
-			});
-
-			try {
+			return await withLspDocument(lspClient, fileUri, sourceText, async () => {
 				// Send textDocument/implementation via raw endpoint
 				const lspPosition = { line: cascadeResult.line - 1, character: cascadeResult.column - 1 };
 				const implResult = await endpoint.send('textDocument/implementation', {
 					textDocument: { uri: fileUri },
 					position: lspPosition,
 				});
-
-				// didClose
-				await lspClient.didClose({ textDocument: { uri: fileUri } });
 
 				// Process implementation results
 				const locations = normalizeLocations(implResult);
@@ -180,15 +167,7 @@ export function registerFindImplementationsTool(server: McpServer): void {
 					content: [{ type: 'text' as const, text: summary }],
 					structuredContent: envelope,
 				};
-			} catch (error) {
-				// Ensure didClose even on error
-				try {
-					await lspClient.didClose({ textDocument: { uri: fileUri } });
-				} catch {
-					// Ignore close errors
-				}
-				throw error;
-			}
+			});
 		},
 	);
 }

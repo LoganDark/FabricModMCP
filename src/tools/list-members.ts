@@ -1,13 +1,10 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
-import { getFilteredDependencies } from '../project/jar-registry.js';
-import { jarReader } from './shared-jar-reader.js';
-import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { SYMBOL_KIND_NAME } from '../jdtls/symbol-kind.js';
 import { logger } from '../logging/logger.js';
-import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError } from './tool-helpers.js';
+import { classNameToEntryPath, resolveProjectSafely, returnError, withLspDocument, resolveClassSource } from './tool-helpers.js';
 
 interface TransformedSymbol {
 	name: string;
@@ -106,8 +103,6 @@ export function registerListMembersTool(server: McpServer): void {
 			const jdtls = loadedProject.jdtls;
 			const lspClient = jdtls.client!;
 
-			const entryPath = classNameToEntryPath(className);
-
 			const provenance = {
 				tool: 'list_members',
 				project: loadedProject.name,
@@ -116,92 +111,23 @@ export function registerListMembersTool(server: McpServer): void {
 
 			const uriMapper = createUriMapper(jdtls.tempDir, jdtls.jarIdToDirName);
 
-			// Find source text and jar ID
-			let sourceJarId: string;
-			let sourceText: string;
-
-			if (jar !== undefined) {
-				// Specific jar mode
-				const dep = loadedProject.dependencyJars.get(jar);
-				if (!dep) {
-					return returnError(
-						'JAR_NOT_FOUND',
-						`Jar '${jar}' not found in project '${loadedProject.name}'`,
-						[jar],
-						['Check available jars with get_project_metadata'],
-					);
+			// Resolve class source from jars
+			const sourceResult = await resolveClassSource(loadedProject, className, jar);
+			if (!sourceResult.success) {
+				if (sourceResult.kind === 'jar-not-found') {
+					return returnError('JAR_NOT_FOUND', `Jar '${sourceResult.jar}' not found in project '${loadedProject.name}'`, [sourceResult.jar], ['Check available jars with get_project_metadata']);
 				}
-
-				if (!dep.available) {
-					return returnError(
-						'JAR_NOT_AVAILABLE',
-						`Sources for jar '${jar}' are not available`,
-						[jar],
-						['The dependency does not have a sources jar'],
-					);
+				if (sourceResult.kind === 'jar-not-available') {
+					return returnError('JAR_NOT_AVAILABLE', `Sources for jar '${sourceResult.jar}' are not available`, [sourceResult.jar], ['The dependency does not have a sources jar']);
 				}
-
-				try {
-					const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
-					const buffer = await adapter.readEntry(entryPath);
-					sourceText = buffer.toString('utf-8');
-					sourceJarId = jar;
-				} catch {
-					return returnError(
-						'CLASS_NOT_FOUND',
-						`Class '${className}' not found in jar '${jar}'`,
-						[entryPath],
-						['Check the fully-qualified class name'],
-					);
-				}
-			} else {
-				// All-jars mode: find first jar containing the class
-				const filtered = getFilteredDependencies(loadedProject.dependencyJars, loadedProject.filterConfig);
-				const sorted = sortByPriority(Array.from(filtered.entries()));
-
-				let found = false;
-				sourceJarId = '';
-				sourceText = '';
-
-				for (const [id, dep] of sorted) {
-					if (!dep.available) continue;
-
-					try {
-						const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
-						const buffer = await adapter.readEntry(entryPath);
-						sourceText = buffer.toString('utf-8');
-						sourceJarId = id;
-						found = true;
-						break;
-					} catch {
-						continue;
-					}
-				}
-
-				if (!found) {
-					return returnError(
-						'CLASS_NOT_FOUND',
-						`Class '${className}' not found in any jar`,
-						[entryPath],
-						['Check the fully-qualified class name', 'Use list_packages to browse available packages'],
-					);
-				}
+				return returnError('CLASS_NOT_FOUND', `Class '${className}' not found in ${jar ? `jar '${jar}'` : 'any jar'}`, [sourceResult.entryPath], jar ? ['Check the fully-qualified class name'] : ['Check the fully-qualified class name', 'Use list_packages to browse available packages']);
 			}
+			const { sourceJarId, sourceText, entryPath } = sourceResult;
 
 			// Build file URI for the class
 			const fileUri = uriMapper.toFileUri(sourceJarId, entryPath);
 
-			// didOpen
-			await lspClient.didOpen({
-				textDocument: {
-					uri: fileUri,
-					languageId: 'java',
-					version: 1,
-					text: sourceText,
-				},
-			});
-
-			try {
+			return await withLspDocument(lspClient, fileUri, sourceText, async () => {
 				// Request document symbols
 				const symbolResult = await lspClient.documentSymbol({
 					textDocument: { uri: fileUri },
@@ -212,7 +138,7 @@ export function registerListMembersTool(server: McpServer): void {
 				if (symbolResult === null || symbolResult === undefined) {
 					members = [];
 				} else if (Array.isArray(symbolResult) && symbolResult.length > 0 && isSymbolInformation(symbolResult[0])) {
-					// SymbolInformation[] (flat) — defensive fallback
+					// SymbolInformation[] (flat) -- defensive fallback
 					members = symbolResult.map(transformSymbolInformation);
 				} else if (Array.isArray(symbolResult)) {
 					// DocumentSymbol[] (hierarchical)
@@ -232,14 +158,7 @@ export function registerListMembersTool(server: McpServer): void {
 					content: [{ type: 'text' as const, text: summary }],
 					structuredContent: envelope,
 				};
-			} finally {
-				// didClose in finally for cleanup
-				try {
-					await lspClient.didClose({ textDocument: { uri: fileUri } });
-				} catch {
-					// Ignore close errors
-				}
-			}
+			});
 		},
 	);
 }

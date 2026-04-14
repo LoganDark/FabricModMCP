@@ -3,7 +3,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { resolveSymbolPosition } from './resolve-symbol-position.js';
 import { logger } from '../logging/logger.js';
-import { resolveProjectSafely, returnError } from './tool-helpers.js';
+import { resolveProjectSafely, returnError, withLspDocument } from './tool-helpers.js';
 
 /**
  * Extract markdown text from an LSP hover contents field.
@@ -124,26 +124,13 @@ export function registerGetSymbolInfoTool(server: McpServer): void {
 
 			const { sourceJarId, sourceText, cascadeResult, fileUri } = posResult;
 
-			// didOpen
-			await lspClient.didOpen({
-				textDocument: {
-					uri: fileUri,
-					languageId: 'java',
-					version: 1,
-					text: sourceText,
-				},
-			});
-
-			try {
+			return await withLspDocument(lspClient, fileUri, sourceText, async () => {
 				// Send hover request
 				const lspPosition = { line: cascadeResult.line - 1, character: cascadeResult.column - 1 };
 				const hoverResult = await lspClient.hover({
 					textDocument: { uri: fileUri },
 					position: lspPosition,
 				});
-
-				// didClose
-				await lspClient.didClose({ textDocument: { uri: fileUri } });
 
 				// Process hover result
 				if (hoverResult === null || hoverResult === undefined) {
@@ -206,15 +193,7 @@ export function registerGetSymbolInfoTool(server: McpServer): void {
 					content: [{ type: 'text' as const, text: hoverMarkdown }],
 					structuredContent: envelope,
 				};
-			} catch (error) {
-				// Ensure didClose even on error
-				try {
-					await lspClient.didClose({ textDocument: { uri: fileUri } });
-				} catch {
-					// Ignore close errors
-				}
-				throw error;
-			}
+			});
 		},
 	);
 }

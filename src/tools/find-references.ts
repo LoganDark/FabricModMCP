@@ -6,7 +6,7 @@ import { resolveSymbolPosition } from './resolve-symbol-position.js';
 import { createUriMapper, entryPathToClassName } from '../jdtls/uri-mapper.js';
 import { extractEnclosingContext } from '../jdtls/context-extractor.js';
 import { logger } from '../logging/logger.js';
-import { resolveProjectSafely, returnError } from './tool-helpers.js';
+import { resolveProjectSafely, returnError, withLspDocument } from './tool-helpers.js';
 import type { NavigationResult } from '../jdtls/types.js';
 
 export function registerFindReferencesTool(server: McpServer): void {
@@ -96,17 +96,7 @@ export function registerFindReferencesTool(server: McpServer): void {
 
 			const { sourceJarId, sourceText, cascadeResult, fileUri } = posResult;
 
-			// Send textDocument/didOpen
-			await lspClient.didOpen({
-				textDocument: {
-					uri: fileUri,
-					languageId: 'java',
-					version: 1,
-					text: sourceText,
-				},
-			});
-
-			try {
+			return await withLspDocument(lspClient, fileUri, sourceText, async () => {
 				// Send textDocument/references request
 				const lspPosition = { line: cascadeResult.line - 1, character: cascadeResult.column - 1 };
 				const refResult = await lspClient.references({
@@ -114,9 +104,6 @@ export function registerFindReferencesTool(server: McpServer): void {
 					position: lspPosition,
 					context: { includeDeclaration: true },
 				});
-
-				// Send textDocument/didClose
-				await lspClient.didClose({ textDocument: { uri: fileUri } });
 
 				// Process reference results -- refResult is Location[] | null
 				const locations: Array<{ uri: string; range: { start: { line: number; character: number }; end: { line: number; character: number } } }> = refResult ?? [];
@@ -172,15 +159,7 @@ export function registerFindReferencesTool(server: McpServer): void {
 					content: [{ type: 'text' as const, text: results.length > 0 ? `Found ${results.length} reference${results.length === 1 ? '' : 's'} across ${uniqueFiles} file${uniqueFiles === 1 ? '' : 's'}` : `No references found for symbol at line ${cascadeResult.line}, col ${cascadeResult.column}` }],
 					structuredContent: envelope,
 				};
-			} catch (error) {
-				// Ensure didClose even on error
-				try {
-					await lspClient.didClose({ textDocument: { uri: fileUri } });
-				} catch {
-					// Ignore close errors
-				}
-				throw error;
-			}
+			});
 		},
 	);
 }

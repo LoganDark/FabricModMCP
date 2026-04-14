@@ -5,7 +5,7 @@ import { getFilteredDependencies } from '../project/jar-registry.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { logger } from '../logging/logger.js';
-import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError } from './tool-helpers.js';
+import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError, resolveClassSource } from './tool-helpers.js';
 import type { JarCategory } from '../project/types.js';
 
 interface SourceResult {
@@ -39,59 +39,40 @@ export function registerReadSourceTool(server: McpServer): void {
 
 			// If specific jar is requested
 			if (jar !== undefined) {
-				const dep = loadedProject.dependencyJars.get(jar);
-				if (!dep) {
-					return returnError(
-						'JAR_NOT_FOUND',
-						`Jar '${jar}' not found in project '${loadedProject.name}'`,
-						[jar],
-						['Check available jars with get_project_metadata'],
-					);
+				const sourceResult = await resolveClassSource(loadedProject, className, jar);
+				if (!sourceResult.success) {
+					if (sourceResult.kind === 'jar-not-found') {
+						return returnError('JAR_NOT_FOUND', `Jar '${sourceResult.jar}' not found in project '${loadedProject.name}'`, [sourceResult.jar], ['Check available jars with get_project_metadata']);
+					}
+					if (sourceResult.kind === 'jar-not-available') {
+						return returnError('JAR_NOT_AVAILABLE', `Sources for jar '${sourceResult.jar}' are not available`, [sourceResult.jar], ['The dependency does not have a sources jar']);
+					}
+					return returnError('CLASS_NOT_FOUND', `Class '${className}' not found in jar '${jar}'`, [sourceResult.entryPath], ['Check the fully-qualified class name']);
 				}
 
-				if (!dep.available) {
-					return returnError(
-						'JAR_NOT_AVAILABLE',
-						`Sources for jar '${jar}' are not available`,
-						[jar],
-						['The dependency does not have a sources jar'],
-					);
-				}
+				const dep = loadedProject.dependencyJars.get(jar)!;
+				const lineCount = sourceResult.sourceText.split('\n').length;
 
-				try {
-					const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
-					const buffer = await adapter.readEntry(entryPath);
-					const source = buffer.toString('utf-8');
-					const lineCount = source.split('\n').length;
+				const sources: SourceResult[] = [{
+					jar: dep.id,
+					category: dep.category,
+					provenanceChains: dep.provenanceChains,
+					source: sourceResult.sourceText,
+					lineCount,
+				}];
 
-					const sources: SourceResult[] = [{
-						jar: dep.id,
-						category: dep.category,
-						provenanceChains: dep.provenanceChains,
-						source,
-						lineCount,
-					}];
+				const envelope = makeSuccess({ sources }, {
+					provenance: {
+						tool: 'read_source',
+						project: loadedProject.name,
+						class: className,
+					},
+				});
 
-					const envelope = makeSuccess({ sources }, {
-						provenance: {
-							tool: 'read_source',
-							project: loadedProject.name,
-							class: className,
-						},
-					});
-
-					return {
-						content: [{ type: 'text' as const, text: `Read ${className} from ${dep.id} (${lineCount} lines)` }],
-						structuredContent: envelope,
-					};
-				} catch {
-					return returnError(
-						'CLASS_NOT_FOUND',
-						`Class '${className}' not found in jar '${jar}'`,
-						[entryPath],
-						['Check the fully-qualified class name'],
-					);
-				}
+				return {
+					content: [{ type: 'text' as const, text: `Read ${className} from ${dep.id} (${lineCount} lines)` }],
+					structuredContent: envelope,
+				};
 			}
 
 			// Search all jars in priority order
