@@ -1,12 +1,11 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
-import { getFilteredDependencies } from '../project/jar-registry.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { getOrBuildIndex } from '../browsing/entry-index-cache.js';
 import { logger } from '../logging/logger.js';
-import { filterDependenciesByJarPattern, resolveProjectSafely } from './tool-helpers.js';
+import { getDependenciesForTool, resolveProjectSafely } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import type { PackageEntry } from '../browsing/types.js';
 
@@ -30,13 +29,7 @@ export function registerListPackagesTool(server: McpServer): void {
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
 
-			// Get filtered dependencies
-			let filtered = getFilteredDependencies(loadedProject.dependencyJars, loadedProject.filterConfig);
-
-			// Apply jars parameter if provided
-			if (jars && jars.length > 0) {
-				filtered = filterDependenciesByJarPattern(filtered, jars);
-			}
+			const filtered = getDependenciesForTool(loadedProject, jars);
 
 			// Build merged package listings across all matching jars
 			const mergedPackages = new Map<string, PackageEntry>();
