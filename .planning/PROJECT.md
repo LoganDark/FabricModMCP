@@ -29,10 +29,9 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - ✓ Auto-include study jars appear in default jar set when `jars` omitted — v1.1
 - ✓ Incremental JDT LS workspace sync for study jars (extraction, classpath, notification) — v1.1
 - ✓ search_symbols returns methods and constructors (not just types) via JDT LS includeSourceMethodDeclarations — v1.2 Phase 15
+- ✓ Structured member representations with ClassReference types for parameters and return types — v1.2 Phase 16
 
 ### Active
-
-- [ ] Structured member representations with ClassReference types for parameters and return types
 - [ ] FQN scheme for methods (`Class;method()`) and fields (`Class;field:`)
 - [ ] Method/field inspection parity with class-level tooling
 
@@ -59,6 +58,7 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - **Shipped:** v1.0 MVP on 2026-04-14 — 5,336 LOC TypeScript, 21 MCP tools, 327 tests
 - **Shipped:** v1.1 Study Jars on 2026-04-14 — 6,030 LOC TypeScript, 25 MCP tools, 423 tests (+96 tests, +4 tools)
 - **Resolved:** search_symbols now returns methods/constructors — `includeSourceMethodDeclarations` enabled, explosion-prone readiness probe removed (Phase 15)
+- **Built:** Member parser domain module — TypeReference (6 variants), MemberReference types, import resolver with multi-stage cascade, detail string parser for JDT LS signatures (Phase 16, 46 tests)
 - **Tech stack:** TypeScript 5.7+, Node.js 22 LTS, official MCP SDK 1.29.x, Zod 4, node-stream-zip, JDT LS via ts-lsp-client
 - **Architecture:** Layered domain → tool pattern. Domain modules handle logic; tool layer wires Zod schemas and MCP registration. Shared abstractions: ProjectStore, JarReader, EntryIndex, SourceAdapter, cascadeRegex, resolveSymbolPosition, dependency-resolver
 - **Ecosystem:** Fabric mod development uses Gradle with Fabric Loom. Loom's genSources decompiles Minecraft into a sources jar (~6,600 .java files) in `~/.gradle/caches/fabric-loom/minecraftMaven/`
@@ -108,4 +108,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-14 after v1.2 milestone start*
+*Last updated: 2026-04-14 after Phase 16 completion*
