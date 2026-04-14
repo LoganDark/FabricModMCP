@@ -20,6 +20,10 @@ import { registerGetSymbolInfoTool } from './get-symbol-info.js';
 import { registerFindImplementationsTool } from './find-implementations.js';
 import { registerTypeHierarchyTool } from './type-hierarchy.js';
 import { registerSearchSymbolsTool } from './search-symbols.js';
+import { registerAddStudyJarTool } from './add-study-jar.js';
+import { registerRemoveStudyJarTool } from './remove-study-jar.js';
+import { registerListStudyJarsTool } from './list-study-jars.js';
+import { registerConfigureStudyJarTool } from './configure-study-jar.js';
 
 export function registerAllTools(server: McpServer): void {
 	registerEchoTool(server);
@@ -43,4 +47,8 @@ export function registerAllTools(server: McpServer): void {
 	registerFindImplementationsTool(server);
 	registerTypeHierarchyTool(server);
 	registerSearchSymbolsTool(server);
+	registerAddStudyJarTool(server);
+	registerRemoveStudyJarTool(server);
+	registerListStudyJarsTool(server);
+	registerConfigureStudyJarTool(server);
 }
