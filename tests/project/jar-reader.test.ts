@@ -124,6 +124,51 @@ describe('JarReader', () => {
 			expect(trackReader.getProjectJars('proj-b')).toBeUndefined();
 		});
 
+		describe('granular add/remove', () => {
+			it('addProjectJar adds path to existing project set', () => {
+				trackReader.registerProject('proj-a', new Set(['/path/a.jar']));
+				trackReader.addProjectJar('proj-a', '/path/new.jar');
+				expect(trackReader.getProjectJars('proj-a')).toContain('/path/new.jar');
+				expect(trackReader.getProjectJars('proj-a')).toContain('/path/a.jar');
+			});
+
+			it('addProjectJar throws PROJECT_NOT_REGISTERED for unknown project', () => {
+				expect(() => trackReader.addProjectJar('unknown', '/path/a.jar')).toThrow('not registered');
+			});
+
+			it('removeProjectJar removes path from project set', async () => {
+				trackReader.registerProject('proj-a', new Set([testJarPath, '/other.jar']));
+				await trackReader.removeProjectJar('proj-a', testJarPath);
+				expect(trackReader.getProjectJars('proj-a')).not.toContain(testJarPath);
+				expect(trackReader.getProjectJars('proj-a')).toContain('/other.jar');
+			});
+
+			it('removeProjectJar closes unshared handle', async () => {
+				trackReader.registerProject('proj-a', new Set([testJarPath]));
+				// Open handle by reading
+				await trackReader.readEntry(testJarPath, 'net/minecraft/Bootstrap.java');
+				await trackReader.removeProjectJar('proj-a', testJarPath);
+				// Handle was closed -- reading again re-opens (no error, just lazy reopen)
+				const buf = await trackReader.readEntry(testJarPath, 'net/minecraft/Bootstrap.java');
+				expect(buf.toString('utf-8')).toContain('Bootstrap');
+			});
+
+			it('removeProjectJar keeps shared handle open', async () => {
+				trackReader.registerProject('proj-a', new Set([testJarPath]));
+				trackReader.registerProject('proj-b', new Set([testJarPath]));
+				await trackReader.readEntry(testJarPath, 'net/minecraft/Bootstrap.java');
+				await trackReader.removeProjectJar('proj-a', testJarPath);
+				// proj-b still references it -- handle stays open, read works
+				const buf = await trackReader.readEntry(testJarPath, 'net/minecraft/Bootstrap.java');
+				expect(buf.toString('utf-8')).toContain('Bootstrap');
+			});
+
+			it('removeProjectJar is a no-op for unregistered project', async () => {
+				// Should not throw
+				await trackReader.removeProjectJar('nonexistent', '/any.jar');
+			});
+		});
+
 		it('closeProject removes project tracking', async () => {
 			trackReader.registerProject('proj-a', new Set([testJarPath]));
 			await trackReader.closeProject('proj-a');
