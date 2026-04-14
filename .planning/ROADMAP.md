@@ -71,10 +71,11 @@
   2. Agent receives an error with a jar list when requesting a line range without specifying a single jar
   3. Every read_source response (with or without line range) includes totalLineCount, startLine, endLine, and truncated metadata
   4. Reading a file in consecutive chunks and concatenating produces identical content to reading without range params
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 19-01: TBD
+- [ ] 19-01-PLAN.md — Create sliceLines pure utility function with comprehensive tests
+- [ ] 19-02-PLAN.md — Wire line-range into read_source tool, extend SourceResult, add integration tests
 
 ### Phase 20: Member Context Lines
 **Goal**: Agents can see the source context surrounding a member without a separate read_source call
@@ -142,7 +143,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22
 | 16. Member Parser Domain Module | v1.2 | 2/2 | Complete | 2026-04-14 |
 | 17. Structured Member Output | v1.2 | 2/2 | Complete | 2026-04-14 |
 | 18. Member Inspection & Context Lines | v1.2 | 2/2 | Complete | 2026-04-14 |
-| 19. Line-Range Reading | v1.3 | 0/? | Not started | - |
+| 19. Line-Range Reading | v1.3 | 0/2 | Not started | - |
 | 20. Member Context Lines | v1.3 | 0/? | Not started | - |
 | 21. Navigation Pagination | v1.3 | 0/? | Not started | - |
 | 22. Verbosity Audit | v1.3 | 0/? | Not started | - |
