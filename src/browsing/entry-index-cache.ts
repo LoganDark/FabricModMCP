@@ -15,3 +15,7 @@ export function getOrBuildIndex(entries: string[], cacheKey: string): EntryIndex
 export function clearEntryIndexCache(): void {
 	entryIndexCache.clear();
 }
+
+export function evictEntryIndex(cacheKey: string): boolean {
+	return entryIndexCache.delete(cacheKey);
+}
