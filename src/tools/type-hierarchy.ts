@@ -1,14 +1,13 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { makeSuccess, makeError } from '../types/envelope.js';
-import { projectStore } from '../state/project-store.js';
+import { makeSuccess } from '../types/envelope.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { SYMBOL_KIND_NAME } from '../jdtls/symbol-kind.js';
 import { logger } from '../logging/logger.js';
-import { classNameToEntryPath, sortByPriority } from './tool-helpers.js';
+import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError } from './tool-helpers.js';
 import type { ClassReference } from '../browsing/types.js';
 
 function toClassReference(item: any): ClassReference {
@@ -38,33 +37,18 @@ export function registerTypeHierarchyTool(server: McpServer): void {
 		async ({ class: className, jar, project, depth }) => {
 			logger.debug('type_hierarchy called', { class: className, jar, project, depth });
 
-			let loadedProject;
-			try {
-				loadedProject = projectStore.resolveProject(project);
-			} catch (error) {
-				if (error instanceof Error && 'code' in error) {
-					const de = error as any;
-					const envelope = makeError(de.code, de.message, de.tried ?? [], de.suggestions);
-					return {
-						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
-						structuredContent: envelope,
-					};
-				}
-				throw error;
-			}
+			const resolved = resolveProjectSafely(project);
+			if (!resolved.ok) return resolved.error;
+			const loadedProject = resolved.project;
 
 			// Check JDT LS availability
 			if (!loadedProject.jdtls?.available || !loadedProject.jdtls.endpoint) {
-				const envelope = makeError(
+				return returnError(
 					'JDTLS_NOT_AVAILABLE',
 					`JDT LS not available for project '${loadedProject.name}': ${loadedProject.jdtls?.failureReason ?? 'not initialized'}`,
 					[loadedProject.name],
 					['Ensure Java 21+ is installed and JDTLS_HOME is set'],
 				);
-				return {
-					content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
-					structuredContent: envelope,
-				};
 			}
 
 			const jdtls = loadedProject.jdtls;
@@ -88,29 +72,21 @@ export function registerTypeHierarchyTool(server: McpServer): void {
 			if (jar !== undefined) {
 				const dep = loadedProject.dependencyJars.get(jar);
 				if (!dep) {
-					const envelope = makeError(
+					return returnError(
 						'JAR_NOT_FOUND',
 						`Jar '${jar}' not found in project '${loadedProject.name}'`,
 						[jar],
 						['Check available jars with get_project_metadata'],
 					);
-					return {
-						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
-						structuredContent: envelope,
-					};
 				}
 
 				if (!dep.available) {
-					const envelope = makeError(
+					return returnError(
 						'JAR_NOT_AVAILABLE',
 						`Sources for jar '${jar}' are not available`,
 						[jar],
 						['The dependency does not have a sources jar'],
 					);
-					return {
-						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
-						structuredContent: envelope,
-					};
 				}
 
 				try {
@@ -119,16 +95,12 @@ export function registerTypeHierarchyTool(server: McpServer): void {
 					sourceText = buffer.toString('utf-8');
 					sourceJarId = jar;
 				} catch {
-					const envelope = makeError(
+					return returnError(
 						'CLASS_NOT_FOUND',
 						`Class '${className}' not found in jar '${jar}'`,
 						[entryPath],
 						['Check the fully-qualified class name'],
 					);
-					return {
-						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
-						structuredContent: envelope,
-					};
 				}
 			} else {
 				// All-jars mode
@@ -155,16 +127,12 @@ export function registerTypeHierarchyTool(server: McpServer): void {
 				}
 
 				if (!found) {
-					const envelope = makeError(
+					return returnError(
 						'CLASS_NOT_FOUND',
 						`Class '${className}' not found in any jar`,
 						[entryPath],
 						['Check the fully-qualified class name', 'Use list_packages to browse available packages'],
 					);
-					return {
-						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
-						structuredContent: envelope,
-					};
 				}
 			}
 

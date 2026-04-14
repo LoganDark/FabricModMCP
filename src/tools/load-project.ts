@@ -1,10 +1,11 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { makeSuccess, makeError } from '../types/envelope.js';
+import { makeSuccess } from '../types/envelope.js';
 import { projectStore, ProjectStore } from '../state/project-store.js';
 import { loadProject } from '../project/loader.js';
 import { jarReader } from './shared-jar-reader.js';
 import { logger } from '../logging/logger.js';
+import { returnError } from './tool-helpers.js';
 import { detectJava, findJdtLs, startJdtLs } from '../jdtls/client.js';
 import { extractSourcesToTemp } from '../jdtls/workspace.js';
 import type { JdtLsSession } from '../jdtls/types.js';
@@ -123,11 +124,7 @@ export function registerLoadProjectTool(server: McpServer): void {
 			} catch (error) {
 				if (error instanceof Error && 'code' in error) {
 					const de = error as any;
-					const envelope = makeError(de.code, de.message, de.tried ?? [path], de.suggestions);
-					return {
-						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
-						structuredContent: envelope,
-					};
+					return returnError(de.code, de.message, de.tried ?? [path], de.suggestions);
 				}
 				throw error;
 			}

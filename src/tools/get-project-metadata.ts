@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { stat } from 'node:fs/promises';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { makeSuccess, makeError } from '../types/envelope.js';
-import { projectStore } from '../state/project-store.js';
+import { makeSuccess } from '../types/envelope.js';
 import { logger } from '../logging/logger.js';
+import { resolveProjectSafely } from './tool-helpers.js';
 import type { LoadedProject } from '../project/types.js';
 
 function buildProjectInfo(project: LoadedProject) {
@@ -101,20 +101,9 @@ export function registerGetProjectMetadataTool(server: McpServer): void {
 		async ({ project, include_project_info, include_mod_info, include_jar_inventory, include_paths }) => {
 			logger.debug('get_project_metadata called', { project, include_project_info, include_mod_info, include_jar_inventory, include_paths });
 
-			let loadedProject;
-			try {
-				loadedProject = projectStore.resolveProject(project);
-			} catch (error) {
-				if (error instanceof Error && 'code' in error) {
-					const de = error as any;
-					const envelope = makeError(de.code, de.message, de.tried ?? [], de.suggestions);
-					return {
-						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
-						structuredContent: envelope,
-					};
-				}
-				throw error;
-			}
+			const resolved = resolveProjectSafely(project);
+			if (!resolved.ok) return resolved.error;
+			const loadedProject = resolved.project;
 
 			const anyExplicit = include_project_info || include_mod_info || include_jar_inventory;
 

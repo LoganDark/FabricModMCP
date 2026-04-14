@@ -1,13 +1,12 @@
 import { z } from 'zod';
 import { readFile } from 'node:fs/promises';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { makeSuccess, makeError } from '../types/envelope.js';
-import { projectStore } from '../state/project-store.js';
+import { makeSuccess } from '../types/envelope.js';
 import { resolveSymbolPosition } from './resolve-symbol-position.js';
 import { createUriMapper, entryPathToClassName } from '../jdtls/uri-mapper.js';
 import { extractEnclosingContext } from '../jdtls/context-extractor.js';
 import { logger } from '../logging/logger.js';
-import { normalizeLocations } from './tool-helpers.js';
+import { normalizeLocations, resolveProjectSafely, returnError } from './tool-helpers.js';
 import type { NavigationResult } from '../jdtls/types.js';
 
 export function registerFindImplementationsTool(server: McpServer): void {
@@ -26,33 +25,18 @@ export function registerFindImplementationsTool(server: McpServer): void {
 		async ({ project, jar, class: className, patterns }) => {
 			logger.debug('find_implementations called', { project, jar, class: className, patterns });
 
-			let loadedProject;
-			try {
-				loadedProject = projectStore.resolveProject(project);
-			} catch (error) {
-				if (error instanceof Error && 'code' in error) {
-					const de = error as any;
-					const envelope = makeError(de.code, de.message, de.tried ?? [], de.suggestions);
-					return {
-						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
-						structuredContent: envelope,
-					};
-				}
-				throw error;
-			}
+			const resolved = resolveProjectSafely(project);
+			if (!resolved.ok) return resolved.error;
+			const loadedProject = resolved.project;
 
 			// Check JDT LS availability -- hard error, no fallback
 			if (!loadedProject.jdtls?.available || !loadedProject.jdtls.client || !loadedProject.jdtls.endpoint) {
-				const envelope = makeError(
+				return returnError(
 					'JDTLS_NOT_AVAILABLE',
 					`JDT LS not available for project '${loadedProject.name}': ${loadedProject.jdtls?.failureReason ?? 'not initialized'}`,
 					[loadedProject.name],
 					['Ensure Java 21+ is installed and JDTLS_HOME is set'],
 				);
-				return {
-					content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
-					structuredContent: envelope,
-				};
 			}
 
 			const jdtls = loadedProject.jdtls;
@@ -72,28 +56,20 @@ export function registerFindImplementationsTool(server: McpServer): void {
 
 			if (!posResult.success) {
 				if (posResult.kind === 'jar-not-found') {
-					const envelope = makeError(
+					return returnError(
 						'JAR_NOT_FOUND',
 						`Jar '${posResult.jar}' not found in project '${loadedProject.name}'`,
 						[posResult.jar],
 						['Check available jars with get_project_metadata'],
 					);
-					return {
-						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
-						structuredContent: envelope,
-					};
 				}
 				if (posResult.kind === 'jar-not-available') {
-					const envelope = makeError(
+					return returnError(
 						'JAR_NOT_AVAILABLE',
 						`Sources for jar '${posResult.jar}' are not available`,
 						[posResult.jar],
 						['The dependency does not have a sources jar'],
 					);
-					return {
-						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
-						structuredContent: envelope,
-					};
 				}
 				if (posResult.kind === 'cascade-failure') {
 					const failure = {
@@ -111,16 +87,12 @@ export function registerFindImplementationsTool(server: McpServer): void {
 					};
 				}
 				// not-found
-				const envelope = makeError(
+				return returnError(
 					'CLASS_NOT_FOUND',
 					`Class '${className}' not found in any jar, or cascading regex failed in all jars`,
 					[posResult.entryPath],
 					['Check the fully-qualified class name', 'Use list_packages to browse available packages'],
 				);
-				return {
-					content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
-					structuredContent: envelope,
-				};
 			}
 
 			const { sourceJarId, sourceText, cascadeResult, fileUri } = posResult;

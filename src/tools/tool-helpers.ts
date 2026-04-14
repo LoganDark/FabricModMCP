@@ -2,11 +2,13 @@
  * Shared utilities for tool files.
  *
  * Single source of truth for: CATEGORY_PRIORITY, sortByPriority, classNameToEntryPath,
- * normalizeLocations, and LocateFailure.
+ * normalizeLocations, LocateFailure, resolveProjectSafely, and returnError.
  */
 
-import type { JarCategory, DependencyEntry } from '../project/types.js';
+import type { JarCategory, DependencyEntry, LoadedProject } from '../project/types.js';
 import type { CascadeStep } from '../browsing/cascading-regex.js';
+import { projectStore } from '../state/project-store.js';
+import { makeError } from '../types/envelope.js';
 
 export interface LocateFailure {
 	jar: string;
@@ -62,4 +64,32 @@ export function normalizeLocations(result: any): Array<{ uri: string; range: { s
 		return [{ uri: result.uri, range: result.range }];
 	}
 	return [];
+}
+
+/**
+ * Safely resolve a project from the project store, catching DomainError and returning
+ * an MCP-formatted error response.
+ */
+export function resolveProjectSafely(project?: string): { ok: true; project: LoadedProject } | { ok: false; error: { content: { type: 'text'; text: string }[]; structuredContent: ReturnType<typeof makeError> } } {
+	try {
+		const loaded = projectStore.resolveProject(project);
+		return { ok: true, project: loaded };
+	} catch (error) {
+		if (error instanceof Error && 'code' in error) {
+			const de = error as any;
+			return { ok: false, error: returnError(de.code, de.message, de.tried ?? [], de.suggestions) };
+		}
+		throw error;
+	}
+}
+
+/**
+ * Build a standard MCP error response from error parameters.
+ */
+export function returnError(code: string, message: string, tried: string[], suggestions?: string[]): { content: { type: 'text'; text: string }[]; structuredContent: ReturnType<typeof makeError> } {
+	const envelope = makeError(code, message, tried, suggestions);
+	return {
+		content: [{ type: 'text' as const, text: `Error [${code}]: ${message}` }],
+		structuredContent: envelope,
+	};
 }

@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { makeSuccess, makeError } from '../types/envelope.js';
-import { projectStore } from '../state/project-store.js';
+import { makeSuccess } from '../types/envelope.js';
 import { jarReader } from './shared-jar-reader.js';
 import { searchClasses } from '../browsing/search.js';
 import { logger } from '../logging/logger.js';
+import { resolveProjectSafely } from './tool-helpers.js';
 
 export function registerSearchClassesTool(server: McpServer): void {
 	server.registerTool(
@@ -25,20 +25,9 @@ export function registerSearchClassesTool(server: McpServer): void {
 		async ({ pattern, caseSensitive, kind, jars, offset, limit, project }) => {
 			logger.debug('search_classes called', { project, pattern, caseSensitive, kind, jars, offset, limit });
 
-			let loadedProject;
-			try {
-				loadedProject = projectStore.resolveProject(project);
-			} catch (error) {
-				if (error instanceof Error && 'code' in error) {
-					const de = error as any;
-					const envelope = makeError(de.code, de.message, de.tried ?? [], de.suggestions);
-					return {
-						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
-						structuredContent: envelope,
-					};
-				}
-				throw error;
-			}
+			const resolved = resolveProjectSafely(project);
+			if (!resolved.ok) return resolved.error;
+			const loadedProject = resolved.project;
 
 			const response = await searchClasses(
 				{ pattern, caseSensitive, kind, jars, offset, limit },

@@ -1,13 +1,13 @@
 import { z } from 'zod';
 import picomatch from 'picomatch';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { makeSuccess, makeError } from '../types/envelope.js';
-import { projectStore } from '../state/project-store.js';
+import { makeSuccess } from '../types/envelope.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { parseClassDeclaration } from '../browsing/class-parser.js';
 import { logger } from '../logging/logger.js';
+import { resolveProjectSafely } from './tool-helpers.js';
 import { getOrBuildIndex } from './list-packages.js';
 import type { SourceAdapter } from '../browsing/source-adapter.js';
 import type { ClassInfo, InnerClassInfo } from '../browsing/types.js';
@@ -49,20 +49,9 @@ export function registerListClassesTool(server: McpServer): void {
 		async ({ project, jars, package: packageName, depth }) => {
 			logger.debug('list_classes called', { project, jars, package: packageName, depth });
 
-			let loadedProject;
-			try {
-				loadedProject = projectStore.resolveProject(project);
-			} catch (error) {
-				if (error instanceof Error && 'code' in error) {
-					const de = error as any;
-					const envelope = makeError(de.code, de.message, de.tried ?? [], de.suggestions);
-					return {
-						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
-						structuredContent: envelope,
-					};
-				}
-				throw error;
-			}
+			const resolved = resolveProjectSafely(project);
+			if (!resolved.ok) return resolved.error;
+			const loadedProject = resolved.project;
 
 			// Get filtered dependencies
 			let filtered = getFilteredDependencies(loadedProject.dependencyJars, loadedProject.filterConfig);

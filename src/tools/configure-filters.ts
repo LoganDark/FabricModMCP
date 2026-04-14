@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { makeSuccess, makeError } from '../types/envelope.js';
-import { projectStore } from '../state/project-store.js';
+import { makeSuccess } from '../types/envelope.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
 import { logger } from '../logging/logger.js';
+import { resolveProjectSafely } from './tool-helpers.js';
 
 export function registerConfigureFiltersTool(server: McpServer): void {
 	server.registerTool(
@@ -24,20 +24,9 @@ export function registerConfigureFiltersTool(server: McpServer): void {
 		async ({ project, mode, patterns }) => {
 			logger.debug('configure_filters called', { project, mode, patterns });
 
-			let loadedProject;
-			try {
-				loadedProject = projectStore.resolveProject(project);
-			} catch (error) {
-				if (error instanceof Error && 'code' in error) {
-					const de = error as any;
-					const envelope = makeError(de.code, de.message, de.tried ?? [], de.suggestions);
-					return {
-						content: [{ type: 'text' as const, text: `Error [${envelope.error.code}]: ${envelope.error.message}` }],
-						structuredContent: envelope,
-					};
-				}
-				throw error;
-			}
+			const resolved = resolveProjectSafely(project);
+			if (!resolved.ok) return resolved.error;
+			const loadedProject = resolved.project;
 
 			if (mode !== undefined) {
 				loadedProject.filterConfig.mode = mode;
