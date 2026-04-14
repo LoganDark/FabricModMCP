@@ -21,8 +21,8 @@ Requirements for v1.1 Study Jars milestone. Each maps to roadmap phases.
 
 ### Infrastructure
 
-- [ ] **INFRA-01**: JarReader supports granular add/remove of individual jar handles per project
-- [ ] **INFRA-02**: EntryIndex cache supports single-entry eviction when a study jar is removed
+- [x] **INFRA-01**: JarReader supports granular add/remove of individual jar handles per project
+- [x] **INFRA-02**: EntryIndex cache supports single-entry eviction when a study jar is removed
 
 ### Semantic Navigation
 
@@ -51,8 +51,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 11 | Pending |
-| INFRA-02 | Phase 11 | Pending |
+| INFRA-01 | Phase 11 | Complete |
+| INFRA-02 | Phase 11 | Complete |
 | INTG-01 | Phase 12 | Pending |
 | INTG-02 | Phase 12 | Pending |
 | STUDY-01 | Phase 13 | Pending |
