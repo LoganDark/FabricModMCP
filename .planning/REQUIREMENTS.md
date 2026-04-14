@@ -16,8 +16,8 @@ Requirements for v1.1 Study Jars milestone. Each maps to roadmap phases.
 
 ### Tool Integration
 
-- [ ] **INTG-01**: Study jars selectable via existing `jars` parameter on all jar-aware tools
-- [ ] **INTG-02**: Study jars with auto-include=true are included in the default jar set when `jars` is omitted
+- [x] **INTG-01**: Study jars selectable via existing `jars` parameter on all jar-aware tools
+- [x] **INTG-02**: Study jars with auto-include=true are included in the default jar set when `jars` is omitted
 
 ### Infrastructure
 
@@ -53,8 +53,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | INFRA-01 | Phase 11 | Complete |
 | INFRA-02 | Phase 11 | Complete |
-| INTG-01 | Phase 12 | Pending |
-| INTG-02 | Phase 12 | Pending |
+| INTG-01 | Phase 12 | Complete |
+| INTG-02 | Phase 12 | Complete |
 | STUDY-01 | Phase 13 | Pending |
 | STUDY-02 | Phase 13 | Pending |
 | STUDY-03 | Phase 13 | Pending |

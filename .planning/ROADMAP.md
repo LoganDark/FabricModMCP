@@ -63,7 +63,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 12-01-PLAN.md — Dependency resolver module, CATEGORY_PRIORITY update, getDependenciesForTool helper, searchClasses signature simplification
+- [x] 12-01-PLAN.md — Dependency resolver module, CATEGORY_PRIORITY update, getDependenciesForTool helper, searchClasses signature simplification
 - [ ] 12-02-PLAN.md — Wire all tool files through resolver, eliminate direct dependencyJars access
 
 ### Phase 13: Study Jar Management Tools
@@ -102,6 +102,6 @@ Phases execute in numeric order: 11 -> 12 -> 13 -> 14
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 11. Types and Domain Logic | v1.1 | 2/2 | Complete    | 2026-04-14 |
-| 12. Existing Tool Integration | v1.1 | 0/2 | Not started | - |
+| 12. Existing Tool Integration | v1.1 | 1/2 | In Progress|  |
 | 13. Study Jar Management Tools | v1.1 | 0/? | Not started | - |
 | 14. JDT LS Workspace Sync | v1.1 | 0/? | Not started | - |
