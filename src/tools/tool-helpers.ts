@@ -160,18 +160,24 @@ export async function resolveClassSource(
 		}
 	}
 
-	// All-jars mode: find first jar containing the class
+	// All-jars mode: read from all jars in parallel, return highest-priority match
 	const filtered = getFilteredDependencies(loadedProject.dependencyJars, loadedProject.filterConfig);
 	const sorted = sortByPriority(Array.from(filtered.entries()));
 
-	for (const [id, dep] of sorted) {
-		if (!dep.available) continue;
+	const attempts = await Promise.all(sorted.map(async ([id, dep]) => {
+		if (!dep.available) return null;
 		try {
 			const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
 			const buffer = await adapter.readEntry(entryPath);
-			return { success: true, sourceJarId: id, sourceText: buffer.toString('utf-8'), entryPath };
+			return { id, text: buffer.toString('utf-8') };
 		} catch {
-			continue;
+			return null;
+		}
+	}));
+
+	for (const attempt of attempts) {
+		if (attempt) {
+			return { success: true as const, sourceJarId: attempt.id, sourceText: attempt.text, entryPath };
 		}
 	}
 
@@ -258,17 +264,21 @@ export async function processNavigationLocations(
 	uriMapper: UriMapper,
 ): Promise<NavigationResult[]> {
 	const results: NavigationResult[] = [];
+	const sourceCache = new Map<string, string>();
 
 	for (const loc of locations) {
 		const mapping = uriMapper.fromFileUri(loc.uri);
 		if (!mapping) continue;
 
 		const filePath = loc.uri.replace('file://', '');
-		let source: string;
-		try {
-			source = await readFile(filePath, 'utf-8');
-		} catch {
-			continue;
+		let source = sourceCache.get(filePath);
+		if (source === undefined) {
+			try {
+				source = await readFile(filePath, 'utf-8');
+				sourceCache.set(filePath, source);
+			} catch {
+				continue;
+			}
 		}
 
 		const className = entryPathToClassName(mapping.entryPath);

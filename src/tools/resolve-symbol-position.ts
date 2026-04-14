@@ -113,30 +113,31 @@ export async function resolveSymbolPosition(
 			entryPath,
 		};
 	} else {
-		// All-jars mode: find first jar containing the class with matching cascade
+		// All-jars mode: read from all jars in parallel, return highest-priority match
 		const filtered = getFilteredDependencies(loadedProject.dependencyJars, loadedProject.filterConfig);
 		const sorted = sortByPriority(Array.from(filtered.entries()));
 
-		for (const [id, dep] of sorted) {
-			if (!dep.available) continue;
-
-			let text: string;
+		const attempts = await Promise.all(sorted.map(async ([id, dep]) => {
+			if (!dep.available) return null;
 			try {
 				const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
 				const buffer = await adapter.readEntry(entryPath);
-				text = buffer.toString('utf-8');
-			} catch {
-				continue;
-			}
+				const text = buffer.toString('utf-8');
+				const result = cascadeRegex(text, patterns);
+				if (result.success) return { id, text, result };
+			} catch {}
+			return null;
+		}));
 
-			const result = cascadeRegex(text, patterns);
-			if (result.success) {
-				const fileUri = uriMapper.toFileUri(id, entryPath);
+		// Return first (highest-priority) match
+		for (const attempt of attempts) {
+			if (attempt) {
+				const fileUri = uriMapper.toFileUri(attempt.id, entryPath);
 				return {
 					success: true,
-					sourceJarId: id,
-					sourceText: text,
-					cascadeResult: result,
+					sourceJarId: attempt.id,
+					sourceText: attempt.text,
+					cascadeResult: attempt.result,
 					fileUri,
 					entryPath,
 				};

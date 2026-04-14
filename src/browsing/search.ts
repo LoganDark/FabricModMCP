@@ -101,20 +101,14 @@ export async function searchClasses(
 		}
 	}
 
-	// Step 7: Read class declarations for all matched classes to populate kind/access
-	// and apply kind filtering
-	const toDelete: string[] = [];
-
-	for (const [fqn, entry] of resultMap) {
-		// Try reading from first available jar
+	// Step 7: Read class declarations in parallel to populate kind/access
+	const entries = Array.from(resultMap.entries());
+	await Promise.all(entries.map(async ([fqn, entry]) => {
 		const firstJarDep = filtered.get(entry.firstJarId);
 		if (firstJarDep) {
 			try {
 				const adapter = createSourceAdapter(jarReaderInstance, firstJarDep, rootPath);
-
-				// Convert FQN to entry path
 				const entryPath = classNameToEntryPath(fqn);
-
 				const buffer = await adapter.readEntry(entryPath);
 				const head = buffer.subarray(0, 4096).toString('utf-8');
 				const parsed = parseClassDeclaration(head);
@@ -135,17 +129,15 @@ export async function searchClasses(
 			entry.kind = 'unknown';
 			entry.access = 'unknown';
 		}
+	}));
 
-		// Apply kind filter
-		if (options.kind && options.kind.length > 0) {
+	// Apply kind filter
+	if (options.kind && options.kind.length > 0) {
+		for (const [fqn, entry] of entries) {
 			if (!options.kind.includes(entry.kind!)) {
-				toDelete.push(fqn);
+				resultMap.delete(fqn);
 			}
 		}
-	}
-
-	for (const fqn of toDelete) {
-		resultMap.delete(fqn);
 	}
 
 	// Step 8: Sort results

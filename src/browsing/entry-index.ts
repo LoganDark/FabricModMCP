@@ -45,7 +45,8 @@ export interface FlatClassIndexEntry {
 export class EntryIndex {
 	private packages = new Map<string, Set<string>>();
 	private innerClasses = new Map<string, string[]>();
-	private allPackages = new Set<string>();
+	// Tree structure: parent package → direct child packages
+	private childPackages = new Map<string, Set<string>>();
 
 	constructor(entries: string[]) {
 		for (const entry of entries) {
@@ -59,7 +60,9 @@ export class EntryIndex {
 				this.registerPackageHierarchy(packageName);
 			} else {
 				// Root-level class (empty package)
-				this.allPackages.add('');
+				if (!this.childPackages.has('')) {
+					this.childPackages.set('', new Set());
+				}
 			}
 
 			if (isInnerClass) {
@@ -80,31 +83,38 @@ export class EntryIndex {
 	}
 
 	private registerPackageHierarchy(packageName: string): void {
-		this.allPackages.add(packageName);
 		const parts = packageName.split('.');
-		for (let i = 1; i < parts.length; i++) {
-			this.allPackages.add(parts.slice(0, i).join('.'));
+		for (let i = parts.length; i >= 1; i--) {
+			const pkg = parts.slice(0, i).join('.');
+			const parent = i > 1 ? parts.slice(0, i - 1).join('.') : '';
+			const siblings = this.childPackages.get(parent) ?? new Set();
+			if (siblings.has(pkg)) break; // already registered this branch
+			siblings.add(pkg);
+			this.childPackages.set(parent, siblings);
 		}
 	}
 
 	getPackages(prefix?: string, depth: number = 1): string[] {
+		const root = prefix ?? '';
 		const result: string[] = [];
-		const prefixDepth = prefix ? prefix.split('.').length : 0;
 
-		for (const pkg of this.allPackages) {
-			if (pkg === '') continue; // skip root
+		// BFS to requested depth
+		let frontier = this.childPackages.get(root);
+		if (!frontier) return result;
 
-			const pkgDepth = pkg.split('.').length;
-			const relativeDepth = pkgDepth - prefixDepth;
-
-			if (prefix) {
-				if (!pkg.startsWith(prefix + '.')) continue;
-				if (relativeDepth < 1 || relativeDepth > depth) continue;
-			} else {
-				if (relativeDepth < 1 || relativeDepth > depth) continue;
+		for (let d = 0; d < depth; d++) {
+			const nextFrontier = new Set<string>();
+			for (const pkg of frontier) {
+				result.push(pkg);
+				const children = this.childPackages.get(pkg);
+				if (children) {
+					for (const child of children) {
+						nextFrontier.add(child);
+					}
+				}
 			}
-
-			result.push(pkg);
+			frontier = nextFrontier;
+			if (frontier.size === 0) break;
 		}
 
 		return result.sort();
