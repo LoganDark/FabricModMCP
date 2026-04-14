@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Symbol Resolution
 status: unknown
-stopped_at: Completed 16-01-PLAN.md
-last_updated: "2026-04-14T10:18:29.003Z"
+stopped_at: Completed 16-02-PLAN.md
+last_updated: "2026-04-14T10:23:07.009Z"
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -48,6 +48,7 @@ Plan: 2 of 2
 *Updated after each plan completion*
 | Phase 15-enable-method-search P01 | 2min | 2 tasks | 5 files |
 | Phase 16-member-parser P01 | 2min | 2 tasks | 4 files |
+| Phase 16-member-parser P02 | 2min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -61,6 +62,7 @@ Recent decisions affecting current work:
 - [Phase 15-enable-method-search]: Tool description directs users to list_members for field search
 - [Phase 16-member-parser]: java.lang types resolved via hardcoded set rather than resolvePackage callback
 - [Phase 16-member-parser]: Star import cache stores Promise to deduplicate concurrent resolution
+- [Phase 16-member-parser]: No-arg methods detected by absence of parens; generics stripped via depth-counting loop
 
 ### Pending Todos
 
@@ -73,6 +75,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-14T10:18:29.000Z
-Stopped at: Completed 16-01-PLAN.md
+Last session: 2026-04-14T10:23:07.007Z
+Stopped at: Completed 16-02-PLAN.md
 Resume file: None
