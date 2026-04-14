@@ -19,7 +19,7 @@ Requirements for v1.3 Context Management milestone. Each maps to roadmap phases.
 - [ ] **NAV-01**: find_references accepts limit and offset parameters with total count in response
 - [ ] **NAV-02**: find_implementations accepts limit and offset parameters with total count in response
 - [ ] **NAV-03**: find_definition accepts limit and offset parameters with total count in response
-- [ ] **NAV-04**: All pagination defaults to returning all results (backward compatible) when limit is omitted
+- [x] **NAV-04**: All pagination defaults to returning all results (backward compatible) when limit is omitted
 
 ### Verbosity Audit
 
@@ -58,7 +58,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NAV-01 | Phase 21 | Pending |
 | NAV-02 | Phase 21 | Pending |
 | NAV-03 | Phase 21 | Pending |
-| NAV-04 | Phase 21 | Pending |
+| NAV-04 | Phase 21 | Complete |
 | VERB-01 | Phase 22 | Pending |
 | VERB-02 | Phase 22 | Pending |
 | VERB-03 | Phase 22 | Pending |
