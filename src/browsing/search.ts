@@ -1,12 +1,11 @@
 import picomatch from 'picomatch';
 import { parseClassDeclaration } from './class-parser.js';
 import { getOrBuildIndex } from './entry-index-cache.js';
-import { getFilteredDependencies } from '../project/jar-registry.js';
 import { createSourceAdapter } from './source-adapter.js';
 import type { ClassInfo } from './types.js';
-import type { DependencyEntry, FilterConfig, JarCategory } from '../project/types.js';
+import type { DependencyEntry, JarCategory } from '../project/types.js';
 import type { JarReader } from '../project/jar-reader.js';
-import { CATEGORY_PRIORITY, classNameToEntryPath, filterDependenciesByJarPattern, sortByPriority } from '../tools/tool-helpers.js';
+import { CATEGORY_PRIORITY, classNameToEntryPath, sortByPriority } from '../tools/tool-helpers.js';
 
 export interface SearchResponse {
 	results: ClassInfo[];
@@ -19,31 +18,21 @@ export interface SearchOptions {
 	pattern: string;
 	caseSensitive?: boolean;
 	kind?: string[];
-	jars?: string[];
 	offset?: number;
 	limit?: number;
 }
 
 export async function searchClasses(
 	options: SearchOptions,
-	dependencies: Map<string, DependencyEntry>,
-	filterConfig: FilterConfig,
+	resolvedDeps: Map<string, DependencyEntry>,
 	rootPath: string,
 	jarReaderInstance: JarReader,
 ): Promise<SearchResponse> {
 	const offset = options.offset ?? 0;
 	const limit = options.limit ?? 250;
 
-	// Step 1: Get filtered dependencies
-	let filtered = getFilteredDependencies(dependencies, filterConfig);
-
-	// Step 2: Apply jar scoping if provided
-	if (options.jars && options.jars.length > 0) {
-		filtered = filterDependenciesByJarPattern(filtered, options.jars);
-	}
-
-	// Step 3: Sort jars by priority
-	const sortedJars = sortByPriority(Array.from(filtered.entries()));
+	// Sort jars by priority
+	const sortedJars = sortByPriority(Array.from(resolvedDeps.entries()));
 
 	// Step 4: Create FQN matcher using dot-to-slash conversion
 	let matchPattern = options.pattern.replaceAll('.', '/');
@@ -104,7 +93,7 @@ export async function searchClasses(
 	// Step 7: Read class declarations in parallel to populate kind/access
 	const entries = Array.from(resultMap.entries());
 	await Promise.all(entries.map(async ([fqn, entry]) => {
-		const firstJarDep = filtered.get(entry.firstJarId);
+		const firstJarDep = resolvedDeps.get(entry.firstJarId);
 		if (firstJarDep) {
 			try {
 				const adapter = createSourceAdapter(jarReaderInstance, firstJarDep, rootPath);

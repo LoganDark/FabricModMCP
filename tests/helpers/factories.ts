@@ -45,6 +45,7 @@ export function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedP
 		},
 		dependencyJars: deps,
 		filterConfig: { mode: 'include-all', patterns: [] },
+		studyJars: new Map(),
 		...overrides,
 	};
 }

@@ -4,7 +4,7 @@ import { makeSuccess } from '../types/envelope.js';
 import { jarReader } from './shared-jar-reader.js';
 import { searchClasses } from '../browsing/search.js';
 import { logger } from '../logging/logger.js';
-import { resolveProjectSafely } from './tool-helpers.js';
+import { resolveProjectSafely, getDependenciesForTool } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 
 export function registerSearchClassesTool(server: McpServer): void {
@@ -30,10 +30,10 @@ export function registerSearchClassesTool(server: McpServer): void {
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
 
+			const resolvedDeps = getDependenciesForTool(loadedProject, jars);
 			const response = await searchClasses(
-				{ pattern, caseSensitive, kind, jars, offset, limit },
-				loadedProject.dependencyJars,
-				loadedProject.filterConfig,
+				{ pattern, caseSensitive, kind, offset, limit },
+				resolvedDeps,
 				loadedProject.rootPath,
 				jarReader,
 			);

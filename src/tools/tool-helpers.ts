@@ -20,6 +20,7 @@ import type { LspClient } from 'ts-lsp-client';
 import { projectStore } from '../state/project-store.js';
 import { makeError, makeSuccess } from '../types/envelope.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
+import { getResolvedDependencies, getAllDependencies } from '../project/dependency-resolver.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 
@@ -38,6 +39,7 @@ export const CATEGORY_PRIORITY: Record<JarCategory, number> = {
 	'mod-source': 1,
 	'fabric-api': 2,
 	'library': 3,
+	'study': 4,
 };
 
 export function sortByPriority(entries: [string, DependencyEntry][]): [string, DependencyEntry][] {
@@ -318,4 +320,19 @@ export function filterDependenciesByJarPattern(
 		}
 	}
 	return scoped;
+}
+
+/**
+ * Resolve dependencies for a tool invocation.
+ * With jars param: strict whitelist from getAllDependencies (includes all study jars).
+ * Without jars param: getFilteredDependencies(getResolvedDependencies(project), filterConfig).
+ */
+export function getDependenciesForTool(
+	project: LoadedProject,
+	jars?: string[],
+): Map<string, DependencyEntry> {
+	if (jars && jars.length > 0) {
+		return filterDependenciesByJarPattern(getAllDependencies(project), jars);
+	}
+	return getFilteredDependencies(getResolvedDependencies(project), project.filterConfig);
 }
