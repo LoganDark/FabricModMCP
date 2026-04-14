@@ -71,8 +71,6 @@ function makeMockClient() {
 	};
 }
 
-
-
 describe('find_implementations', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
