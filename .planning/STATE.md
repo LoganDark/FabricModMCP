@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Symbol Resolution
 status: unknown
-stopped_at: Completed 17-02-PLAN.md
-last_updated: "2026-04-14T12:05:53.461Z"
+stopped_at: Completed 18-02-PLAN.md
+last_updated: "2026-04-14T12:52:27.297Z"
 progress:
-  total_phases: 3
+  total_phases: 4
   completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 7
+  completed_plans: 6
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-14)
 
 **Core value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
-**Current focus:** Phase 17 — structured-member-output
+**Current focus:** Phase 18 — member-inspection-context-lines
 
 ## Current Position
 
-Phase: 17
-Plan: Not started
+Phase: 18 (member-inspection-context-lines) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Plan: Not started
 | Phase 16-member-parser P02 | 2min | 1 tasks | 2 files |
 | Phase 17-structured-member-output P01 | 2min | 2 tasks | 7 files |
 | Phase 17-structured-member-output P02 | 4min | 2 tasks | 5 files |
+| Phase 18 P02 | 2min | 1 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,7 @@ Recent decisions affecting current work:
 - [Phase 17-structured-member-output]: EnrichedClassSymbol has no memberFqn -- classes are containers, not members
 - [Phase 17-structured-member-output]: Multi-jar resolvePackage built inline in list-members (cached EntryIndex, O(1) after first call)
 - [Phase 17-structured-member-output]: enrichOne falls back to kind-based classification when detail is null (constructors/fields still get memberFqn)
+- [Phase 18]: extractContext uses 1-based line indexing with Math.max/Math.min clamping, context field omitted when not requested
 
 ### Pending Todos
 
@@ -85,6 +87,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-14T12:03:09.464Z
-Stopped at: Completed 17-02-PLAN.md
+Last session: 2026-04-14T12:52:27.294Z
+Stopped at: Completed 18-02-PLAN.md
 Resume file: None
