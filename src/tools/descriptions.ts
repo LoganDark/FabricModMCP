@@ -57,15 +57,15 @@ or \`unmapped\` (Mojang's unobfuscated names in newer versions). This affects wh
 
 export const PARAMS = {
 	/** Optional project name — used by 16+ tools. */
-	project: z.string().optional().describe('Project name (omit if only one project loaded or default is set)'),
+	project: z.string().optional().describe('Project name if multiple are loaded'),
 	/** Fully-qualified class name — used by 8 tools. */
-	class: z.string().describe('Fully-qualified class name (e.g., net.minecraft.client.MinecraftClient)'),
+	class: z.string().describe('Fully-qualified class name'),
 	/** Optional single jar ID — used by 8 tools. */
-	jar: z.string().optional().describe('Jar ID to scope to (default: search all jars containing the class)'),
+	jar: z.string().optional().describe('Jar ID (default: search all jars)'),
 	/** Optional jar array with glob support — used by 3 tools. */
-	jars: z.array(z.string()).optional().describe('Jar IDs or glob patterns to scope to (default: all jars)'),
+	jars: z.array(z.string()).optional().describe('Jar IDs or glob patterns (default: all jars)'),
 	/** Cascading regex patterns — used by 5 tools. */
-	patterns: z.array(z.string()).min(1).describe('Cascading regex patterns to locate the symbol. Each narrows within the previous match.'),
+	patterns: z.array(z.string()).min(1).describe('Cascading regex patterns to locate the symbol'),
 } as const;
 
 // ---------------------------------------------------------------------------
