@@ -36,6 +36,7 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 
 ### Active
 
+- Context lines on read_member — Validated in Phase 20: member-context-lines (moving to Validated next milestone close)
 - Line-range reading on read_source — Validated in Phase 19: line-range-reading (moving to Validated next milestone close)
 - (Remaining v1.3 Context Management requirements in progress)
 
@@ -115,4 +116,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-14 after Phase 19 (line-range-reading) complete*
+*Last updated: 2026-04-14 after Phase 20 (member-context-lines) complete*
