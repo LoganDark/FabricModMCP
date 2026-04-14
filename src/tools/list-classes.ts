@@ -6,26 +6,11 @@ import { projectStore } from '../state/project-store.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
-import { EntryIndex } from '../browsing/entry-index.js';
 import { parseClassDeclaration } from '../browsing/class-parser.js';
 import { logger } from '../logging/logger.js';
+import { getOrBuildIndex } from './list-packages.js';
 import type { SourceAdapter } from '../browsing/source-adapter.js';
 import type { ClassInfo, InnerClassInfo } from '../browsing/types.js';
-
-// Reuse the entry index cache from list-packages
-import { clearEntryIndexCache } from './list-packages.js';
-
-// Local cache for this module (same pattern)
-const entryIndexCache = new Map<string, EntryIndex>();
-
-function getOrBuildIndex(entries: string[], cacheKey: string): EntryIndex {
-	const cached = entryIndexCache.get(cacheKey);
-	if (cached) return cached;
-
-	const index = new EntryIndex(entries);
-	entryIndexCache.set(cacheKey, index);
-	return index;
-}
 
 async function readClassMetadata(
 	adapter: SourceAdapter,

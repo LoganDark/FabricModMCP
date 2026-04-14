@@ -4,15 +4,9 @@ import { parseClassDeclaration } from './class-parser.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
 import { createSourceAdapter } from './source-adapter.js';
 import type { ClassInfo } from './types.js';
-import type { JarCategory, DependencyEntry, FilterConfig } from '../project/types.js';
+import type { DependencyEntry, FilterConfig } from '../project/types.js';
 import type { JarReader } from '../project/jar-reader.js';
-
-const CATEGORY_PRIORITY: Record<JarCategory, number> = {
-	'minecraft': 0,
-	'mod-source': 1,
-	'fabric-api': 2,
-	'library': 3,
-};
+import { CATEGORY_PRIORITY, classNameToEntryPath } from '../tools/tool-helpers.js';
 
 export interface SearchResponse {
 	results: ClassInfo[];
@@ -143,15 +137,7 @@ export async function searchClasses(
 				const adapter = createSourceAdapter(jarReaderInstance, firstJarDep, rootPath);
 
 				// Convert FQN to entry path
-				const lastDot = fqn.lastIndexOf('.');
-				let entryPath: string;
-				if (lastDot === -1) {
-					entryPath = `${fqn}.java`;
-				} else {
-					const packagePath = fqn.substring(0, lastDot).replaceAll('.', '/');
-					const simpleNameWithInner = fqn.substring(lastDot + 1);
-					entryPath = `${packagePath}/${simpleNameWithInner}.java`;
-				}
+				const entryPath = classNameToEntryPath(fqn);
 
 				const buffer = await adapter.readEntry(entryPath);
 				const head = buffer.subarray(0, 4096).toString('utf-8');

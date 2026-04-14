@@ -8,24 +8,7 @@ import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { SYMBOL_KIND_NAME } from '../jdtls/symbol-kind.js';
 import { logger } from '../logging/logger.js';
-import type { JarCategory, DependencyEntry } from '../project/types.js';
-
-// Priority order for jar categories when searching all jars
-const CATEGORY_PRIORITY: Record<JarCategory, number> = {
-	'minecraft': 0,
-	'mod-source': 1,
-	'fabric-api': 2,
-	'library': 3,
-};
-
-function sortByPriority(entries: [string, DependencyEntry][]): [string, DependencyEntry][] {
-	return entries.sort((a, b) => {
-		const pa = CATEGORY_PRIORITY[a[1].category] ?? 99;
-		const pb = CATEGORY_PRIORITY[b[1].category] ?? 99;
-		if (pa !== pb) return pa - pb;
-		return a[0].localeCompare(b[0]);
-	});
-}
+import { classNameToEntryPath, sortByPriority } from './tool-helpers.js';
 
 interface TransformedSymbol {
 	name: string;
@@ -139,16 +122,7 @@ export function registerListMembersTool(server: McpServer): void {
 			const jdtls = loadedProject.jdtls;
 			const lspClient = jdtls.client!;
 
-			// Convert FQN to entry path
-			const lastDot = className.lastIndexOf('.');
-			let entryPath: string;
-			if (lastDot === -1) {
-				entryPath = `${className}.java`;
-			} else {
-				const packagePath = className.substring(0, lastDot).replaceAll('.', '/');
-				const simpleNameWithInner = className.substring(lastDot + 1);
-				entryPath = `${packagePath}/${simpleNameWithInner}.java`;
-			}
+			const entryPath = classNameToEntryPath(className);
 
 			const provenance = {
 				tool: 'list_members',

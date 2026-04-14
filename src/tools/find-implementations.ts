@@ -7,29 +7,8 @@ import { resolveSymbolPosition } from './resolve-symbol-position.js';
 import { createUriMapper, entryPathToClassName } from '../jdtls/uri-mapper.js';
 import { extractEnclosingContext } from '../jdtls/context-extractor.js';
 import { logger } from '../logging/logger.js';
+import { normalizeLocations } from './tool-helpers.js';
 import type { NavigationResult } from '../jdtls/types.js';
-
-/**
- * Normalize LSP implementation results to an array of { uri, range } objects.
- * Handles Location, Location[], LocationLink[], and null.
- */
-function normalizeLocations(result: any): Array<{ uri: string; range: { start: { line: number; character: number }; end: { line: number; character: number } } }> {
-	if (result === null || result === undefined) return [];
-	if (Array.isArray(result)) {
-		return result.map((item: any) => {
-			// LocationLink has targetUri/targetRange; Location has uri/range
-			if ('targetUri' in item) {
-				return { uri: item.targetUri, range: item.targetRange };
-			}
-			return { uri: item.uri, range: item.range };
-		});
-	}
-	// Single Location
-	if ('uri' in result) {
-		return [{ uri: result.uri, range: result.range }];
-	}
-	return [];
-}
 
 export function registerFindImplementationsTool(server: McpServer): void {
 	server.registerTool(
