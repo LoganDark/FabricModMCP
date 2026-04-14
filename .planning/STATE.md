@@ -74,6 +74,10 @@ Recent decisions affecting current work:
 
 None yet.
 
+### Roadmap Evolution
+
+- Phase 18 added: Member Inspection & Context Lines
+
 ### Blockers/Concerns
 
 - Readiness probe wildcard '*' must be changed BEFORE enabling method declarations (result explosion risk)
