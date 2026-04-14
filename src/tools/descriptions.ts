@@ -66,6 +66,12 @@ export const PARAMS = {
 	jars: z.array(z.string()).optional().describe('Jar IDs or glob patterns (default: all jars)'),
 	/** Cascading regex patterns — used by 5 tools. */
 	patterns: z.array(z.string()).min(1).describe('Cascading regex patterns to locate the symbol'),
+	/** Optional first line to return (1-based). Requires jar parameter. */
+	startLine: z.number().int().min(1).optional()
+		.describe('First line to return (1-based). Requires jar parameter.'),
+	/** Optional number of lines to return. Requires jar parameter. */
+	lineCount: z.number().int().min(1).optional()
+		.describe('Number of lines to return. Requires jar parameter.'),
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -116,7 +122,7 @@ export const TOOL_DESCRIPTIONS = {
 		'List all members of a Java class as a structured tree: fields (with types), methods (with full parameter and return type signatures), constructors, enum constants, and inner classes. Each member includes its kind, line range, and nested children. Use this to understand a class\'s API before reading its source — especially useful for identifying Mixin targets.',
 
 	read_source:
-		'Read the full Java source of a class by FQN. When no jar is specified, returns source from every jar containing the class, with provenance labels. Use list_members first to understand structure, then read_source for implementation details.',
+		'Read Java source of a class by FQN. When no jar is specified, returns source from every jar containing the class, with provenance labels. Supports optional startLine and lineCount parameters to read a specific line range (requires specifying a jar). Every response includes metadata: startLine, endLine, totalLineCount, and truncated. Use list_members first to understand structure, then read_source for implementation details.',
 
 	read_member:
 		'Read the source of a specific method, constructor, or field by its member FQN (e.g., net.minecraft.client.MinecraftClient#tick()). Returns the full declaration including Javadoc, annotations, signature, and body. When multiple overloads share the same FQN, returns all of them as separate entries. Get FQNs from list_members or search_symbols output.',

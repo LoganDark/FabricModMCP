@@ -89,7 +89,10 @@ export interface SourceResult {
 	category: JarCategory;
 	provenanceChains: string[][];
 	source: string;
-	lineCount: number;
+	startLine: number;
+	endLine: number;
+	totalLineCount: number;
+	truncated: boolean;
 }
 
 export interface MemberResult {
