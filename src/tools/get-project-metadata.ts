@@ -3,6 +3,7 @@ import { stat } from 'node:fs/promises';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { logger } from '../logging/logger.js';
+import { getAllDependencies } from '../project/dependency-resolver.js';
 import { resolveProjectSafely } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import type { LoadedProject } from '../project/types.js';
@@ -52,7 +53,7 @@ function buildModInfo(project: LoadedProject) {
 async function buildJarInventory(project: LoadedProject, includePaths: boolean) {
 	const entries: Record<string, unknown>[] = [];
 
-	for (const [, dep] of project.dependencyJars) {
+	for (const [, dep] of getAllDependencies(project)) {
 		let sizeBytes: number | null = null;
 
 		if (dep.available && dep.sourcesJarPath) {

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
+import { getResolvedDependencies } from '../project/dependency-resolver.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely } from './tool-helpers.js';
@@ -37,16 +38,17 @@ export function registerConfigureFiltersTool(server: McpServer): void {
 				loadedProject.filterConfig.patterns = patterns;
 			}
 
-			const filtered = getFilteredDependencies(loadedProject.dependencyJars, loadedProject.filterConfig);
+			const resolvedDeps = getResolvedDependencies(loadedProject);
+			const filtered = getFilteredDependencies(resolvedDeps, loadedProject.filterConfig);
 
 			const envelope = makeSuccess({
 				filterConfig: loadedProject.filterConfig,
-				totalDependencies: loadedProject.dependencyJars.size,
+				totalDependencies: resolvedDeps.size,
 				filteredDependencies: filtered.size,
 			});
 
 			return {
-				content: [{ type: 'text' as const, text: `Filter configured: ${filtered.size}/${loadedProject.dependencyJars.size} dependencies visible (mode: ${loadedProject.filterConfig.mode})` }],
+				content: [{ type: 'text' as const, text: `Filter configured: ${filtered.size}/${resolvedDeps.size} dependencies visible (mode: ${loadedProject.filterConfig.mode})` }],
 				structuredContent: envelope,
 			};
 		},

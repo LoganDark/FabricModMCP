@@ -8,6 +8,7 @@
 
 import type { JarCategory, LoadedProject } from '../project/types.js';
 import type { CascadeStep, CascadeSuccess } from '../browsing/cascading-regex.js';
+import { getAllDependencies, getResolvedDependencies } from '../project/dependency-resolver.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
@@ -71,7 +72,7 @@ export async function resolveSymbolPosition(
 
 	if (jar !== undefined) {
 		// Specific jar mode
-		const dep = loadedProject.dependencyJars.get(jar);
+		const dep = getAllDependencies(loadedProject).get(jar);
 		if (!dep) {
 			return { success: false, kind: 'jar-not-found', jar };
 		}
@@ -114,7 +115,7 @@ export async function resolveSymbolPosition(
 		};
 	} else {
 		// All-jars mode: read from all jars in parallel, return highest-priority match
-		const filtered = getFilteredDependencies(loadedProject.dependencyJars, loadedProject.filterConfig);
+		const filtered = getFilteredDependencies(getResolvedDependencies(loadedProject), loadedProject.filterConfig);
 		const sorted = sortByPriority(Array.from(filtered.entries()));
 
 		const attempts = await Promise.all(sorted.map(async ([id, dep]) => {

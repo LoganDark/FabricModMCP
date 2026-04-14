@@ -1,5 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
+import { getResolvedDependencies } from '../project/dependency-resolver.js';
 import { projectStore } from '../state/project-store.js';
 import { logger } from '../logging/logger.js';
 import { TOOL_DESCRIPTIONS } from './descriptions.js';
@@ -21,7 +22,7 @@ export function registerListProjectsTool(server: McpServer): void {
 				rootPath: p.rootPath,
 				minecraftVersion: p.gradleConfig.minecraftVersion,
 				mappingEra: p.gradleConfig.mappingEra,
-				dependencyCount: p.dependencyJars.size,
+				dependencyCount: getResolvedDependencies(p).size,
 				isDefault: p.name === defaultName,
 			}));
 

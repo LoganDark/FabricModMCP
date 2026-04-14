@@ -1,5 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
+import { getAllDependencies, getResolvedDependencies } from '../project/dependency-resolver.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
@@ -34,7 +35,7 @@ export function registerReadSourceTool(server: McpServer): void {
 				const sourceResult = await resolveClassSource(loadedProject, className, jar);
 				if (!sourceResult.success) return handleClassSourceError(sourceResult, className, loadedProject.name, jar);
 
-				const dep = loadedProject.dependencyJars.get(jar)!;
+				const dep = getAllDependencies(loadedProject).get(jar)!;
 				const lineCount = sourceResult.sourceText.split('\n').length;
 
 				const sources: SourceResult[] = [{
@@ -60,7 +61,7 @@ export function registerReadSourceTool(server: McpServer): void {
 			}
 
 			// Search all jars in priority order
-			const filtered = getFilteredDependencies(loadedProject.dependencyJars, loadedProject.filterConfig);
+			const filtered = getFilteredDependencies(getResolvedDependencies(loadedProject), loadedProject.filterConfig);
 			const sorted = sortByPriority(Array.from(filtered.entries()));
 
 			const sources: SourceResult[] = [];

@@ -3,6 +3,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { jarReader } from './shared-jar-reader.js';
 import { logger } from '../logging/logger.js';
+import { getAllDependencies } from '../project/dependency-resolver.js';
 import { resolveProjectSafely, returnError } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 
@@ -25,9 +26,10 @@ export function registerReadJarEntryTool(server: McpServer): void {
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
 
-			const entry = loadedProject.dependencyJars.get(jar);
+			const allDeps = getAllDependencies(loadedProject);
+			const entry = allDeps.get(jar);
 			if (!entry) {
-				const available = Array.from(loadedProject.dependencyJars.keys()).slice(0, 20);
+				const available = Array.from(allDeps.keys()).slice(0, 20);
 				return returnError(
 					'JAR_NOT_FOUND',
 					`Jar '${jar}' not found in project '${project}'`,

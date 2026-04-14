@@ -146,7 +146,7 @@ export async function resolveClassSource(
 	const entryPath = classNameToEntryPath(className);
 
 	if (jar !== undefined) {
-		const dep = loadedProject.dependencyJars.get(jar);
+		const dep = getAllDependencies(loadedProject).get(jar);
 		if (!dep) {
 			return { success: false, kind: 'jar-not-found', jar };
 		}
@@ -163,7 +163,7 @@ export async function resolveClassSource(
 	}
 
 	// All-jars mode: read from all jars in parallel, return highest-priority match
-	const filtered = getFilteredDependencies(loadedProject.dependencyJars, loadedProject.filterConfig);
+	const filtered = getFilteredDependencies(getResolvedDependencies(loadedProject), loadedProject.filterConfig);
 	const sorted = sortByPriority(Array.from(filtered.entries()));
 
 	const attempts = await Promise.all(sorted.map(async ([id, dep]) => {
@@ -287,7 +287,7 @@ export async function processNavigationLocations(
 		const line = loc.range.start.line + 1;
 		const column = loc.range.start.character + 1;
 		const context = extractEnclosingContext(source, line);
-		const dep = loadedProject.dependencyJars.get(mapping.jar);
+		const dep = getAllDependencies(loadedProject).get(mapping.jar);
 
 		results.push({
 			jar: mapping.jar,

@@ -1,5 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
+import { getAllDependencies, getResolvedDependencies } from '../project/dependency-resolver.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
@@ -40,7 +41,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 
 			// Specific jar mode
 			if (jar !== undefined) {
-				const dep = loadedProject.dependencyJars.get(jar);
+				const dep = getAllDependencies(loadedProject).get(jar);
 				if (!dep) {
 					return returnError(
 						'JAR_NOT_FOUND',
@@ -106,7 +107,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 			}
 
 			// All-jars mode: search all jars in priority order
-			const filtered = getFilteredDependencies(loadedProject.dependencyJars, loadedProject.filterConfig);
+			const filtered = getFilteredDependencies(getResolvedDependencies(loadedProject), loadedProject.filterConfig);
 			const sorted = sortByPriority(Array.from(filtered.entries()));
 
 			const results: LocateResult[] = [];
