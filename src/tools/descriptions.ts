@@ -145,4 +145,18 @@ export const TOOL_DESCRIPTIONS = {
 
 	type_hierarchy:
 		'Get the type hierarchy for a class: supertype chain (extends lineage and implements list, separated) and subtypes to configurable depth. Returns ClassReferences (name, FQN, kind) for each entry. Essential for understanding Mixin targets — e.g., finding what a class extends, what interfaces it implements, or what classes extend it.',
+
+	// -- Study jar management -----------------------------------------------
+
+	add_study_jar:
+		'Add a source jar to a project for study. Provide a file path to a sources JAR and an optional name (auto-derived from filename if omitted). The jar becomes available to all browsing and search tools. Use configure_study_jar to enable auto-include if you want it in default results.',
+
+	remove_study_jar:
+		'Remove one or more study jars from a project by name. Closes jar handles and evicts cached data. Accepts an array of names; fails on the first nonexistent name with no partial removal. Use list_study_jars to see current names.',
+
+	list_study_jars:
+		'List all study jars on a project with their names, file paths, auto-include status, and stats (package count, class count, total entries).',
+
+	configure_study_jar:
+		'Configure one or more study jars on a project. Currently supports setting the auto-include flag, which controls whether the jar appears in default tool results when the jars parameter is omitted. Accepts an array of names; fails on the first nonexistent name with no partial update.',
 } as const;
