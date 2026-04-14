@@ -272,3 +272,47 @@ describe('studyJarToDependencyEntry', () => {
 		expect(entry.provenanceChains).toEqual([]);
 	});
 });
+
+describe('refresh_dependencies survival', () => {
+	it('study jar map survives a simulated refresh cycle', async () => {
+		const reader = new JarReader();
+
+		// Initial state: project registered with a dependency jar and a study jar
+		const depJarPath = testJarPath;
+		reader.registerProject('proj', new Set([depJarPath]));
+		reader.addProjectJar('proj', testJarPath2); // study jar path
+
+		const fileStat = await stat(testJarPath2);
+		const studyJar: StudyJar = {
+			name: 'study-lib', jarPath: testJarPath2,
+			mtime: fileStat.mtimeMs, size: fileStat.size,
+			autoInclude: false, stats: { totalEntries: 5, packageCount: 1, classCount: 2 },
+		};
+		const studyJars = new Map([['study-lib', studyJar]]);
+
+		// Simulate refresh_dependencies: close project, re-register with new dependency set
+		await reader.closeProject('proj');
+		const newDepPaths = new Set([depJarPath]);
+		reader.registerProject('proj', newDepPaths);
+
+		// Re-register study jar paths (what refresh_dependencies now does)
+		for (const sj of studyJars.values()) {
+			reader.addProjectJar('proj', sj.jarPath);
+		}
+
+		// Verify study jar map still has the entry
+		expect(studyJars.has('study-lib')).toBe(true);
+		expect(studyJars.get('study-lib')!.jarPath).toBe(testJarPath2);
+
+		// Verify the study jar path is in the project's jar set
+		const projectJars = reader.getProjectJars('proj');
+		expect(projectJars).toBeDefined();
+		expect(projectJars!.has(testJarPath2)).toBe(true);
+
+		// Check staleness (should be false since file hasn't changed)
+		const stale = await checkAndReopenIfStale(studyJar, reader);
+		expect(stale).toBe(false);
+
+		await reader.closeAll();
+	});
+});

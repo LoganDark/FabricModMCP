@@ -2,7 +2,8 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { discoverDependencies } from '../project/dependency-discovery.js';
-import { clearEntryIndexCache } from '../browsing/entry-index-cache.js';
+import { clearEntryIndexCache, evictEntryIndex } from '../browsing/entry-index-cache.js';
+import { checkAndReopenIfStale } from '../project/study-jar.js';
 import { jarReader } from './shared-jar-reader.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely } from './tool-helpers.js';
@@ -43,8 +44,25 @@ export function registerRefreshDependenciesTool(server: McpServer): void {
 			}
 			jarReader.registerProject(loadedProject.name, jarPaths);
 
-			// Clear entry index cache — jar contents may have changed
-			clearEntryIndexCache();
+			// Re-register study jar paths that survived the refresh
+			if (loadedProject.studyJars) {
+				for (const studyJar of loadedProject.studyJars.values()) {
+					jarReader.addProjectJar(loadedProject.name, studyJar.jarPath);
+				}
+
+				// Trigger staleness checks on study jars
+				for (const studyJar of loadedProject.studyJars.values()) {
+					await checkAndReopenIfStale(studyJar, jarReader);
+				}
+			}
+
+			// Clear entry index cache for dependency jars only
+			// (study jar caches are managed by checkAndReopenIfStale above)
+			for (const dep of result.dependencies.values()) {
+				if (dep.sourcesJarPath) {
+					evictEntryIndex(dep.sourcesJarPath);
+				}
+			}
 
 			const suggestions: string[] = [];
 			if (result.summary.withoutSources > 0) {
