@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Study Jars
 status: unknown
-last_updated: "2026-04-14T07:03:36.947Z"
+last_updated: "2026-04-14T07:30:44.764Z"
 last_activity: 2026-04-14
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 8
+  completed_plans: 7
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
-**Current focus:** Phase 13 — study-jar-management-tools
+**Current focus:** Phase 14 — jdtls-workspace-sync
 
 ## Current Position
 
-Phase: 14
-Plan: Not started
+Phase: 14 (jdtls-workspace-sync) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ See PROJECT.md Key Decisions table for full decision log from v1.0.
 - [Phase 13]: Followed configure-filters.ts as canonical tool pattern exemplar
 - [Phase 13]: Pre-validate all names before mutation in batch operations (remove, configure) for fail-fast
 - [Phase 13]: Tests register project with shared jarReader in addition to projectStore to match tool runtime requirements
+- [Phase 14]: Probe with workspace/symbol query '*' for readiness detection -- contents of arbitrary study jars unknown
 
 ### Blockers/Concerns
 

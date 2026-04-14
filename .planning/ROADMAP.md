@@ -93,7 +93,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 14-01-PLAN.md — Workspace sync module: incremental extraction, classpath regeneration, JDT LS notification, probe-based readiness
+- [x] 14-01-PLAN.md — Workspace sync module: incremental extraction, classpath regeneration, JDT LS notification, probe-based readiness
 - [ ] 14-02-PLAN.md — Wire workspace sync into add/remove/list tool handlers with integration tests
 
 ## Progress
@@ -106,4 +106,4 @@ Phases execute in numeric order: 11 -> 12 -> 13 -> 14
 | 11. Types and Domain Logic | v1.1 | 2/2 | Complete    | 2026-04-14 |
 | 12. Existing Tool Integration | v1.1 | 2/2 | Complete    | 2026-04-14 |
 | 13. Study Jar Management Tools | v1.1 | 2/2 | Complete    | 2026-04-14 |
-| 14. JDT LS Workspace Sync | v1.1 | 0/2 | Not started | - |
+| 14. JDT LS Workspace Sync | v1.1 | 1/2 | In Progress|  |

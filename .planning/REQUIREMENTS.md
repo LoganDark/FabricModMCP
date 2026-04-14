@@ -26,8 +26,8 @@ Requirements for v1.1 Study Jars milestone. Each maps to roadmap phases.
 
 ### Semantic Navigation
 
-- [ ] **LSP-01**: Study jars are extracted to JDT LS workspace and included in classpath
-- [ ] **LSP-02**: JDT LS workspace updates incrementally when study jars are added or removed
+- [x] **LSP-01**: Study jars are extracted to JDT LS workspace and included in classpath
+- [x] **LSP-02**: JDT LS workspace updates incrementally when study jars are added or removed
 
 ## Future Requirements
 
@@ -59,8 +59,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STUDY-02 | Phase 13 | Complete |
 | STUDY-03 | Phase 13 | Complete |
 | STUDY-04 | Phase 13 | Complete |
-| LSP-01 | Phase 14 | Pending |
-| LSP-02 | Phase 14 | Pending |
+| LSP-01 | Phase 14 | Complete |
+| LSP-02 | Phase 14 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 10 total
