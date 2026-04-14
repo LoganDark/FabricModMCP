@@ -123,5 +123,6 @@ export async function loadProject(projectPath: string): Promise<LoadedProject> {
 		fabricMod,
 		dependencyJars: discovery.dependencies,
 		filterConfig: { mode: 'include-all', patterns: [] },
+		studyJars: new Map(),
 	};
 }

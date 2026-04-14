@@ -37,7 +37,7 @@ export interface ResolvedJar {
 	exists: boolean;
 }
 
-export type JarCategory = 'minecraft' | 'mod-source' | 'fabric-api' | 'library';
+export type JarCategory = 'minecraft' | 'mod-source' | 'fabric-api' | 'library' | 'study';
 
 export interface DependencyEntry {
 	id: string;           // "minecraft", "src", or "group:artifact"
@@ -55,6 +55,21 @@ export interface FilterConfig {
 	patterns: string[];  // glob patterns matching jar IDs
 }
 
+export interface StudyJarStats {
+	totalEntries: number;
+	packageCount: number;
+	classCount: number;
+}
+
+export interface StudyJar {
+	name: string;
+	jarPath: string;
+	mtime: number;
+	size: number;
+	autoInclude: boolean;
+	stats: StudyJarStats;
+}
+
 export interface LoadedProject {
 	name: string;
 	rootPath: string;
@@ -63,5 +78,6 @@ export interface LoadedProject {
 	fabricMod: FabricModJson;
 	dependencyJars: Map<string, DependencyEntry>;
 	filterConfig: FilterConfig;
+	studyJars: Map<string, StudyJar>;
 	jdtls?: JdtLsSession;
 }
