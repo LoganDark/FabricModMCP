@@ -46,19 +46,19 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SRCH-01 | — | Pending |
-| SRCH-02 | — | Pending |
-| SRCH-03 | — | Pending |
-| SRCH-04 | — | Pending |
-| TYPE-01 | — | Pending |
-| TYPE-02 | — | Pending |
-| TYPE-03 | — | Pending |
+| SRCH-01 | Phase 15 | Pending |
+| SRCH-02 | Phase 15 | Pending |
+| SRCH-03 | Phase 17 | Pending |
+| SRCH-04 | Phase 15 | Pending |
+| TYPE-01 | Phase 16 | Pending |
+| TYPE-02 | Phase 16 | Pending |
+| TYPE-03 | Phase 17 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 7 total
-- Mapped to phases: 0
-- Unmapped: 7 ⚠️
+- Mapped to phases: 7
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-14*
-*Last updated: 2026-04-14 after initial definition*
+*Last updated: 2026-04-14 after roadmap creation*

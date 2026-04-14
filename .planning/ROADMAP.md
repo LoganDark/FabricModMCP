@@ -4,6 +4,7 @@
 
 - ✅ **v1.0 MVP** — Phases 1-10 (shipped 2026-04-14) — [archive](milestones/v1.0-ROADMAP.md)
 - ✅ **v1.1 Study Jars** — Phases 11-14 (shipped 2026-04-14) — [archive](milestones/v1.1-ROADMAP.md)
+- 🚧 **v1.2 Symbol Resolution** — Phases 15-17 (in progress)
 
 ## Phases
 
@@ -37,7 +38,64 @@
 
 </details>
 
+### 🚧 v1.2 Symbol Resolution (In Progress)
+
+**Milestone Goal:** Make methods and fields first-class citizens in the symbol navigation system — searchable, inspectable, and structurally typed for future Mixin integration.
+
+- [ ] **Phase 15: Enable Method Search** — JDT LS config unlock, readiness probe fix, search_symbols returns methods
+- [ ] **Phase 16: Member Parser Domain Module** — MemberReference types and detail string parser for structured method/field representations
+- [ ] **Phase 17: Structured Member Output** — Wire parser into list_members and search_symbols with member FQNs
+
+## Phase Details
+
+### Phase 15: Enable Method Search
+**Goal**: search_symbols fulfills its promise of returning methods, not just types
+**Depends on**: Phase 14
+**Requirements**: SRCH-01, SRCH-02, SRCH-04
+**Success Criteria** (what must be TRUE):
+  1. Calling search_symbols with a method name (e.g., "tick") returns method results with SymbolKind Method/Constructor, not just type results
+  2. The JDT LS readiness probe completes without triggering a result explosion — probe query uses a no-match sentinel instead of wildcard '*'
+  3. search_symbols tool description accurately states it finds types and methods (not fields), matching actual behavior
+  4. Method results include containerName identifying the declaring class
+**Plans**: TBD
+
+Plans:
+- [ ] 15-01: TBD
+- [ ] 15-02: TBD
+
+### Phase 16: Member Parser Domain Module
+**Goal**: Pure domain types and parser that convert JDT LS detail strings into structured method/field representations
+**Depends on**: Phase 15
+**Requirements**: TYPE-01, TYPE-02
+**Success Criteria** (what must be TRUE):
+  1. MemberReference type (MethodReference | FieldReference) exists with ClassReference for parameter types and return types
+  2. parseDetail() converts JDT LS detail strings like "(BlockPos, int) : BlockState" into structured ParameterInfo[] and returnType ClassReference
+  3. Parser degrades gracefully on complex signatures (generics, varargs, annotations) — returns kind: "unresolved" ClassReferences rather than crashing
+  4. Import map extraction resolves simple class names to fully qualified names from source file imports
+**Plans**: TBD
+
+Plans:
+- [ ] 16-01: TBD
+- [ ] 16-02: TBD
+
+### Phase 17: Structured Member Output
+**Goal**: list_members and search_symbols expose structured member types and FQNs in their output
+**Depends on**: Phase 16
+**Requirements**: SRCH-03, TYPE-03
+**Success Criteria** (what must be TRUE):
+  1. list_members output includes structured ParameterInfo[], returnType, and fieldType on method and field results respectively
+  2. list_members output includes memberFqn (e.g., "MinecraftClient;tick()") on every method and field result
+  3. search_symbols method results include memberFqn in the format "Class;method()" making results immediately actionable for downstream tools
+**Plans**: TBD
+
+Plans:
+- [ ] 17-01: TBD
+- [ ] 17-02: TBD
+
 ## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 15 → 16 → 17
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -55,3 +113,6 @@
 | 12. Existing Tool Integration | v1.1 | 2/2 | Complete | 2026-04-14 |
 | 13. Study Jar Management Tools | v1.1 | 2/2 | Complete | 2026-04-14 |
 | 14. JDT LS Workspace Sync | v1.1 | 2/2 | Complete | 2026-04-14 |
+| 15. Enable Method Search | v1.2 | 0/? | Not started | - |
+| 16. Member Parser Domain Module | v1.2 | 0/? | Not started | - |
+| 17. Structured Member Output | v1.2 | 0/? | Not started | - |
