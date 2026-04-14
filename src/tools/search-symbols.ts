@@ -5,6 +5,7 @@ import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { SYMBOL_KIND_NAME } from '../jdtls/symbol-kind.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely, returnError } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 
 const KIND_NAME_TO_NUMBER: Record<string, number> = {
 	'class': 5,
@@ -22,7 +23,7 @@ export function registerSearchSymbolsTool(server: McpServer): void {
 		'search_symbols',
 		{
 			title: 'Search Symbols',
-			description: 'Search for Java symbols (classes, methods, fields, etc.) across the entire workspace using JDT LS. Returns paginated results with kind filtering. Unlike search_classes which only finds class names, this searches all symbol types.',
+			description: TOOL_DESCRIPTIONS.search_symbols,
 			inputSchema: {
 				query: z.string().describe('Symbol name pattern to search for'),
 				kind: z.enum(['class', 'method', 'field', 'interface', 'enum', 'constructor', 'constant', 'property']).optional().describe('Filter results by symbol kind'),

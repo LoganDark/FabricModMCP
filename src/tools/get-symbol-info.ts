@@ -4,6 +4,7 @@ import { makeSuccess } from '../types/envelope.js';
 import { resolveSymbolPosition } from './resolve-symbol-position.js';
 import { logger } from '../logging/logger.js';
 import { handleSymbolPositionError, resolveProjectSafely, returnError, withLspDocument } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 
 /**
  * Extract markdown text from an LSP hover contents field.
@@ -45,7 +46,7 @@ export function registerGetSymbolInfoTool(server: McpServer): void {
 		'get_symbol_info',
 		{
 			title: 'Get Symbol Info',
-			description: 'Get hover/type information for a symbol at a position identified by cascading regex patterns. Uses JDT LS hover to return type signatures, javadoc, and other symbol metadata as raw markdown.',
+			description: TOOL_DESCRIPTIONS.get_symbol_info,
 			inputSchema: {
 				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
 				jar: z.string().optional().describe('Specific jar ID where the symbol is located (default: search all jars containing the class)'),

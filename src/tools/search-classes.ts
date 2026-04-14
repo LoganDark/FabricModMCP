@@ -5,13 +5,14 @@ import { jarReader } from './shared-jar-reader.js';
 import { searchClasses } from '../browsing/search.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 
 export function registerSearchClassesTool(server: McpServer): void {
 	server.registerTool(
 		'search_classes',
 		{
 			title: 'Search Classes',
-			description: 'Search for Java classes by glob pattern across all sources in a project. Use * to match a single name/package segment, ** to cross package boundaries. Examples: "*Client" matches MinecraftClient, "net.minecraft.client.*" matches all classes in that package, "**.*Registry" matches any Registry class in any package.',
+			description: TOOL_DESCRIPTIONS.search_classes,
 			inputSchema: {
 				pattern: z.string().describe('Glob pattern to match against fully-qualified class names. * matches one segment, ** crosses package boundaries.'),
 				caseSensitive: z.boolean().optional().describe('Case-sensitive matching (default: false)'),

@@ -7,6 +7,7 @@ import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { getOrBuildIndex } from '../browsing/entry-index-cache.js';
 import { logger } from '../logging/logger.js';
 import { filterDependenciesByJarPattern, resolveProjectSafely } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 import type { PackageEntry } from '../browsing/types.js';
 
 export function registerListPackagesTool(server: McpServer): void {
@@ -14,7 +15,7 @@ export function registerListPackagesTool(server: McpServer): void {
 		'list_packages',
 		{
 			title: 'List Packages',
-			description: 'List Java packages in source jars and mod source. Supports filtering by jar and drilling into sub-packages.',
+			description: TOOL_DESCRIPTIONS.list_packages,
 			inputSchema: {
 				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
 				jars: z.array(z.string()).optional().describe('Jar IDs or glob patterns to scope to (default: all jars)'),

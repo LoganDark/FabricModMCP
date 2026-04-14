@@ -8,6 +8,7 @@ import { parseClassDeclaration } from '../browsing/class-parser.js';
 import { getOrBuildIndex } from '../browsing/entry-index-cache.js';
 import { logger } from '../logging/logger.js';
 import { filterDependenciesByJarPattern, resolveProjectSafely } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 import type { SourceAdapter } from '../browsing/source-adapter.js';
 import type { ClassInfo, InnerClassInfo } from '../browsing/types.js';
 
@@ -37,7 +38,7 @@ export function registerListClassesTool(server: McpServer): void {
 		'list_classes',
 		{
 			title: 'List Classes',
-			description: 'List Java classes in a package with metadata (access, modifiers, type) and nested inner classes. Supports filtering by jar.',
+			description: TOOL_DESCRIPTIONS.list_classes,
 			inputSchema: {
 				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
 				jars: z.array(z.string()).optional().describe('Jar IDs or glob patterns to scope to (default: all jars)'),

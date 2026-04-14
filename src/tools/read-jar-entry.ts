@@ -4,13 +4,14 @@ import { makeSuccess } from '../types/envelope.js';
 import { jarReader } from './shared-jar-reader.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely, returnError } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 
 export function registerReadJarEntryTool(server: McpServer): void {
 	server.registerTool(
 		'read_jar_entry',
 		{
 			title: 'Read Jar Entry',
-			description: 'Read a specific file from a source jar on demand. Returns the file content as UTF-8 text. Use for reading .java source files from Minecraft, Fabric API, or library source jars.',
+			description: TOOL_DESCRIPTIONS.read_jar_entry,
 			inputSchema: {
 				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
 				jar: z.string().describe('Jar identifier (e.g., "minecraft", "com.google.code.gson:gson")'),

@@ -5,13 +5,14 @@ import { resolveSymbolPosition } from './resolve-symbol-position.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { logger } from '../logging/logger.js';
 import { handleSymbolPositionError, normalizeLocations, processNavigationLocations, resolveProjectSafely, returnError, withLspDocument } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 
 export function registerFindReferencesTool(server: McpServer): void {
 	server.registerTool(
 		'find_references',
 		{
 			title: 'Find References',
-			description: 'Find all references/usages of a symbol at a position identified by cascading regex patterns. Returns all locations where the symbol is used across all source jars. Each result includes source provenance and context-aware code snippets.',
+			description: TOOL_DESCRIPTIONS.find_references,
 			inputSchema: {
 				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
 				jar: z.string().optional().describe('Specific jar ID where the symbol to navigate FROM is located (default: search all jars containing the class)'),

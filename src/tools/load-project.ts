@@ -6,6 +6,7 @@ import { loadProject } from '../project/loader.js';
 import { jarReader } from './shared-jar-reader.js';
 import { logger } from '../logging/logger.js';
 import { returnError } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 import { detectJava, findJdtLs, startJdtLs } from '../jdtls/client.js';
 import { extractSourcesToTemp } from '../jdtls/workspace.js';
 import type { JdtLsSession } from '../jdtls/types.js';
@@ -15,7 +16,7 @@ export function registerLoadProjectTool(server: McpServer): void {
 		'load_project',
 		{
 			title: 'Load Project',
-			description: 'Load a Fabric/Loom Gradle project by path. Optionally assign a custom name. If no name is provided, auto-generates from directory basename (with collision suffix if needed).',
+			description: TOOL_DESCRIPTIONS.load_project,
 			inputSchema: {
 				path: z.string().describe('Absolute path to the Fabric/Loom project root directory'),
 				name: z.string().optional().describe('Custom project name (auto-generated from directory basename if omitted)'),

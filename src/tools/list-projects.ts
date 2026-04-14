@@ -2,13 +2,14 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { projectStore } from '../state/project-store.js';
 import { logger } from '../logging/logger.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 
 export function registerListProjectsTool(server: McpServer): void {
 	server.registerTool(
 		'list_projects',
 		{
 			title: 'List Projects',
-			description: 'List all loaded projects with their metadata. Shows name, Minecraft version, mapping era, dependency count, and default status for each project.',
+			description: TOOL_DESCRIPTIONS.list_projects,
 			inputSchema: {},
 		},
 		async () => {

@@ -5,6 +5,7 @@ import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { SYMBOL_KIND_NAME } from '../jdtls/symbol-kind.js';
 import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, handleClassSourceError, resolveProjectSafely, returnError, withLspDocument, resolveClassSource } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 import type { ClassReference } from '../browsing/types.js';
 
 function toClassReference(item: any): ClassReference {
@@ -23,7 +24,7 @@ export function registerTypeHierarchyTool(server: McpServer): void {
 		'type_hierarchy',
 		{
 			title: 'Type Hierarchy',
-			description: 'Get the full type hierarchy for a Java class — supertype chain (extends + implements separated) and subtypes to configurable depth. Essential for understanding Mixin targets and class relationships.',
+			description: TOOL_DESCRIPTIONS.type_hierarchy,
 			inputSchema: {
 				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
 				jar: z.string().optional().describe('Specific jar ID to find the class in (default: search all jars)'),

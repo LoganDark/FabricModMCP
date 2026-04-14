@@ -5,6 +5,7 @@ import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { SYMBOL_KIND_NAME } from '../jdtls/symbol-kind.js';
 import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, handleClassSourceError, resolveProjectSafely, returnError, withLspDocument, resolveClassSource } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 import type { TransformedSymbol } from '../browsing/types.js';
 
 /**
@@ -61,7 +62,7 @@ export function registerListMembersTool(server: McpServer): void {
 		'list_members',
 		{
 			title: 'List Members',
-			description: 'List all members (fields, methods, inner classes) of a Java class as a tree. Returns name, kind, type signature, line ranges, and nested children. More useful than reading raw source for understanding class structure.',
+			description: TOOL_DESCRIPTIONS.list_members,
 			inputSchema: {
 				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
 				jar: z.string().optional().describe('Specific jar ID (default: search all jars for the class)'),

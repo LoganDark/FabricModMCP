@@ -4,13 +4,14 @@ import { makeSuccess } from '../types/envelope.js';
 import { projectStore } from '../state/project-store.js';
 import { logger } from '../logging/logger.js';
 import { returnError } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 
 export function registerSetDefaultProjectTool(server: McpServer): void {
 	server.registerTool(
 		'set_default_project',
 		{
 			title: 'Set Default Project',
-			description: 'Set which project is used by default when no project name is specified in other tool calls.',
+			description: TOOL_DESCRIPTIONS.set_default_project,
 			inputSchema: {
 				project: z.string().describe('Name of the project to set as default'),
 			},

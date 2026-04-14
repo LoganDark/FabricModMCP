@@ -6,13 +6,14 @@ import { clearEntryIndexCache } from '../browsing/entry-index-cache.js';
 import { jarReader } from './shared-jar-reader.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 
 export function registerRefreshDependenciesTool(server: McpServer): void {
 	server.registerTool(
 		'refresh_dependencies',
 		{
 			title: 'Refresh Dependencies',
-			description: 'Re-run dependency discovery for a loaded project. Use after running ./gradlew downloadSources or when dependencies have changed.',
+			description: TOOL_DESCRIPTIONS.refresh_dependencies,
 			inputSchema: {
 				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
 			},

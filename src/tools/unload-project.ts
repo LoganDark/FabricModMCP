@@ -5,6 +5,7 @@ import { projectStore } from '../state/project-store.js';
 import { jarReader } from './shared-jar-reader.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 import { shutdownJdtLs } from '../jdtls/client.js';
 import { cleanupTempDir } from '../jdtls/workspace.js';
 
@@ -13,7 +14,7 @@ export function registerUnloadProjectTool(server: McpServer): void {
 		'unload_project',
 		{
 			title: 'Unload Project',
-			description: 'Unload a project by name. Closes associated jar handles and removes it from the session. If the unloaded project was the default, the default is cleared.',
+			description: TOOL_DESCRIPTIONS.unload_project,
 			inputSchema: {
 				project: z.string().describe('Name of the project to unload'),
 			},

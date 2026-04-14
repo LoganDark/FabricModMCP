@@ -4,6 +4,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 import type { LoadedProject } from '../project/types.js';
 
 function buildProjectInfo(project: LoadedProject) {
@@ -89,7 +90,7 @@ export function registerGetProjectMetadataTool(server: McpServer): void {
 		'get_project_metadata',
 		{
 			title: 'Get Project Metadata',
-			description: 'Query structured project metadata including Minecraft version, mappings, mod info, and source jar inventory. Omitting all category flags returns all categories.',
+			description: TOOL_DESCRIPTIONS.get_project_metadata,
 			inputSchema: {
 				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
 				include_project_info: z.boolean().optional().describe('Include version/mappings info'),

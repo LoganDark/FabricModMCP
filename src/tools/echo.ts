@@ -4,13 +4,14 @@ import { makeSuccess } from '../types/envelope.js';
 import { includeSchema } from '../types/include.js';
 import type { IncludeCategory } from '../types/include.js';
 import { logger } from '../logging/logger.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 
 export function registerEchoTool(server: McpServer): void {
 	server.registerTool(
 		'echo',
 		{
 			title: 'Echo',
-			description: 'Echo back the input message with optional metadata. Demonstrates the response envelope pattern.',
+			description: TOOL_DESCRIPTIONS.echo,
 			inputSchema: {
 				message: z.string().describe('The message to echo back'),
 				include: includeSchema,

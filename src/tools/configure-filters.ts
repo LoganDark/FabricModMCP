@@ -4,13 +4,14 @@ import { makeSuccess } from '../types/envelope.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 
 export function registerConfigureFiltersTool(server: McpServer): void {
 	server.registerTool(
 		'configure_filters',
 		{
 			title: 'Configure Dependency Filters',
-			description: 'Configure include/exclude filtering for dependency jars. In include-all mode (default), patterns define what to EXCLUDE. In exclude-all mode, patterns define what to INCLUDE. "minecraft" and "src" are always included regardless of filter.',
+			description: TOOL_DESCRIPTIONS.configure_filters,
 			inputSchema: {
 				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
 				mode: z.enum(['include-all', 'exclude-all']).optional().describe(

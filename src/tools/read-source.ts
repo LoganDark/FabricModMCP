@@ -6,6 +6,7 @@ import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, handleClassSourceError, sortByPriority, resolveProjectSafely, returnError, resolveClassSource } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 import type { SourceResult } from '../browsing/types.js';
 
 export function registerReadSourceTool(server: McpServer): void {
@@ -13,7 +14,7 @@ export function registerReadSourceTool(server: McpServer): void {
 		'read_source',
 		{
 			title: 'Read Source',
-			description: 'Read the full source code of a Java class by fully-qualified name. Returns source from all matching jars with provenance when no specific jar is specified.',
+			description: TOOL_DESCRIPTIONS.read_source,
 			inputSchema: {
 				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
 				jar: z.string().optional().describe('Specific jar ID to read from (default: search all jars)'),

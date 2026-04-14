@@ -7,6 +7,7 @@ import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { cascadeRegex } from '../browsing/cascading-regex.js';
 import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS } from './descriptions.js';
 import type { LocateFailure } from './tool-helpers.js';
 import type { LocateResult } from '../browsing/types.js';
 
@@ -15,7 +16,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 		'locate_in_source',
 		{
 			title: 'Locate in Source',
-			description: 'Locate a precise position in Java source using cascading regex patterns. Each pattern narrows within the previous match. Returns character offset, line, and column. Use inline flags like (?i) for case-insensitive or (?s) for dotAll matching.',
+			description: TOOL_DESCRIPTIONS.locate_in_source,
 			inputSchema: {
 				project: z.string().optional().describe('Project name (optional if only one project loaded or default is set)'),
 				jar: z.string().optional().describe('Specific jar ID to search (default: search all jars containing the class)'),
