@@ -147,5 +147,5 @@ Phases execute in numeric order: 19 → 20 → 21 → 22
 | 18. Member Inspection & Context Lines | v1.2 | 2/2 | Complete | 2026-04-14 |
 | 19. Line-Range Reading | v1.3 | 2/2 | Complete    | 2026-04-14 |
 | 20. Member Context Lines | v1.3 | 2/2 | Complete    | 2026-04-14 |
-| 21. Navigation Pagination | v1.3 | 2/2 | Complete   | 2026-04-14 |
+| 21. Navigation Pagination | v1.3 | 2/2 | Complete    | 2026-04-14 |
 | 22. Verbosity Audit | v1.3 | 0/? | Not started | - |
