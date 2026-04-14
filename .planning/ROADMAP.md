@@ -38,7 +38,7 @@
 
 </details>
 
-### 🚧 v1.2 Symbol Resolution (In Progress)
+### v1.2 Symbol Resolution (In Progress)
 
 **Milestone Goal:** Make methods and fields first-class citizens in the symbol navigation system — searchable, inspectable, and structurally typed for future Mixin integration.
 
@@ -57,11 +57,10 @@
   2. The JDT LS readiness probe completes without triggering a result explosion — probe query uses a no-match sentinel instead of wildcard '*'
   3. search_symbols tool description accurately states it finds types and methods (not fields), matching actual behavior
   4. Method results include containerName identifying the declaring class
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 15-01: TBD
-- [ ] 15-02: TBD
+- [ ] 15-01-PLAN.md — Enable method declarations, remove readiness probe, update tool description
 
 ### Phase 16: Member Parser Domain Module
 **Goal**: Pure domain types and parser that convert JDT LS detail strings into structured method/field representations
@@ -113,6 +112,6 @@ Phases execute in numeric order: 15 → 16 → 17
 | 12. Existing Tool Integration | v1.1 | 2/2 | Complete | 2026-04-14 |
 | 13. Study Jar Management Tools | v1.1 | 2/2 | Complete | 2026-04-14 |
 | 14. JDT LS Workspace Sync | v1.1 | 2/2 | Complete | 2026-04-14 |
-| 15. Enable Method Search | v1.2 | 0/? | Not started | - |
+| 15. Enable Method Search | v1.2 | 0/1 | Not started | - |
 | 16. Member Parser Domain Module | v1.2 | 0/? | Not started | - |
 | 17. Structured Member Output | v1.2 | 0/? | Not started | - |
