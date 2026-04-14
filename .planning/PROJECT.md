@@ -36,7 +36,7 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 
 ### Active
 
-(No active requirements — planning next milestone)
+(Defining requirements for v1.3 Context Management)
 
 ### Out of Scope
 
@@ -46,6 +46,16 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - Supporting non-Fabric toolchains (Forge, NeoForge, Quilt) — Fabric + Loom only for now
 - Version comparison across MC versions — useful for unmapped sources, deferred
 - FQN-based tool input for find_references/find_definition (NAV-01, NAV-02) — scheme defined, acceptance deferred
+
+## Current Milestone: v1.3 Context Management
+
+**Goal:** Give agents control over response size to prevent context window overflow from large tool results.
+
+**Target features:**
+- Line-range reading on read_source (offset + limit, requires single jar)
+- Optional context lines on read_member (lines before/after the member)
+- Audit and reduce default verbosity of search/find-references/find-usages results
+- Add pagination or limit controls to search tools where missing
 
 ## Context
 
@@ -104,4 +114,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-14 after v1.2 milestone*
+*Last updated: 2026-04-14 after v1.3 milestone start*
