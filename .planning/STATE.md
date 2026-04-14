@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Study Jars
 status: unknown
-last_updated: "2026-04-14T06:22:06.410Z"
+last_updated: "2026-04-14T06:27:53.826Z"
 last_activity: 2026-04-14
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -48,6 +48,7 @@ See PROJECT.md Key Decisions table for full decision log from v1.0.
 - [Phase 11]: Name validation pattern: alphanumeric start, then alphanumeric/hyphen/dot only
 - [Phase 12]: Two-mode resolver: getResolvedDependencies for default views, getAllDependencies for explicit jar selection
 - [Phase 12]: searchClasses accepts pre-resolved deps, pushing filtering responsibility to callers via getDependenciesForTool
+- [Phase 12]: getAllDependencies for specific-jar lookups, getResolvedDependencies for default views -- three-tier resolver pattern established
 
 ### Blockers/Concerns
 

@@ -30,7 +30,7 @@
 **Milestone Goal:** Enable adding arbitrary source jars to projects for study, with opt-in inclusion in default tool resolution and full semantic navigation support.
 
 - [x] **Phase 11: Types and Domain Logic** — Data model, jar handle management, and cache eviction for study jars (completed 2026-04-14)
-- [ ] **Phase 12: Existing Tool Integration** — Wire study jars into all jar-aware tools via combined dependency resolution
+- [x] **Phase 12: Existing Tool Integration** — Wire study jars into all jar-aware tools via combined dependency resolution (completed 2026-04-14)
 - [ ] **Phase 13: Study Jar Management Tools** — Four new MCP tools for add/remove/list/toggle operations
 - [ ] **Phase 14: JDT LS Workspace Sync** — Incremental workspace extraction and classpath updates for semantic navigation
 
@@ -64,7 +64,7 @@ Plans:
 
 Plans:
 - [x] 12-01-PLAN.md — Dependency resolver module, CATEGORY_PRIORITY update, getDependenciesForTool helper, searchClasses signature simplification
-- [ ] 12-02-PLAN.md — Wire all tool files through resolver, eliminate direct dependencyJars access
+- [x] 12-02-PLAN.md — Wire all tool files through resolver, eliminate direct dependencyJars access
 
 ### Phase 13: Study Jar Management Tools
 **Goal**: Users can manage study jars on loaded projects through four dedicated MCP tools
@@ -102,6 +102,6 @@ Phases execute in numeric order: 11 -> 12 -> 13 -> 14
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 11. Types and Domain Logic | v1.1 | 2/2 | Complete    | 2026-04-14 |
-| 12. Existing Tool Integration | v1.1 | 1/2 | In Progress|  |
+| 12. Existing Tool Integration | v1.1 | 2/2 | Complete   | 2026-04-14 |
 | 13. Study Jar Management Tools | v1.1 | 0/? | Not started | - |
 | 14. JDT LS Workspace Sync | v1.1 | 0/? | Not started | - |
