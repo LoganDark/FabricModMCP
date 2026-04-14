@@ -83,13 +83,13 @@ Plans:
 **Requirements**: SRCH-03, TYPE-03
 **Success Criteria** (what must be TRUE):
   1. list_members output includes structured ParameterInfo[], returnType, and fieldType on method and field results respectively
-  2. list_members output includes memberFqn (e.g., "MinecraftClient;tick()") on every method and field result
-  3. search_symbols method results include memberFqn in the format "Class;method()" making results immediately actionable for downstream tools
-**Plans**: TBD
+  2. list_members output includes memberFqn (e.g., "MinecraftClient#tick()") on every method and field result
+  3. search_symbols method results include memberFqn in the format "Class#method()" making results immediately actionable for downstream tools
+**Plans**: 2 plans
 
 Plans:
-- [ ] 17-01: TBD
-- [ ] 17-02: TBD
+- [ ] 17-01-PLAN.md — Domain functions: buildMemberFqn, EnrichedSymbol types, createResolvePackage, enrichSymbols pipeline
+- [ ] 17-02-PLAN.md — Wire enrichment into list_members and add memberFqn to search_symbols
 
 ## Progress
 
@@ -114,4 +114,4 @@ Phases execute in numeric order: 15 → 16 → 17
 | 14. JDT LS Workspace Sync | v1.1 | 2/2 | Complete | 2026-04-14 |
 | 15. Enable Method Search | v1.2 | 1/1 | Complete    | 2026-04-14 |
 | 16. Member Parser Domain Module | v1.2 | 2/2 | Complete    | 2026-04-14 |
-| 17. Structured Member Output | v1.2 | 0/? | Not started | - |
+| 17. Structured Member Output | v1.2 | 0/2 | Not started | - |
