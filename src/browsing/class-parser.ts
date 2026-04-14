@@ -1,8 +1,6 @@
-import type { ClassMetadata } from './types.js';
-
 const CLASS_DECL_RE = /^(?:(public|protected|private)\s+)?(?:((?:(?:abstract|final|static|sealed|non-sealed|strictfp)\s+)*))?(class|interface|enum|record|@interface)\s+(\w+)/m;
 
-export function parseClassDeclaration(sourceText: string): ClassMetadata & { name: string } | null {
+export function parseClassDeclaration(sourceText: string): { name: string; kind: string; access: string; modifiers: string[] } | null {
 	const head = sourceText.substring(0, 4096);
 	const match = head.match(CLASS_DECL_RE);
 	if (!match) return null;
@@ -12,5 +10,5 @@ export function parseClassDeclaration(sourceText: string): ClassMetadata & { nam
 	const type = match[3];
 	const name = match[4];
 
-	return { access, modifiers, type, name };
+	return { access, modifiers, kind: type, name };
 }
