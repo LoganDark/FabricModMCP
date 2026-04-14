@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Context Management
 status: unknown
-stopped_at: Completed 19-02-PLAN.md
-last_updated: "2026-04-14T15:40:52.229Z"
+stopped_at: Completed 20-01-PLAN.md
+last_updated: "2026-04-14T16:18:32.556Z"
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-14)
 
 **Core value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
-**Current focus:** Phase 19 — line-range-reading
+**Current focus:** Phase 20 — member-context-lines
 
 ## Current Position
 
-Phase: 20
-Plan: Not started
+Phase: 20 (member-context-lines) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Plan: Not started
 
 | Phase 19 P01 | 1min | 1 tasks | 2 files |
 | Phase 19 P02 | 2min | 2 tasks | 4 files |
+| Phase 20 P01 | 3min | 1 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -64,6 +65,7 @@ Recent decisions affecting current work:
 - [v1.3 research]: read_source line-range requires single jar; error with jar list when ambiguous
 - [v1.3 research]: No new dependencies needed
 - [Phase 19]: Populate metadata via sliceLines on all code paths (both specific-jar and search-all-jars)
+- [Phase 20]: Context expansion happens in member-extractor.ts domain layer, not tool handler
 
 ### Pending Todos
 
@@ -75,6 +77,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-14T15:38:35.045Z
-Stopped at: Completed 19-02-PLAN.md
+Last session: 2026-04-14T16:18:32.553Z
+Stopped at: Completed 20-01-PLAN.md
 Resume file: None

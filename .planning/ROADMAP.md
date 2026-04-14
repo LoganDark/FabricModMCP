@@ -88,7 +88,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 20-01-PLAN.md — Extend interfaces and extractMemberSource with context expansion logic and unit tests
+- [x] 20-01-PLAN.md — Extend interfaces and extractMemberSource with context expansion logic and unit tests
 - [ ] 20-02-PLAN.md — Wire linesBefore/linesAfter into read_member tool handler with integration tests
 
 ### Phase 21: Navigation Pagination
@@ -145,6 +145,6 @@ Phases execute in numeric order: 19 → 20 → 21 → 22
 | 17. Structured Member Output | v1.2 | 2/2 | Complete | 2026-04-14 |
 | 18. Member Inspection & Context Lines | v1.2 | 2/2 | Complete | 2026-04-14 |
 | 19. Line-Range Reading | v1.3 | 2/2 | Complete    | 2026-04-14 |
-| 20. Member Context Lines | v1.3 | 0/2 | Not started | - |
+| 20. Member Context Lines | v1.3 | 1/2 | In Progress|  |
 | 21. Navigation Pagination | v1.3 | 0/? | Not started | - |
 | 22. Verbosity Audit | v1.3 | 0/? | Not started | - |
