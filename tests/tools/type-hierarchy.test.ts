@@ -248,17 +248,14 @@ describe('type_hierarchy', () => {
 			// extends chain: Thread, Object
 			expect(envelope.data.extends).toHaveLength(2);
 			expect(envelope.data.extends[0].name).toBe('Thread');
-			expect(envelope.data.extends[0].qualifiedName).toBe('java.lang.Thread');
-			expect(envelope.data.extends[0].provenance).toBe('java');
-			expect(envelope.data.extends[0].jar).toBeNull();
+			expect(envelope.data.extends[0].fqn).toBe('java.lang.Thread');
 			expect(envelope.data.extends[1].name).toBe('Object');
 
 			// implements: Runnable
 			expect(envelope.data.implements).toHaveLength(1);
 			expect(envelope.data.implements[0].name).toBe('Runnable');
-			expect(envelope.data.implements[0].qualifiedName).toBe('java.lang.Runnable');
+			expect(envelope.data.implements[0].fqn).toBe('java.lang.Runnable');
 			expect(envelope.data.implements[0].kind).toBe('interface');
-			expect(envelope.data.implements[0].provenance).toBe('java');
 		} finally {
 			await pair.cleanup();
 			projectStore.clear();
@@ -314,8 +311,7 @@ describe('type_hierarchy', () => {
 			expect(envelope.success).toBe(true);
 			expect(envelope.data.subtypes).toHaveLength(1);
 			expect(envelope.data.subtypes[0].name).toBe('TestClient');
-			expect(envelope.data.subtypes[0].qualifiedName).toBe('net.minecraft.client.TestClient');
-			expect(envelope.data.subtypes[0].jar).toBe('minecraft');
+			expect(envelope.data.subtypes[0].fqn).toBe('net.minecraft.client.TestClient');
 		} finally {
 			await pair.cleanup();
 			projectStore.clear();
@@ -372,8 +368,8 @@ describe('type_hierarchy', () => {
 
 			const envelope = parseEnvelope(result);
 			expect(envelope.success).toBe(true);
-			expect(envelope.data.extends[0].provenance).toBe('java');
-			expect(envelope.data.extends[0].jar).toBeNull();
+			expect(envelope.data.extends[0].kind).toBe('class');
+			expect(envelope.data.extends[0].fqn).toBe('java.lang.Object');
 		} finally {
 			await pair.cleanup();
 			projectStore.clear();

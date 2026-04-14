@@ -225,7 +225,7 @@ describe('search_classes tool', () => {
 		expect(envelope.success).toBe(true);
 		const match = envelope.data.results.find((r: any) => r.fqn.includes('MinecraftClient'));
 		expect(match).toBeDefined();
-		expect(match.type).toBeDefined();
+		expect(match.kind).toBeDefined();
 		expect(match.access).toBeDefined();
 		expect(match.jars).toBeDefined();
 		expect(Array.isArray(match.jars)).toBe(true);

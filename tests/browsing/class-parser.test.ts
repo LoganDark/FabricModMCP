@@ -8,7 +8,7 @@ describe('parseClassDeclaration', () => {
 			expect(result).toEqual({
 				access: 'public',
 				modifiers: [],
-				type: 'class',
+				kind: 'class',
 				name: 'Foo',
 			});
 		});
@@ -18,7 +18,7 @@ describe('parseClassDeclaration', () => {
 			expect(result).toEqual({
 				access: 'package-private',
 				modifiers: [],
-				type: 'interface',
+				kind: 'interface',
 				name: 'Bar',
 			});
 		});
@@ -28,7 +28,7 @@ describe('parseClassDeclaration', () => {
 			expect(result).toEqual({
 				access: 'public',
 				modifiers: [],
-				type: 'enum',
+				kind: 'enum',
 				name: 'GameMode',
 			});
 		});
@@ -38,7 +38,7 @@ describe('parseClassDeclaration', () => {
 			expect(result).toEqual({
 				access: 'public',
 				modifiers: [],
-				type: 'record',
+				kind: 'record',
 				name: 'ChunkPos',
 			});
 		});
@@ -48,7 +48,7 @@ describe('parseClassDeclaration', () => {
 			expect(result).toEqual({
 				access: 'package-private',
 				modifiers: [],
-				type: '@interface',
+				kind: '@interface',
 				name: 'Environment',
 			});
 		});
@@ -82,7 +82,7 @@ describe('parseClassDeclaration', () => {
 			expect(result).toEqual({
 				access: 'public',
 				modifiers: ['abstract'],
-				type: 'class',
+				kind: 'class',
 				name: 'Baz',
 			});
 		});
@@ -97,7 +97,7 @@ describe('parseClassDeclaration', () => {
 			expect(result).toEqual({
 				access: 'public',
 				modifiers: ['static'],
-				type: 'class',
+				kind: 'class',
 				name: 'Inner',
 			});
 		});
@@ -107,7 +107,7 @@ describe('parseClassDeclaration', () => {
 			expect(result).toEqual({
 				access: 'public',
 				modifiers: ['sealed'],
-				type: 'class',
+				kind: 'class',
 				name: 'Foo',
 			});
 		});
@@ -117,7 +117,7 @@ describe('parseClassDeclaration', () => {
 			expect(result).toEqual({
 				access: 'public',
 				modifiers: ['non-sealed'],
-				type: 'class',
+				kind: 'class',
 				name: 'Bar',
 			});
 		});
@@ -153,7 +153,7 @@ describe('parseClassDeclaration', () => {
 			expect(parseClassDeclaration(source)).toEqual({
 				access: 'public',
 				modifiers: [],
-				type: 'class',
+				kind: 'class',
 				name: 'Visible',
 			});
 		});
@@ -170,7 +170,7 @@ public final class AnnotatedClass {
 			expect(parseClassDeclaration(source)).toEqual({
 				access: 'public',
 				modifiers: ['final'],
-				type: 'class',
+				kind: 'class',
 				name: 'AnnotatedClass',
 			});
 		});

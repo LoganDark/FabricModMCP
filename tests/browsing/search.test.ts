@@ -163,7 +163,7 @@ describe('searchClasses', () => {
 				{ pattern: '**' },
 				deps, defaultFilter, '/fake/root', mockJarReader,
 			);
-			const types = result.results.map(r => r.type);
+			const types = result.results.map(r => r.kind);
 			expect(types).toContain('class');
 			expect(types).toContain('interface');
 		});
@@ -173,7 +173,7 @@ describe('searchClasses', () => {
 				{ pattern: '**', kind: ['interface'] },
 				deps, defaultFilter, '/fake/root', mockJarReader,
 			);
-			expect(result.results.every(r => r.type === 'interface')).toBe(true);
+			expect(result.results.every(r => r.kind === 'interface')).toBe(true);
 			expect(result.results.length).toBeGreaterThan(0);
 		});
 
@@ -182,7 +182,7 @@ describe('searchClasses', () => {
 				{ pattern: '**', kind: ['class', 'enum'] },
 				deps, defaultFilter, '/fake/root', mockJarReader,
 			);
-			expect(result.results.every(r => r.type === 'class' || r.type === 'enum')).toBe(true);
+			expect(result.results.every(r => r.kind === 'class' || r.kind === 'enum')).toBe(true);
 		});
 	});
 

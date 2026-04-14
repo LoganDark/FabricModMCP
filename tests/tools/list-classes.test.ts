@@ -151,9 +151,9 @@ describe('list_classes tool', () => {
 		const mc = envelope.data.classes[0];
 		expect(mc.name).toBe('MinecraftClient');
 		expect(mc.fqn).toBe('net.minecraft.client.MinecraftClient');
-		expect(mc.metadata.access).toBe('public');
-		expect(mc.metadata.type).toBe('class');
-		expect(mc.jars).toContain('minecraft');
+		expect(mc.access).toBe('public');
+		expect(mc.kind).toBe('class');
+		expect(mc.jars).toEqual([{ id: 'minecraft', category: 'minecraft' }]);
 	});
 
 	it('inner classes are nested in parent, not top-level', async () => {
@@ -171,7 +171,7 @@ describe('list_classes tool', () => {
 		expect(mc.innerClasses.length).toBeGreaterThanOrEqual(1);
 		const opts = mc.innerClasses.find((ic: any) => ic.name === 'MinecraftClient$Options');
 		expect(opts).toBeDefined();
-		expect(opts.metadata.type).toBe('class');
+		expect(opts.kind).toBe('class');
 	});
 
 	it('anonymous inner classes are filtered from listing', async () => {
@@ -202,9 +202,9 @@ describe('list_classes tool', () => {
 		const envelope = parseEnvelope(result);
 		const server = envelope.data.classes.find((c: any) => c.name === 'MinecraftServer');
 		expect(server).toBeDefined();
-		expect(server.metadata.access).toBe('public');
-		expect(server.metadata.modifiers).toContain('abstract');
-		expect(server.metadata.type).toBe('class');
+		expect(server.access).toBe('public');
+		expect(server.modifiers).toContain('abstract');
+		expect(server.kind).toBe('class');
 	});
 
 	it('class entries include jars array', async () => {
@@ -219,8 +219,8 @@ describe('list_classes tool', () => {
 		const envelope = parseEnvelope(result);
 		const id = envelope.data.classes.find((c: any) => c.name === 'Identifier');
 		expect(id).toBeDefined();
-		expect(id.jars).toEqual(['minecraft']);
-		expect(id.metadata.modifiers).toContain('final');
+		expect(id.jars).toEqual([{ id: 'minecraft', category: 'minecraft' }]);
+		expect(id.modifiers).toContain('final');
 	});
 
 	it('supports jar filtering with jars parameter', async () => {
