@@ -1,7 +1,8 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
+import { parseEnvelope, makeFakeProject } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
-import type { LoadedProject, DependencyEntry } from '../../src/project/types.js';
+import type { LoadedProject } from '../../src/project/types.js';
 import type { JdtLsSession } from '../../src/jdtls/types.js';
 
 const toolModuleAvailable = await import('../../src/tools/list-members.js').then(() => true).catch(() => false);
@@ -27,10 +28,6 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 		readFile: vi.fn().mockResolvedValue(''),
 	};
 });
-
-function parseEnvelope(result: Awaited<ReturnType<TestPair['client']['callTool']>>): any {
-	return (result as any).structuredContent;
-}
 
 const FAKE_SOURCE = `package net.minecraft.client;
 
@@ -61,48 +58,6 @@ function makeMockClient() {
 	};
 }
 
-function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedProject {
-	const deps = new Map<string, DependencyEntry>();
-	deps.set('minecraft', {
-		id: 'minecraft',
-		group: 'net.minecraft',
-		artifact: 'minecraft-merged',
-		version: '1.21.11',
-		category: 'minecraft',
-		sourcesJarPath: '/fake/minecraft-sources.jar',
-		available: true,
-		provenanceChains: [],
-	});
-
-	return {
-		name: 'test',
-		rootPath: '/fake/path',
-		gradleConfig: {
-			minecraftVersion: '1.21.11',
-			mappingEra: 'yarn',
-			yarnMappings: '1.21.11+build.4',
-			loaderVersion: '0.16.14',
-			fabricApiVersion: '0.119.5+1.21.11',
-			dependencies: [],
-		},
-		sourcesJar: { path: '/fake/sources.jar', exists: true },
-		fabricMod: {
-			schemaVersion: 1,
-			id: 'testmod',
-			version: '1.0.0',
-			name: 'Test Mod',
-			description: 'A test mod',
-			authors: ['Test'],
-			license: 'MIT',
-			environment: '*',
-			mixins: [],
-			depends: {},
-		},
-		dependencyJars: deps,
-		filterConfig: { mode: 'include-all', patterns: [] },
-		...overrides,
-	};
-}
 
 function makeJdtlsSession(overrides: Partial<JdtLsSession> = {}): JdtLsSession {
 	return {

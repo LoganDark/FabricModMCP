@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
+import { parseEnvelope, makeFakeProject as makeFakeProjectBase } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
 import type { LoadedProject, DependencyEntry } from '../../src/project/types.js';
 
@@ -25,10 +26,6 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 	};
 });
 
-function parseEnvelope(result: Awaited<ReturnType<TestPair['client']['callTool']>>): any {
-	return (result as any).structuredContent;
-}
-
 function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedProject {
 	const deps = new Map<string, DependencyEntry>();
 	deps.set('minecraft', {
@@ -51,35 +48,7 @@ function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedProject 
 		available: true,
 		provenanceChains: [],
 	});
-
-	return {
-		name: 'test',
-		rootPath: '/fake/path',
-		gradleConfig: {
-			minecraftVersion: '1.21.11',
-			mappingEra: 'yarn',
-			yarnMappings: '1.21.11+build.4',
-			loaderVersion: '0.16.14',
-			fabricApiVersion: '0.119.5+1.21.11',
-			dependencies: [],
-		},
-		sourcesJar: { path: '/fake/sources.jar', exists: true },
-		fabricMod: {
-			schemaVersion: 1,
-			id: 'testmod',
-			version: '1.0.0',
-			name: 'Test Mod',
-			description: 'A test mod',
-			authors: ['Test'],
-			license: 'MIT',
-			environment: '*',
-			mixins: [],
-			depends: {},
-		},
-		dependencyJars: deps,
-		filterConfig: { mode: 'include-all', patterns: [] },
-		...overrides,
-	};
+	return makeFakeProjectBase({ dependencyJars: deps, ...overrides });
 }
 
 const MC_ENTRIES = [

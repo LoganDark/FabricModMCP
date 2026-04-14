@@ -1,14 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
+import { parseEnvelope, makeFakeProject as makeFakeProjectBase } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
+import type { DependencyEntry } from '../../src/project/types.js';
 import type { LoadedProject } from '../../src/project/types.js';
 
-function parseEnvelope(result: Awaited<ReturnType<TestPair['client']['callTool']>>): any {
-	return (result as any).structuredContent;
-}
-
 function makeFakeProject(name: string, mcVersion: string = '1.21.11'): LoadedProject {
-	return {
+	return makeFakeProjectBase({
 		name,
 		rootPath: `/fake/${name}`,
 		gradleConfig: {
@@ -19,24 +17,10 @@ function makeFakeProject(name: string, mcVersion: string = '1.21.11'): LoadedPro
 			fabricApiVersion: '0.119.5+1.21.11',
 			dependencies: [],
 		},
-		sourcesJar: { path: '/fake/sources.jar', exists: true },
-		fabricMod: {
-			schemaVersion: 1,
-			id: 'testmod',
-			version: '1.0.0',
-			name: 'Test Mod',
-			description: 'A test mod',
-			authors: ['Test'],
-			license: 'MIT',
-			environment: '*',
-			mixins: [],
-			depends: {},
-		},
-		dependencyJars: new Map([
+		dependencyJars: new Map<string, DependencyEntry>([
 			['minecraft', { id: 'minecraft', group: 'net.minecraft', artifact: 'minecraft', version: mcVersion, category: 'minecraft' as const, sourcesJarPath: '/fake/mc.jar', available: true }],
 		]),
-		filterConfig: { mode: 'include-all', patterns: [] },
-	};
+	});
 }
 
 describe('list_projects tool', () => {

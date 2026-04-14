@@ -1,9 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
-
-function parseEnvelope(result: Awaited<ReturnType<TestPair['client']['callTool']>>): any {
-	return (result as any).structuredContent;
-}
+import { parseEnvelope } from '../helpers/factories.js';
 
 describe('echo tool', () => {
 	let pair: TestPair;

@@ -1,40 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
+import { parseEnvelope, makeFakeProject as makeFakeProjectBase } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
 import type { LoadedProject } from '../../src/project/types.js';
 
-function parseEnvelope(result: Awaited<ReturnType<TestPair['client']['callTool']>>): any {
-	return (result as any).structuredContent;
-}
-
 function makeFakeProject(name: string): LoadedProject {
-	return {
-		name,
-		rootPath: `/fake/${name}`,
-		gradleConfig: {
-			minecraftVersion: '1.21.11',
-			mappingEra: 'yarn',
-			yarnMappings: '1.21.11+build.4',
-			loaderVersion: '0.16.14',
-			fabricApiVersion: '0.119.5+1.21.11',
-			dependencies: [],
-		},
-		sourcesJar: { path: '/fake/sources.jar', exists: true },
-		fabricMod: {
-			schemaVersion: 1,
-			id: 'testmod',
-			version: '1.0.0',
-			name: 'Test Mod',
-			description: 'A test mod',
-			authors: ['Test'],
-			license: 'MIT',
-			environment: '*',
-			mixins: [],
-			depends: {},
-		},
-		dependencyJars: new Map(),
-		filterConfig: { mode: 'include-all', patterns: [] },
-	};
+	return makeFakeProjectBase({ name, rootPath: `/fake/${name}`, dependencyJars: new Map() });
 }
 
 describe('set_default_project tool', () => {
