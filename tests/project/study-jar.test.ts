@@ -13,7 +13,28 @@ import {
 	STUDY_JAR_NAME_PATTERN,
 } from '../../src/project/study-jar.js';
 import { JarReader } from '../../src/project/jar-reader.js';
+import { DomainError } from '../../src/errors/domain-error.js';
 import type { LoadedProject, StudyJar } from '../../src/project/types.js';
+
+function expectDomainError(fn: () => unknown, code: string): void {
+	try {
+		fn();
+		expect.unreachable('Expected DomainError to be thrown');
+	} catch (err) {
+		expect(err).toBeInstanceOf(DomainError);
+		expect((err as DomainError).code).toBe(code);
+	}
+}
+
+async function expectAsyncDomainError(fn: () => Promise<unknown>, code: string): Promise<void> {
+	try {
+		await fn();
+		expect.unreachable('Expected DomainError to be thrown');
+	} catch (err) {
+		expect(err).toBeInstanceOf(DomainError);
+		expect((err as DomainError).code).toBe(code);
+	}
+}
 
 const testDir = join(tmpdir(), 'study-jar-test-' + Date.now());
 const testJarPath = join(testDir, 'test-lib-1.0-sources.jar');
@@ -75,19 +96,19 @@ describe('validateStudyJarName', () => {
 	});
 
 	it('throws INVALID_STUDY_JAR_NAME for names with spaces', () => {
-		expect(() => validateStudyJarName('my lib')).toThrow('INVALID_STUDY_JAR_NAME');
+		expectDomainError(() => validateStudyJarName('my lib'), 'INVALID_STUDY_JAR_NAME');
 	});
 
 	it('throws INVALID_STUDY_JAR_NAME for names with colons', () => {
-		expect(() => validateStudyJarName('my:lib')).toThrow('INVALID_STUDY_JAR_NAME');
+		expectDomainError(() => validateStudyJarName('my:lib'), 'INVALID_STUDY_JAR_NAME');
 	});
 
 	it('throws INVALID_STUDY_JAR_NAME for empty string', () => {
-		expect(() => validateStudyJarName('')).toThrow('INVALID_STUDY_JAR_NAME');
+		expectDomainError(() => validateStudyJarName(''), 'INVALID_STUDY_JAR_NAME');
 	});
 
 	it('throws INVALID_STUDY_JAR_NAME for dash-start', () => {
-		expect(() => validateStudyJarName('-dash-start')).toThrow('INVALID_STUDY_JAR_NAME');
+		expectDomainError(() => validateStudyJarName('-dash-start'), 'INVALID_STUDY_JAR_NAME');
 	});
 });
 
@@ -128,7 +149,7 @@ describe('validateStudyJarId', () => {
 				}],
 			]),
 		});
-		expect(() => validateStudyJarId('foo', project)).toThrow('STUDY_JAR_ID_COLLISION');
+		expectDomainError(() => validateStudyJarId('foo', project), 'STUDY_JAR_ID_COLLISION');
 	});
 });
 
@@ -154,9 +175,10 @@ describe('createStudyJar', () => {
 
 	it('throws STUDY_JAR_FILE_NOT_FOUND for nonexistent path', async () => {
 		const project = makeProject();
-		await expect(
-			createStudyJar('/nonexistent/path/fake.jar', 'fake', project),
-		).rejects.toThrow('STUDY_JAR_FILE_NOT_FOUND');
+		await expectAsyncDomainError(
+			() => createStudyJar('/nonexistent/path/fake.jar', 'fake', project),
+			'STUDY_JAR_FILE_NOT_FOUND',
+		);
 	});
 
 	it('throws STUDY_JAR_NAME_EXISTS for duplicate name', async () => {
@@ -167,18 +189,20 @@ describe('createStudyJar', () => {
 		const project = makeProject({
 			studyJars: new Map([['test-lib', existingJar]]),
 		});
-		await expect(
-			createStudyJar(testJarPath, 'test-lib', project),
-		).rejects.toThrow('STUDY_JAR_NAME_EXISTS');
+		await expectAsyncDomainError(
+			() => createStudyJar(testJarPath, 'test-lib', project),
+			'STUDY_JAR_NAME_EXISTS',
+		);
 	});
 
 	it('throws STUDY_JAR_INVALID_ZIP for non-zip file', async () => {
 		const badFile = join(testDir, 'not-a-zip.jar');
 		await writeFile(badFile, 'this is not a zip file');
 		const project = makeProject();
-		await expect(
-			createStudyJar(badFile, 'bad', project),
-		).rejects.toThrow('STUDY_JAR_INVALID_ZIP');
+		await expectAsyncDomainError(
+			() => createStudyJar(badFile, 'bad', project),
+			'STUDY_JAR_INVALID_ZIP',
+		);
 	});
 });
 
