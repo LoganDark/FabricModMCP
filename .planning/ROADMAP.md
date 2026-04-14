@@ -31,7 +31,7 @@
 
 - [x] **Phase 11: Types and Domain Logic** — Data model, jar handle management, and cache eviction for study jars (completed 2026-04-14)
 - [x] **Phase 12: Existing Tool Integration** — Wire study jars into all jar-aware tools via combined dependency resolution (completed 2026-04-14)
-- [ ] **Phase 13: Study Jar Management Tools** — Four new MCP tools for add/remove/list/toggle operations
+- [x] **Phase 13: Study Jar Management Tools** — Four new MCP tools for add/remove/list/toggle operations (completed 2026-04-14)
 - [ ] **Phase 14: JDT LS Workspace Sync** — Incremental workspace extraction and classpath updates for semantic navigation
 
 ## Phase Details
@@ -80,7 +80,7 @@ Plans:
 
 Plans:
 - [x] 13-01-PLAN.md — Tool descriptions, four tool implementations, and registerAllTools wiring
-- [ ] 13-02-PLAN.md — Integration tests for all four study jar management tools
+- [x] 13-02-PLAN.md — Integration tests for all four study jar management tools
 
 ### Phase 14: JDT LS Workspace Sync
 **Goal**: Semantic navigation (find-definition, find-references, type hierarchy) works for classes in study jars
@@ -104,5 +104,5 @@ Phases execute in numeric order: 11 -> 12 -> 13 -> 14
 |-------|-----------|----------------|--------|-----------|
 | 11. Types and Domain Logic | v1.1 | 2/2 | Complete    | 2026-04-14 |
 | 12. Existing Tool Integration | v1.1 | 2/2 | Complete    | 2026-04-14 |
-| 13. Study Jar Management Tools | v1.1 | 1/2 | In Progress|  |
+| 13. Study Jar Management Tools | v1.1 | 2/2 | Complete   | 2026-04-14 |
 | 14. JDT LS Workspace Sync | v1.1 | 0/? | Not started | - |

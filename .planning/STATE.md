@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Study Jars
 status: unknown
-last_updated: "2026-04-14T06:55:49.445Z"
+last_updated: "2026-04-14T07:01:21.463Z"
 last_activity: 2026-04-14
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
@@ -51,6 +51,7 @@ See PROJECT.md Key Decisions table for full decision log from v1.0.
 - [Phase 12]: getAllDependencies for specific-jar lookups, getResolvedDependencies for default views -- three-tier resolver pattern established
 - [Phase 13]: Followed configure-filters.ts as canonical tool pattern exemplar
 - [Phase 13]: Pre-validate all names before mutation in batch operations (remove, configure) for fail-fast
+- [Phase 13]: Tests register project with shared jarReader in addition to projectStore to match tool runtime requirements
 
 ### Blockers/Concerns
 
