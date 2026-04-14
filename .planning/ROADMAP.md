@@ -76,10 +76,11 @@ Plans:
   3. User can list all study jars with their names, paths, and auto-include status
   4. User can toggle a study jar's auto-include flag without removing and re-adding
   5. Adding an invalid path, non-ZIP file, or duplicate name produces a clear error message
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 13-01: TBD
+- [ ] 13-01-PLAN.md — Tool descriptions, four tool implementations, and registerAllTools wiring
+- [ ] 13-02-PLAN.md — Integration tests for all four study jar management tools
 
 ### Phase 14: JDT LS Workspace Sync
 **Goal**: Semantic navigation (find-definition, find-references, type hierarchy) works for classes in study jars
@@ -103,5 +104,5 @@ Phases execute in numeric order: 11 -> 12 -> 13 -> 14
 |-------|-----------|----------------|--------|-----------|
 | 11. Types and Domain Logic | v1.1 | 2/2 | Complete    | 2026-04-14 |
 | 12. Existing Tool Integration | v1.1 | 2/2 | Complete    | 2026-04-14 |
-| 13. Study Jar Management Tools | v1.1 | 0/? | Not started | - |
+| 13. Study Jar Management Tools | v1.1 | 0/2 | Not started | - |
 | 14. JDT LS Workspace Sync | v1.1 | 0/? | Not started | - |
