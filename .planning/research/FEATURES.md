@@ -1,38 +1,36 @@
 # Feature Landscape
 
-**Domain:** MCP server for Minecraft Fabric mod development tooling
-**Researched:** 2026-04-12
+**Domain:** Study jar management for MCP-based Minecraft dev tool
+**Researched:** 2026-04-13
 
 ## Table Stakes
 
-Features users expect. Missing = product feels incomplete.
+Features users expect from "add arbitrary source jars for study." Missing = feature feels incomplete.
 
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| **Multi-project support** | The porting use case (comparing two MC versions side-by-side) is a primary workflow. Every session may involve 2+ projects. | Medium | Must be designed in from day one -- retrofitting multi-project is painful. Each project has its own Gradle config, sources jars, and dependency set. |
-| **Auto-discover Minecraft sources jar** | Without this, the user has to manually find and paste a 150-char path from `~/.gradle/caches/fabric-loom/`. Unusable friction. | Medium | Parse `build.gradle.kts` and `gradle.properties` for MC version, Yarn/Mojang mappings version, then resolve the deterministic Loom cache path. Must handle both Yarn-era (<=1.21.11) and unobfuscated-era (>=26.1) jar locations. |
-| **Auto-discover dependency source jars** | Fabric API alone is 60+ modules. Without auto-discovery, the user must enumerate every jar. | Medium | Gradle dependency resolution via Loom metadata. Include/exclude filtering is important -- some dependencies are noise. |
-| **Read source files from jars** | This is the entire point of the server. If Claude cannot read decompiled Minecraft source, there is no product. | Low | Standard zip/jar reading. No extraction to disk per project requirements. |
-| **Package browsing** | Navigating ~6,600 classes requires hierarchical exploration. Users expect `net.minecraft.client` -> list classes, pick one, read it. | Low | List packages at a given depth, list classes in a package. Standard tree navigation. |
-| **Class source reading** | Read the full decompiled source of any class by fully-qualified name. | Low | Direct jar entry lookup. Fast path for the most common operation. |
-| **Name-based search** | "Find all classes containing 'Creeper'" or "Find methods named 'tick'" across all sources. | Medium | Must search across MC source, mod source, AND dependency sources. Regex support expected. Performance matters with 6,600+ files. |
-| **Project metadata exposure** | Claude needs to know: MC version, mappings version, loader version, Fabric API version, mod ID, dependencies. Without this, every conversation starts with "what version are you on?" | Low | Parse `gradle.properties`, `fabric.mod.json`, and `build.gradle.kts`. Return structured data. |
-| **Strongly-typed tool interfaces** | MCP protocol supports rich schemas. AI assistants perform dramatically better with precise parameter types, enums, and structured return types vs. free-form strings. | Low | Design-time concern. Every tool gets a proper JSON schema with descriptions. Return types include all useful context (file path, line numbers, package info, etc.). |
+| Feature | Why Expected | Complexity | Dependencies on Existing |
+|---------|--------------|------------|--------------------------|
+| Add a study jar by file path | Core operation -- user has a sources jar on disk and wants to browse it. Must validate it exists and is a valid ZIP/JAR. | Low | `JarReader.readEntry`/`listEntries` for validation; needs a new `DependencyEntry` with a new category |
+| Assign a human-friendly name | Jar paths are unwieldy. Users need short IDs like `"sodium"` to reference in `jar`/`jars` parameters. Auto-generation from filename is a fallback, but explicit naming must be supported. | Low | `DependencyEntry.id` is already the short identifier used everywhere |
+| Remove a study jar by name | Undo of add. Must clean up jar handle ref counts. | Low | `JarReader` project handle tracking; remove from `dependencyJars` map |
+| List study jars | Show what's currently added with name, path, auto-include status. Distinguish study jars from auto-discovered dependencies. | Low | `get_project_metadata` already renders jar inventory; needs category filtering or a dedicated tool |
+| Browse study jar contents via existing tools | After adding, `list_packages`, `list_classes`, `read_source`, `search_classes`, `locate_in_source` must see the study jar. This is the whole point. | Low | Study jars become entries in `dependencyJars` -- existing tools iterate that map. If the entry exists and is available, tools work automatically. |
+| Study jars selectable via `jar`/`jars` parameters | User must be able to scope operations to a specific study jar by its name. | Low | Already works -- `jar` param does `dependencyJars.get(jar)`, `jars` param uses picomatch against IDs. Study jar ID just needs to be in the map. |
+| Auto-include flag (opt-in to default jar set) | Controls whether a study jar appears when tools search "all jars" without explicit `jars` parameter. Default should be OFF -- study jars are opt-in extras, not things you want polluting every search. User enables auto-include for jars they're actively studying. | Medium | `getFilteredDependencies` + `matchesFilter` need to respect auto-include. Study jars with auto-include=false should be excluded from default resolution but still accessible via explicit `jar`/`jars` parameters. |
+| Toggle auto-include on existing study jars | Change auto-include without re-adding. Separate operation from add/remove. | Low | Mutate the entry in `dependencyJars` map |
+| Persist across refresh_dependencies | `refresh_dependencies` re-scans Gradle cache and replaces `dependencyJars`. Study jars are not from Gradle -- they must survive refresh. | Low | `refresh_dependencies` currently replaces the entire `dependencyJars` map. Need to preserve study jar entries during refresh. |
+| Name conflict detection with actionable errors | When adding a study jar whose name collides with an existing dependency or study jar, provide a clear error with the conflicting entry and suggest an alternative. | Low | `DomainError` pattern already established. Check `dependencyJars.has(name)` before insert. |
 
 ## Differentiators
 
-Features that set product apart. Not expected from a basic source browser, but high value for the Minecraft modding AI assistant use case.
+Features that set this apart from bare-minimum "add a jar" functionality. Not expected, but high value.
 
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| **Cascading regex position identification** | Locates a precise symbol position in source without fragile line numbers. Each regex narrows within the previous match. Enables "find the `health` field inside the `LivingEntity` class inside the `damage` method" without knowing any line numbers. | Medium | Novel approach per PROJECT.md. The regex chain is: file-level match -> class-level match -> member-level match -> precise position. Elegant for AI use since Claude naturally describes locations hierarchically. |
-| **Find definition (go-to-definition)** | Given a cascading regex identifying a symbol usage, resolve where that symbol is defined. Critical for reverse engineering -- "where is this method actually implemented?" | High | Requires Java semantic understanding (imports, type resolution, inheritance). PROJECT.md acknowledges Java LSP dependency. This is the hardest feature but also one of the most valuable. |
-| **Find references/usages** | Given a cascading regex identifying a symbol definition, find all usages across all sources. "What calls `Entity.tick()`?" is a constant question in mod development. | High | Same Java LSP dependency as find-definition. Cross-jar search across MC source + dependencies. |
-| **Version comparison** | Compare the same class/method between two MC versions side-by-side. The killer feature for the porting use case -- "how did `MinecraftClient.render()` change between 1.21.11 and 26.1?" | Medium | Leverages multi-project support. Return structured diff or both versions for Claude to compare. Especially valuable during the Yarn -> unobfuscated migration happening right now (2025-2026). |
-| **Minecraft-version-aware source resolution** | Automatically handle the Yarn-mapped jars (<=1.21.11) vs. unobfuscated jars (>=26.1) vs. Mojang-mapped jars. Different mapping eras have different jar naming, different cache locations. | Medium | The Fabric ecosystem is in active transition. Supporting both eras seamlessly makes this tool work for porting, which is the primary pain point right now. |
-| **Intelligent result context** | When returning search results or source code, include surrounding context: package path, class hierarchy info, imports, method signatures. Give Claude enough to understand without reading the entire file. | Low | Design-time decision. Return more data than strictly requested. Include class FQN, enclosing class, method signature context around matches. |
-| **Source type discrimination** | Clearly label whether source comes from: Minecraft core, Fabric API, third-party library, or mod source. Claude needs this context to give appropriate advice. | Low | Track source provenance per jar. Tag every result with its origin. |
-| **Mod source integration** | Browse and search the user's own mod source (`src/main/java/`) alongside Minecraft and dependency sources. | Low | Read from filesystem instead of jar. Same search/browse interface. Enables "find all places my mod references this MC method." |
+| Feature | Value Proposition | Complexity | Dependencies on Existing |
+|---------|-------------------|------------|--------------------------|
+| Auto-name from jar metadata | Parse `META-INF/MANIFEST.MF` or embedded Maven POM to derive a meaningful name (e.g., `"sodium-0.6.0"`) when user doesn't provide one. Better than just stripping `.jar` from filename. | Low | `JarReader.readEntry` to read manifest. Fallback to filename stem. |
+| Bulk add via glob pattern | `add_study_jar` accepts a glob like `/path/to/libs/*-sources.jar` and adds multiple jars at once with auto-generated names. Useful when user has a directory of source jars. | Medium | `glob` library already in stack. Need to handle partial failures (some valid, some not). |
+| Study jar metadata in get_project_metadata | Show study jars as a separate section or with a `"study"` category in jar inventory, so `get_project_metadata` clearly distinguishes auto-discovered vs. manually-added jars. | Low | Add `'study'` to `JarCategory` union type. `buildJarInventory` already iterates all deps. |
+| LSP navigation with study jars | `find_definition`, `find_references`, etc. work within study jar sources. Requires sources extracted to JDT LS workspace. | High | `jdtls/workspace.ts` extraction on project load. Adding after load requires incremental extraction + JDT LS notification. |
+| Incremental JDT LS workspace update | When a study jar is added/removed, update the JDT LS workspace without requiring full project reload. Extract sources to workspace dir and send `workspace/didChangeWatchedFiles` notification. | High | `JdtLsSession` lifecycle management. Must avoid breaking active LSP state. |
 
 ## Anti-Features
 
@@ -40,102 +38,80 @@ Features to explicitly NOT build.
 
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| **Code generation / file writing** | Claude Code already handles file creation and editing. Duplicating this creates confusion about who writes files. The MCP server is a read/analysis tool. | Return rich analysis data; let Claude synthesize and write code itself. |
-| **Mixin injection point analysis (v1)** | PROJECT.md explicitly defers this. The foundation (source browsing, search, navigation) must be solid first. Mixin analysis is complex (bytecode-level injection point validation) and depends on the foundation. | Build the foundation. Mixin tooling is v2. |
-| **Runtime game interaction** | Connecting to a running Minecraft instance is a completely different domain (debug protocols, JDWP). Not relevant to the source analysis workflow. | Stay focused on static source analysis. |
-| **Non-Fabric toolchain support** | Supporting Forge/NeoForge/Quilt multiplies complexity for mappings, build systems, and jar locations. Fabric + Loom is the target. | Design interfaces that could theoretically support other toolchains later, but implement only Fabric. |
-| **Full Java LSP embedding** | Embedding a full Eclipse JDT or similar LSP is enormous complexity. The server should integrate with external LSP infrastructure, not reinvent it. | Use external Java LSP (Eclipse JDT LS, or leverage IntelliJ's MCP server for semantic features). Design the cascading regex system to work independently for basic cases. |
-| **Persistent source extraction cache** | PROJECT.md requirement: read directly from jars, no extraction. Caching extracted files creates staleness issues and disk bloat. | Read from jars on demand. Cache jar metadata (package lists, class lists) in memory for performance, but not extracted source files on disk. |
-| **GUI or web interface** | This is an MCP server consumed by AI coding assistants. No human UI needed. | Invest in rich tool schemas and documentation instead. The "UI" is Claude's natural language interface. |
-| **Bytecode analysis** | Decompiled source is sufficient for the mod development use case. Raw bytecode analysis adds complexity without proportional value for the target user (AI assistant helping a modder). | Work with decompiled .java source only. If bytecode is needed later, it's a v2+ concern. |
+| Auto-discovery of study jars from a configured directory | Adds implicit state and "magic" behavior. Study jars are arbitrary user-chosen artifacts, not things with a well-defined location. | User explicitly adds each jar. Claude can be instructed to add specific jars automatically. |
+| Persistence across server restarts | Study jars are session-scoped, tied to loaded projects. Persisting creates stale references (jars moved/deleted), config file management complexity, and conflicts with the "load project = fresh start" model. | User re-adds study jars after loading a project. Claude remembers what to add from conversation context. |
+| Classpath/compilation integration | Study jars are for reading source code, not for compilation. Adding them to the Java classpath would create version conflicts and confuse JDT LS type resolution. | Source browsing only. JDT LS workspace extraction is for navigation, not compilation. |
+| Automatic transitive dependency resolution | Unlike Gradle dependencies, study jars should not trigger transitive dependency discovery. A study jar is a standalone source artifact the user wants to read. | Each study jar is self-contained. User adds exactly what they want. |
+| Sub-categorization of study jars | No need for `"study-library"`, `"study-framework"`, etc. One category distinguishes manual from auto-discovered. | Single `'study'` category on `JarCategory`. |
+| Editing/writing to study jars | This is a read-only analysis server. | Read-only access via existing `SourceAdapter` pattern. |
 
 ## Feature Dependencies
 
 ```
-Multi-project support ─┬─> Version comparison (requires 2 projects loaded)
-                       └─> All features (must work per-project)
+Add study jar -----> Browse via existing tools (automatic once in dependencyJars)
+     |
+     +-------------> Remove study jar
+     |
+     +-------------> List study jars
+     |
+     +-------------> Toggle auto-include
+     |
+     +-------------> LSP navigation with study jars (requires workspace extraction)
 
-Auto-discover MC sources jar ──> Read source from jars ──> Package browsing
-                                                       ──> Class source reading
-                                                       ──> Name-based search
+Auto-include flag --> Filter integration (getFilteredDependencies must know about study jars)
 
-Auto-discover dependency jars ──> Read source from jars (same)
+Persist across refresh --> refresh_dependencies must preserve study entries
 
-Project metadata exposure (independent, no deps)
-
-Cascading regex ──> Find definition (regex locates position, LSP resolves)
-               ──> Find references (regex locates position, LSP finds usages)
-
-Name-based search (independent once jar reading works)
-
-Mod source integration ──> Name-based search (search mod source too)
-                       ──> Find references (find usages in mod source)
+Name conflict detection --> Add study jar (pre-insert validation)
 ```
 
-**Critical path:** Multi-project support -> Auto-discover jars -> Read from jars -> Package browsing + Class reading + Search. Everything else builds on this foundation.
+Key insight: because existing tools operate on `dependencyJars` map entries via `DependencyEntry`, the integration cost for browsing/search is near-zero. The entry just needs to exist in the map with `available: true` and a valid `sourcesJarPath`. The main complexity points are:
 
-**LSP-dependent features (find-definition, find-references) are the highest complexity and can be deferred** to a later phase without blocking the core value proposition. The cascading regex system, package browsing, class reading, and search provide substantial value on their own.
+1. **Auto-include filtering** -- `getFilteredDependencies` and `matchesFilter` currently only check filter patterns. Study jars with auto-include=false need a new exclusion path: excluded from the "all jars" default set but still accessible when explicitly named in `jar`/`jars` parameters.
+
+2. **JDT LS workspace integration** -- adding sources to the JDT LS workspace after initial project load is the hardest part. Without this, study jars get browsing/search/regex but not semantic navigation.
+
+3. **Jar handle lifecycle** -- `JarReader.registerProject` tracks which jar paths belong to which project. Study jars added after load need to be registered. `closeProject` must clean them up.
+
+## Filter Interaction Design
+
+The critical design question: how does auto-include interact with `getFilteredDependencies` and the `jars` parameter?
+
+**Recommended approach:**
+
+1. `getFilteredDependencies()` excludes study jars where `autoInclude === false`. Tools searching "all jars" (no `jars` param) skip non-auto-included study jars.
+2. When `jars` parameter is explicitly provided, it matches against ALL entries including non-auto-included study jars. Users can explicitly target a study jar by name even if it's not auto-included.
+3. When `jar` (singular) parameter is provided, it does a direct `dependencyJars.get(jar)` lookup -- already works for any entry in the map regardless of auto-include.
+4. `matchesFilter()` already always includes `'minecraft'` and `'src'`. Study jars with `autoInclude === true` should behave like regular dependencies (subject to include/exclude filter patterns). Study jars with `autoInclude === false` should be excluded from default resolution regardless of filter patterns.
+
+This gives the user full control: auto-include=false means "only show me this when I ask for it by name."
+
+## Data Model Implications
+
+The `DependencyEntry` type needs extension:
+
+- **New `JarCategory` value**: `'study'` added to the `'minecraft' | 'mod-source' | 'fabric-api' | 'library'` union.
+- **Auto-include flag**: New field on `DependencyEntry` (e.g., `autoInclude?: boolean`, defaulting to `undefined`/`true` for non-study entries). Adding to `DependencyEntry` is cleaner than a separate tracking structure -- it's already the per-jar metadata record.
+- **Origin tracking**: The `'study'` category serves to distinguish "came from Gradle discovery" vs "manually added" so `refresh_dependencies` knows which entries to preserve.
+
+Study jars should live in the existing `dependencyJars` map rather than a separate `studyJars` map. A separate map would require every tool to check two maps -- using the existing map with a distinguishing category is the lower-friction approach that gives automatic integration for free.
 
 ## MVP Recommendation
 
-**Phase 1 -- Foundation (table stakes, no LSP):**
-1. Multi-project support architecture
-2. Auto-discover Minecraft sources jar from Gradle/Loom config
-3. Auto-discover dependency source jars
-4. Read source files from jars (no extraction)
-5. Package browsing (list packages, list classes)
-6. Class source reading by FQN
-7. Project metadata exposure
-8. Strongly-typed tool interfaces
+Prioritize:
+1. **Add/remove/list study jars** -- core CRUD operations. Add `'study'` to `JarCategory`. Store study entries in `dependencyJars`.
+2. **Auto-include flag with filter integration** -- must ship with add/remove since it defines default visibility.
+3. **Persist across refresh_dependencies** -- without this, refreshing silently removes study jars. Unacceptable.
+4. **Name conflict detection** -- trivial to implement, prevents confusing errors.
 
-**Phase 2 -- Search and Context:**
-1. Name-based search across all sources (MC, deps, mod)
-2. Mod source integration
-3. Source type discrimination (MC vs. Fabric API vs. library vs. mod)
-4. Intelligent result context
-5. Cascading regex position identification
-
-**Phase 3 -- Navigation and Comparison:**
-1. Version comparison (diff same class across projects)
-2. Find definition via cascading regex + LSP integration
-3. Find references/usages via cascading regex + LSP integration
-
-**Defer:** Mixin-specific tooling, non-Fabric toolchains, bytecode analysis
-
-**Rationale:** Phase 1 delivers immediate value -- Claude can browse and read Minecraft source on demand, which is the core use case. Phase 2 makes search efficient and introduces the novel cascading regex. Phase 3 adds semantic navigation which requires the hardest integration work (Java LSP). Each phase is independently useful.
-
-## Important Context: Ecosystem Transition
-
-The Fabric ecosystem is undergoing its biggest change ever:
-- **Minecraft <=1.21.11**: Obfuscated, uses Yarn/Intermediary mappings, sources in Loom cache
-- **Minecraft >=26.1**: Unobfuscated, uses Mojang's own names, simpler toolchain (Loom 2.0)
-- **Right now (2026)**: Modders are actively porting from Yarn to unobfuscated. This is the peak demand moment for version comparison tooling.
-
-The MCP server must support both eras. This is not optional -- it IS the porting use case.
-
-## Competitive Landscape
-
-| Existing Tool | What It Does | Gap This MCP Server Fills |
-|---------------|-------------|--------------------------|
-| **IntelliJ MinecraftDev plugin** | Mixin inspections, accessor generation, target reference copying, project creation | Only works inside IntelliJ. AI coding assistants (Claude Code, Cursor) cannot access these features. |
-| **IntelliJ MCP server (2025.2+)** | 28 general IDE tools (file search, symbol info, refactoring) | General-purpose. No Minecraft-specific awareness. Cannot browse source jars, doesn't understand Loom/Fabric structure. |
-| **Fabric Loom genSources** | Decompiles MC to source jar | Produces the jar but provides no browsing/search API. Only generates; doesn't help consume. |
-| **mcsrc.dev** | Web-based MC source viewer | Browser-only. No API. No dependency source. No search across projects. |
-| **Code Indexer MCP servers** | General code indexing with tree-sitter | Designed for regular codebases, not jar-packaged decompiled source. No Minecraft/Fabric awareness. |
-| **Sourcegraph MCP** | Code search via Sourcegraph API | Requires Sourcegraph instance. Not designed for local jar source browsing. |
-
-**The gap:** No existing tool gives an AI coding assistant structured, searchable, navigable access to Minecraft decompiled source + dependency source + mod source with Fabric-aware project metadata. This MCP server fills that gap entirely.
+Defer:
+- **Incremental JDT LS workspace update**: High complexity. Study jars would initially support browsing/search/regex but not semantic LSP navigation. This is still highly useful. LSP can be added in a follow-up or require project reload.
+- **Bulk glob add**: Nice but not essential. User can call add_study_jar multiple times.
+- **Auto-name from jar metadata**: Filename stem is good enough for MVP. Manifest parsing is polish.
 
 ## Sources
 
-- [IntelliJ MCP Server Documentation](https://www.jetbrains.com/help/idea/mcp-server.html) -- HIGH confidence
-- [MinecraftDev IntelliJ Plugin](https://github.com/minecraft-dev/MinecraftDev) -- HIGH confidence
-- [MinecraftDev DeepWiki](https://deepwiki.com/minecraft-dev/MinecraftDev) -- HIGH confidence
-- [Fabric Loom Documentation](https://docs.fabricmc.net/develop/loom/) -- HIGH confidence
-- [Fabric Loom Source Generation](https://deepwiki.com/FabricMC/fabric-loom/6.1-source-generation-tasks) -- HIGH confidence
-- [Removing Obfuscation from Fabric](https://fabricmc.net/2025/10/31/obfuscation.html) -- HIGH confidence
-- [Fabric for Minecraft 1.21.11](https://fabricmc.net/2025/12/05/12111.html) -- HIGH confidence
-- [Fabric Mappings Wiki](https://wiki.fabricmc.net/tutorial:mappings) -- HIGH confidence
-- [Code-Index-MCP](https://mcpservers.org/servers/ViperJuice/Code-Index-MCP) -- MEDIUM confidence
-- [Sourcegraph MCP Server](https://sourcegraph.com/docs/api/mcp) -- MEDIUM confidence
-- [MCP Specification 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25) -- HIGH confidence
+- Codebase analysis: `jar-registry.ts`, `jar-reader.ts`, `source-adapter.ts`, `tool-helpers.ts`, `dependency-discovery.ts`, `loader.ts`, `project/types.ts`
+- [IntelliJ IDEA Libraries Documentation](https://www.jetbrains.com/help/idea/library.html) -- IDE pattern for attaching source jars
+- [VS Code Java Project Management](https://code.visualstudio.com/docs/java/java-project) -- `java.project.referencedLibraries` source attachment pattern
+- [IntelliJ attach sources discussion](https://intellij-support.jetbrains.com/hc/en-us/community/posts/206191239-Attach-sources-to-jars-the-easy-way) -- community patterns for source attachment workflows

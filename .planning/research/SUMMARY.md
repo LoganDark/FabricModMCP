@@ -1,170 +1,178 @@
 # Project Research Summary
 
-**Project:** MinecraftDevMCP
-**Domain:** MCP server for Minecraft Fabric mod development (Java source intelligence)
-**Researched:** 2026-04-12
+**Project:** MinecraftDevMCP v1.1 — Study Jar Management
+**Domain:** Incremental extension to an existing MCP server for Minecraft mod development
+**Researched:** 2026-04-13
 **Confidence:** HIGH
 
 ## Executive Summary
 
-MinecraftDevMCP is a local MCP server that gives AI coding assistants (Claude Code) structured, searchable access to Minecraft decompiled source, Fabric API source, dependency source, and mod source -- all read directly from jar files without extraction. No existing tool fills this gap: IDE plugins are locked to their IDE, web viewers have no API, and general code indexers have no Minecraft/Fabric awareness. The product targets Fabric mod developers using AI assistants, with a peak-demand use case right now (2026) as the ecosystem transitions from Yarn-mapped obfuscated jars to unobfuscated Mojang names.
+This feature adds the ability to register arbitrary user-provided source jars ("study jars") as browsable, searchable sources within an existing MCP server. The pattern mirrors how IDEs handle manually-attached source jars: the jar is validated, given a unique identifier, stored per-project, and made available to all existing read tools. The critical design constraint is that the existing `dependencyJars` map (keyed by Maven coordinates, rebuilt from scratch on `refresh_dependencies`) must not be contaminated — study jars live in a parallel `studyJars: Map<string, StudyJar>` field on `LoadedProject` and are merged into tool resolution at query time via a facade pattern.
 
-The recommended approach is TypeScript with the official MCP SDK over stdio transport, using node-stream-zip for direct jar reading (benchmarked at 72ms for a full 6,622-file scan, <1ms per entry), regex-based gradle.properties parsing for project discovery, and optional Eclipse JDT LS integration for semantic navigation in later phases. The architecture is session-based: named project sessions hold per-project state (Gradle config, jar handles, optional LSP bridge), and every tool call explicitly names its target project. Multi-project support is foundational, not an afterthought -- the porting use case demands it.
+The recommended implementation sequence is bottom-up: types and domain logic first, then wiring existing tools to see study jars via a unified `getCombinedDependencies()` function, then the four management tools (`add_study_jar`, `remove_study_jar`, `list_study_jars`, `set_study_jar_auto_include`), and finally the JDT LS workspace integration for semantic navigation. The first three phases can be validated independently before touching JDT LS, which is the most complex and least predictable integration point. No new npm dependencies are needed — the existing stack handles all study jar requirements.
 
-The key risks are: (1) stdout pollution corrupting the MCP stdio protocol -- enforce stderr-only logging from line one; (2) Loom cache path assumptions breaking across Loom versions -- always verify paths on disk and provide fallback search; (3) JDT LS startup latency blocking tool calls -- make it optional and lazy, with core browse/search features working without it; and (4) unbounded response sizes degrading Claude's reasoning -- cap results and use a layered API (list/search returns metadata, separate tool reads full source).
+The dominant risks are jar handle leaks on removal (no granular remove existed in `JarReader`), stale `EntryIndex` cache entries after removal, and JDT LS workspace desync when study jars are added after project load. All three are prevented with targeted additions to existing infrastructure: a `removeJarFromProject()` method with proper ref-counting, an `evictEntryIndex()` method on the cache, and incremental extraction plus `.classpath` rewrite for JDT LS. The MCP SDK's stdio transport provides natural request serialization that eliminates concurrency risk for the current transport.
 
 ## Key Findings
 
 ### Recommended Stack
 
-TypeScript 5.7+ on Node.js 22 LTS with the official `@modelcontextprotocol/sdk` (v1.29.x). The performance bottleneck is jar I/O and LSP communication, not the MCP server itself -- TypeScript is fast enough. Zod v4 for tool parameter validation (Standard Schema compatible with the SDK). node-stream-zip for O(1) jar entry lookup by path. Eclipse JDT LS for semantic analysis in later phases.
+No new dependencies are required. The existing stack handles all study jar needs: `node-stream-zip` 1.15.0 for reading jar entries (each handle is a separate fd with its own central directory index, ~1-3MB of metadata per handle), `zod` 4.x for new tool input schemas, and `picomatch` for jar ID glob matching. The current `JarReader` already manages 10-30 concurrent handles per project; adding 1-5 study jars is negligible relative to existing fd usage (worst case 70 fds against macOS's 256 soft limit). State persistence was evaluated and rejected — study jars are session-scoped, and re-adding via a single tool call per jar is the correct model aligned with how dependency jars work (rediscovered on each `load_project`).
 
-**Core technologies:**
-- **TypeScript + Node.js 22 LTS**: Primary language/runtime -- best MCP SDK maturity, excellent zip library ecosystem
-- **@modelcontextprotocol/sdk 1.29.x**: Official MCP server SDK -- stdio transport, full spec compliance, no unnecessary abstraction
-- **Zod 4.x**: Schema validation -- 14x faster than v3, Standard Schema support for MCP SDK integration
-- **node-stream-zip 1.15.x**: Jar reading -- central directory indexing, O(1) entry lookup, no full-archive memory loading
-- **Eclipse JDT LS (Phase 3)**: Semantic Java analysis -- find-definition, find-references via LSP over stdio
-- **tsx/tsup/vitest**: Dev tooling -- fast TypeScript execution, bundling, and testing
-
-**Not recommended:** FastMCP (unnecessary web features for local stdio), adm-zip (loads entire jar into memory), Gradle Tooling API for config parsing (10-30s cold start overkill for reading a .properties file).
+**Core technologies (no change from v1.0):**
+- `node-stream-zip` 1.15.0: random-access jar reading — central directory indexed on open, O(1) entry lookup by path, never loads full archive into memory
+- `zod` 4.x: new tool input validation — same pattern as existing 21 tools
+- `picomatch` 4.x: jar ID filtering — `study:*` glob patterns work against namespaced IDs automatically
+- JDT LS (existing): incremental workspace update via `.classpath` rewrite — no restart needed for add/remove
 
 ### Expected Features
 
 **Must have (table stakes):**
-- Multi-project support (porting use case requires 2+ projects side-by-side)
-- Auto-discover Minecraft sources jar from Gradle/Loom config
-- Auto-discover dependency source jars (Fabric API alone is 60+ modules)
-- Read source files directly from jars (no extraction)
-- Package browsing (hierarchical navigation of ~6,600 classes)
-- Class source reading by fully-qualified name
-- Name-based search across all sources (MC, deps, mod)
-- Project metadata exposure (MC version, mappings, loader, Fabric API version)
-- Strongly-typed tool interfaces with rich JSON schemas
+- Add a study jar by absolute file path with a user-provided name — validates path exists, is a valid ZIP, and has .java entries
+- Remove a study jar by name with proper handle ref-count decrement and cache eviction
+- List study jars with name, path, and auto-include status
+- Browse study jar contents via all existing tools (`list_packages`, `list_classes`, `read_source`, `search_classes`, `locate_in_source`) — zero extra code if the entry exists in the combined jar view
+- Explicit selection via `jar`/`jars` parameters including `study:mylib` and `study:*` glob — works automatically via namespaced IDs
+- Auto-include flag (default OFF) — controls whether a jar appears in unscoped "all jars" searches; study jars are opt-in extras, not things that should pollute every search
+- Toggle auto-include without re-adding
+- Survive `refresh_dependencies` — the refresh rebuilds `dependencyJars` from Gradle; study jars in a separate `studyJars` map are unaffected
+- Name conflict detection with actionable errors at add time against both dependency jar IDs and existing study jar names
 
 **Should have (differentiators):**
-- Cascading regex position identification (novel hierarchical "zoom in" approach for AI-friendly symbol location)
-- Find definition via cascading regex + LSP
-- Find references/usages via cascading regex + LSP
-- Version comparison (diff same class across MC versions -- killer feature for porting)
-- Source type discrimination (MC core vs. Fabric API vs. library vs. mod source)
-- Intelligent result context (include surrounding metadata, not just raw source)
-- Mod source integration (search user's own code alongside MC/deps)
+- Auto-name from jar filename stem when no name is provided
+- Study jar section in `get_project_metadata` output with auto-include status visible
+- LSP semantic navigation (`find_definition`, `find_references`) within study jar sources via JDT LS workspace sync
+- Incremental JDT LS classpath update on add/remove (no full restart — 30-120s restart would be unacceptable UX)
 
-**Defer (v2+):**
-- Mixin injection point analysis (complex bytecode concern, depends on solid foundation)
-- Non-Fabric toolchain support (Forge/NeoForge/Quilt -- multiplies complexity)
-- Runtime game interaction (different domain entirely)
-- Bytecode analysis (decompiled source is sufficient)
+**Defer to v2+:**
+- Bulk add via glob pattern — user can call `add_study_jar` multiple times instead
+- Auto-name from `META-INF/MANIFEST.MF` — filename stem is sufficient for MVP
+- Persistence across server restarts — session-scoped is correct for v1.1
+- `refresh_study_jar` convenience tool for when a jar's file changes on disk
 
 ### Architecture Approach
 
-The server is a TypeScript MCP server using stdio transport with named project sessions. Each session holds its own Gradle config, jar handles, and optional JDT LS bridge. Tool handlers are stateless functions that receive a resolved session. Jar handles stay open for the session lifetime with mtime checks for freshness. No search index or persistent cache -- brute-force jar reading is fast enough (empirically validated). JDT LS is lazy-loaded on first semantic query and optional for all non-semantic tools.
+Study jars extend `LoadedProject` directly via a new `studyJars: Map<string, StudyJar>` field, initialized empty on project load. This keeps study jar lifecycle bound to project lifecycle and avoids a parallel store that would require every tool to query two sources. The critical integration point is `getCombinedDependencies()`, a new wrapper that merges filtered Gradle dependencies with auto-included study jars into a single `Map<string, DependencyEntry>`, replacing direct calls to `getFilteredDependencies()` in tool helpers. Study jars are represented as ephemeral `DependencyEntry` facades with `category: 'study'` and `id: 'study:{name}'`, created at query time rather than stored. Non-auto-included study jars are excluded from the merged default view but reachable via explicit `jars: ["study:mylib"]` parameter matching.
+
+Study jars are stored separately from `dependencyJars` (not merged into it) to avoid contaminating the Gradle dependency model and to survive `refresh_dependencies`. The `'study'` category is assigned the lowest `CATEGORY_PRIORITY` (value 4, after `'library': 3`) so study jars never shadow real dependencies in default resolution. The `study:` ID prefix namespaces study jars away from Maven coordinate IDs.
 
 **Major components:**
-1. **MCP Transport Layer** -- stdio JSON-RPC, tool registration, request routing
-2. **Session Manager** -- named project sessions, isolation, lifecycle management
-3. **Gradle Parser** -- regex-based gradle.properties extraction, Loom cache path resolution
-4. **Jar Registry + Reader** -- jar discovery, central directory caching, on-demand entry decompression
-5. **Cascading Regex Engine** -- hierarchical pattern matching for precise symbol location
-6. **Tool Handlers** -- stateless functions implementing browse, search, read, find-definition, find-references
-7. **JDT LS Bridge** -- optional child process management, LSP JSON-RPC communication
+
+1. `src/project/types.ts` — Add `StudyJar` interface, `'study'` to `JarCategory`, `studyJars` field on `LoadedProject`, `autoInclude?: boolean` on `DependencyEntry`
+2. `src/project/study-jar.ts` (new) — Domain logic: validate, add, remove, toggle, list, build `DependencyEntry` facade, `getCombinedDependencies()`
+3. `src/project/jar-reader.ts` — Add `addProjectJar()` and `removeProjectJar()` with ref-counting extracted to a shared `releaseJarIfUnreferenced()` helper
+4. `src/browsing/entry-index-cache.ts` — Add `evictEntryIndex(cacheKey: string)` for cache invalidation on jar removal
+5. `src/jdtls/workspace.ts` — Add `extractStudyJarToWorkspace()`, `removeStudyJarFromWorkspace()`, `rewriteClasspath()` for incremental workspace mutation
+6. `src/jdtls/uri-mapper.ts` — Rebuild `UriMapper` on study jar add/remove by recreating from updated `JdtLsSession.jarIdToDirName`
+7. New tools: `add-study-jar.ts`, `remove-study-jar.ts`, `list-study-jars.ts`, `set-study-jar-auto-include.ts`
 
 ### Critical Pitfalls
 
-1. **Stdout pollution** -- Any stray console.log corrupts the MCP stdio protocol. Enforce stderr-only logging from line one. Consider `process.stdout.write = () => { throw ... }` during development.
-2. **Unbounded response sizes** -- Large Minecraft classes (1,000-5,000+ lines) and broad searches blow up Claude's context. Use a layered API: search returns metadata, separate tool reads full source. Cap search results at 20-50.
-3. **Loom cache path fragility** -- Path structure changes across Loom versions (-v2 directories, merged vs. client/server splits). Always verify paths exist on disk; fall back to glob search; provide manual override.
-4. **JDT LS startup latency** -- 10-60+ seconds to initialize. Must be optional and lazy. Core browse/search tools must work without it. Return "LSP initializing" messages, not hangs.
-5. **Decompiled source is not compilable Java** -- Synthetic methods, decompiler artifacts, type erasure issues. Configure JDT LS with relaxed error tolerance. Filter synthetic members in search results.
+1. **Jar handle leak on remove** — `JarReader.closeProject()` is the only ref-counting path; individual removes have no equivalent. Add `removeJarFromProject()` that runs the ref-counting check and calls `this.close(jarPath)` when no other project references the path. Extract the shared `releaseJarIfUnreferenced()` helper from the existing loop in `closeProject`.
+
+2. **Stale EntryIndex cache after jar removal** — `entryIndexCache` has no eviction API; only a nuclear `clearEntryIndexCache()`. Add `evictEntryIndex(sourcesJarPath)` and call it on remove. Without this, re-adding a rebuilt jar silently returns stale class lists — wrong results with no error.
+
+3. **JDT LS workspace desync** — `extractSourcesToTemp()` runs once at load time. Study jars added afterward need incremental extraction to a new subdirectory and `.classpath` rewrite. Removal must delete the extracted directory and rewrite `.classpath`. If passive JDT LS detection of the `.classpath` change fails, send `workspace/didChangeWatchedFiles` for the `.classpath` URI as an explicit trigger.
+
+4. **Study jar ID collision with dependency jar IDs** — Maven coordinate IDs (e.g., `com.mojang:authlib`) and simple names (e.g., `minecraft`) could collide with user-provided study jar names. Use a `study:` namespace prefix for all study jar IDs and store them in a separate `studyJars` map rather than in `dependencyJars`. Validate user-provided names at add time against both maps.
+
+5. **Study jars invisible to existing tools** — `filterDependenciesByJarPattern()` and `getFilteredDependencies()` only iterate `dependencyJars`. If every call site is not updated to use `getCombinedDependencies()`, study jars silently appear to do nothing. This is the most likely integration miss; update all direct callers of `getFilteredDependencies()` in the same step.
 
 ## Implications for Roadmap
 
-Based on combined research, the following phase structure reflects dependency ordering, risk mitigation, and incremental value delivery.
+### Phase 1: Types and Domain Logic
 
-### Phase 1: Server Skeleton and Jar Reading Foundation
-**Rationale:** Everything depends on the MCP transport working correctly and jar reading being performant. These are the lowest-risk, highest-dependency components. Getting stdio protocol handling and jar I/O right from day one prevents costly rework.
-**Delivers:** A working MCP server that can register projects, parse gradle.properties, locate source jars, and read individual class files on demand.
-**Addresses:** MCP transport, Gradle parsing, jar reading, project metadata exposure, strongly-typed tool interfaces.
-**Avoids:** Stdout pollution (enforce stderr-only from line one), jar memory loading (use node-stream-zip with handle pooling), response size explosion (define API contract for response sizes upfront).
+**Rationale:** All subsequent phases depend on stable data model contracts and correct infrastructure extensions. Start here so everything is unit-testable in isolation before any MCP tool surface is created. Pitfalls 1, 2, and 4 are prevented by building the right abstractions before any tool touches them.
 
-### Phase 2: Browse, Search, and Multi-Project
-**Rationale:** With jar reading working, the next highest-value features are browsing and searching. These compose Phase 1 components into the session model and deliver the core value proposition -- Claude can explore Minecraft source on demand. Multi-project support must be built here, not retrofitted.
-**Delivers:** Package browsing, class source reading, name-based search, multi-project named sessions, mod source integration, source type discrimination.
-**Addresses:** Package browsing, class reading, name-based search, multi-project support, auto-discover dependency jars, mod source integration, source type discrimination, intelligent result context.
-**Avoids:** Loom cache path assumptions (verify paths on disk, implement fallback), Gradle parsing edge cases (test with multiple real projects, provide manual override).
+**Delivers:** `StudyJar` interface, `'study'` `JarCategory`, `studyJars: Map<string, StudyJar>` on `LoadedProject`, `CATEGORY_PRIORITY` updated, `loader.ts` initialization, `addProjectJar()`/`removeProjectJar()` on `JarReader` with proper ref-counting, `evictEntryIndex()` on cache, new `src/project/study-jar.ts` domain module with `getCombinedDependencies()`.
 
-### Phase 3: Cascading Regex and Version Comparison
-**Rationale:** The cascading regex engine is a pure function with no external dependencies -- lower risk than JDT LS integration. Combined with multi-project support from Phase 2, this unlocks version comparison, which is the killer feature for the current Yarn-to-unobfuscated ecosystem transition.
-**Delivers:** Cascading regex position identification, version comparison across MC versions, cross-project search.
-**Addresses:** Cascading regex, version comparison, multi-version comparison limitations (document name-based limitation).
-**Avoids:** Multi-project comparison without stable identifiers (use FQN-based comparison, document limitation, consider intermediary names later).
+**Addresses:** Data model for all features. Auto-include flag logic. Facade creation (`studyJarToDependencyEntry()`). `refresh_dependencies` survival (separate map, unaffected by refresh). Name collision detection.
 
-### Phase 4: Semantic Navigation (JDT LS Integration)
-**Rationale:** JDT LS integration is the highest-risk, highest-complexity component. Deferring it to Phase 4 means the entire server is useful and tested before adding this complexity. The cascading regex engine from Phase 3 provides the position resolution that JDT LS needs for go-to-definition.
-**Delivers:** Find definition, find references/usages via cascading regex + JDT LS.
-**Addresses:** Find definition, find references, semantic Java navigation.
-**Avoids:** JDT LS startup latency (lazy initialization, background startup, workspace persistence), decompiled source issues (relaxed error tolerance), monolithic LSP coupling (JDT LS is optional, tools degrade gracefully).
+**Avoids:** Pitfall 4 (ID collision) by designing `study:` namespace prefix into the type from the start. Pitfall 1 (handle leak) by building `removeJarFromProject()` before the remove tool exists. Pitfall 2 (stale cache) by building `evictEntryIndex()` before the remove tool exists.
+
+### Phase 2: Existing Tool Integration
+
+**Rationale:** Before writing new tools, prove that existing tools automatically see study jars when the data model is correct. Replace `getFilteredDependencies()` calls with `getCombinedDependencies()` across tool helpers and direct callers. This validates the facade pattern with no new tool surface and is the most critical integration point to get right.
+
+**Delivers:** `list_packages`, `list_classes`, `search_classes`, `search`, `locate_in_source`, and `get_project_metadata` all correctly include auto-included study jars and exclude non-auto-included ones. `resolveClassSource` respects `'study'` category priority (lowest — never shadows real dependencies). `get_project_metadata` shows study jars as a distinct section.
+
+**Addresses:** Pitfall 13 (study jars invisible to existing tools) — the most likely integration miss. Pitfall 7 (class shadowing) — `'study'` priority 4 ensures study jars never shadow real dependencies in default resolution.
+
+**Avoids:** Building new tools before proving the data flow integration works end-to-end. Shipping tools that appear to work but silently fail for some callers.
+
+### Phase 3: Study Jar Management Tools
+
+**Rationale:** With the data model and tool integration validated, implement the four management tools as thin wiring over Phase 1 domain logic. Each tool follows the established pattern: `resolveProjectSafely` -> domain call -> structured response. Input validation and error messages reuse existing `DomainError` patterns.
+
+**Delivers:** `add_study_jar`, `remove_study_jar`, `list_study_jars`, `set_study_jar_auto_include` MCP tools. Path validation (exists, absolute, valid ZIP, contains .java files). Auto-name from filename stem when no name provided. Collision detection with actionable error messages. Server instructions and tool descriptions updated.
+
+**Addresses:** All table stakes features. Pitfall 6 (path validation gaps) — validate existence, absoluteness, and ZIP validity before registering. Pitfall 10 (name collision) — validate uniqueness against both maps at add time.
+
+**Avoids:** Pitfall 9 (persistence expectations) — document session-scoped behavior explicitly in tool descriptions so users are not surprised.
+
+### Phase 4: JDT LS Workspace Sync
+
+**Rationale:** The hardest integration point deserves its own phase. Study jars are fully usable for browsing, search, and source reading after Phase 3 — Phase 4 adds semantic navigation (`find_definition`, `find_references`, type hierarchy). Incremental extraction + classpath rewrite is strongly preferred over full JDT LS restart (which takes 30-120 seconds — unacceptable per-operation cost).
+
+**Delivers:** `extractStudyJarToWorkspace()`, `removeStudyJarFromWorkspace()`, `rewriteClasspath()` in `workspace.ts`. `UriMapper` reconstruction on add/remove. JDT LS notification on classpath change. Semantic navigation working for study jar classes. Large jar file-count warning (suggest threshold ~10,000 files).
+
+**Addresses:** Pitfall 3 (JDT LS workspace desync). Pitfall 8 (UriMapper stale after add). LSP semantic navigation differentiator.
+
+**Avoids:** Pitfall 3 mitigation (incremental over restart) — do not restart JDT LS on each add/remove; rewrite `.classpath` and notify instead. Anti-Pattern 3 from ARCHITECTURE.md: never kill and restart JDT LS per operation.
 
 ### Phase Ordering Rationale
 
-- **Dependency chain:** Transport -> Jar reading -> Session model -> Browse/Search -> Cascading regex -> JDT LS. Each phase builds on the previous.
-- **Risk ordering:** Low-risk foundational components first (jar reading, Gradle parsing), highest-risk component last (JDT LS). If JDT LS integration proves too difficult, Phases 1-3 still deliver substantial value.
-- **Value delivery:** Each phase is independently useful. Phase 1+2 alone makes the product worth using. Phase 3 adds the killer porting feature. Phase 4 adds semantic intelligence.
-- **Ecosystem timing:** The Yarn-to-unobfuscated transition is happening now. Phases 1-3 should ship as fast as possible to capture the porting use case.
+- Phase 1 before Phase 2: `getCombinedDependencies()` requires `studyJars` field on `LoadedProject` and the facade factory to exist.
+- Phase 2 before Phase 3: Validates the core data flow before exposing it via MCP tools. Prevents shipping tools that appear to work but silently fail for some callers.
+- Phase 3 before Phase 4: JDT LS sync is high-complexity with uncertain behavior (classpath hot-reload needs empirical testing). Study jars must work for browsing/search first — that is the primary value. LSP navigation is additive.
+- Phase 4 is independently deferrable: if JDT LS incremental classpath update proves unreliable, Phase 4 can ship with a "require project reload for LSP navigation" fallback without blocking Phases 1-3.
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 2:** Dependency source jar discovery across diverse Loom versions. The Gradle cache structure (`modules-2/files-2.1/`) for non-Minecraft dependencies needs validation against real projects.
-- **Phase 4:** JDT LS integration is the highest-risk component. Needs a dedicated spike to validate: headless startup, Gradle project import with Fabric Loom plugin, decompiled source tolerance, workspace persistence for fast restarts.
+Phases needing deeper research during planning:
+- **Phase 4:** JDT LS classpath hot-reload behavior is marked MEDIUM confidence. Whether `workspace/didChangeWatchedFiles` (or `workspace/didChangeWorkspaceFolders`) triggers JDT LS re-indexing after `.classpath` rewrite needs empirical validation during implementation — not just spec reading. Design a fallback plan (full project reload) and surface clear failure detection (try `find_definition` on a known study jar class after add).
 
 Phases with standard patterns (skip research-phase):
-- **Phase 1:** MCP SDK stdio server setup, zip file reading, properties file parsing -- all well-documented with official examples.
-- **Phase 3:** Cascading regex is a pure algorithmic component. Version comparison is straightforward given multi-project support.
+- **Phase 1:** Fully informed by codebase analysis. TypeScript data model changes follow established patterns in `src/project/types.ts`. Ref-counting logic extension is mechanical.
+- **Phase 2:** Well-understood call-site substitution. All callers of `getFilteredDependencies()` are identifiable via static analysis.
+- **Phase 3:** New tools follow the exact pattern of existing 21 tools. Input validation reuses established `DomainError` patterns. No novel patterns required.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Official SDK, empirically benchmarked jar reading, well-established libraries. All choices verified against official docs and npm. |
-| Features | HIGH | Feature landscape validated against real ecosystem tools (IntelliJ MinecraftDev, Fabric Loom, mcsrc.dev). Clear gap analysis. Competitive landscape well-mapped. |
-| Architecture | HIGH | Core patterns (stdio MCP, jar reading, session management) are standard. Benchmarks validate the "no index needed" decision. Component boundaries are clean. |
-| Pitfalls | HIGH | Pitfalls verified against real Loom cache structure, MCP protocol spec, and JDT LS documentation. Concrete prevention strategies with phase mappings. |
+| Stack | HIGH | No new dependencies. All assessed against installed package versions and direct codebase analysis. |
+| Features | HIGH | Derived entirely from codebase analysis of actual data flows. IDE patterns (IntelliJ, VS Code) confirm user expectations for study jar behavior. |
+| Architecture | HIGH | All components analyzed directly from source. Integration points are concrete, not speculative. The DependencyEntry facade pattern is well-motivated by the existing tool pipeline. |
+| Pitfalls | HIGH | Every pitfall verified against actual code paths — no theoretical risks. JDT LS classpath hot-reload is the sole MEDIUM-confidence item. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **ts-lsp-client maturity:** Recommended for JDT LS communication at MEDIUM confidence. May need to fall back to a custom lightweight LSP client implementation. Validate during Phase 4 planning.
-- **Loom 2.0 cache structure:** The unobfuscated era (MC >= 26.1) uses a different Loom version with potentially different cache paths. Test against a real Loom 2.0 project during Phase 2.
-- **Dependency source jar completeness:** Not all Maven dependencies publish source jars. Need a strategy for missing sources (graceful "no source available" response, not an error).
-- **JDT LS + decompiled source interaction:** Unknown how well JDT LS handles decompiled source with artifacts. Needs hands-on spike before Phase 4 implementation.
-- **Intermediary names for cross-version comparison:** Name-based comparison works for most cases but fails when Yarn renames things. Intermediary-based comparison is a potential enhancement but not yet researched.
+- **JDT LS classpath hot-reload reliability:** Whether `workspace/didChangeWatchedFiles` triggers re-indexing after `.classpath` rewrite is unverified without running JDT LS. Design the Phase 4 implementation to detect failure (try `find_definition` on a known study jar class) and surface a clear error message recommending project reload as fallback.
+- **`workspace/didChangeWorkspaceFolders` vs. `workspace/didChangeWatchedFiles`:** PITFALLS.md and ARCHITECTURE.md mention different notifications for triggering JDT LS re-indexing. Phase 4 planning should test both empirically and pick the one JDT LS actually responds to.
+- **Study jar file count warning threshold:** PITFALLS.md suggests ~10,000 files as a soft limit for JDT LS memory. This is an estimate — validate against actual JDT LS behavior with large jars during Phase 4 integration testing.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) -- server implementation, tool registration, stdio transport
-- [MCP Protocol Specification (2025-11-25)](https://modelcontextprotocol.io/specification/2025-11-25) -- protocol constraints, pagination, response format
-- [Eclipse JDT LS](https://github.com/eclipse-jdtls/eclipse.jdt.ls) -- headless Java language server, Gradle support
-- [Fabric Loom Documentation](https://docs.fabricmc.net/develop/loom/) -- cache structure, genSources, project layout
-- [Fabric Mappings Wiki](https://wiki.fabricmc.net/tutorial:mappings) -- Yarn/intermediary/Mojang mapping systems
-- [Removing Obfuscation from Fabric](https://fabricmc.net/2025/10/31/obfuscation.html) -- ecosystem transition context
-- [node-stream-zip](https://github.com/antelle/node-stream-zip) -- jar reading library
-- Empirical benchmarks on Minecraft 1.21.11 sources jar (7.8 MB, 6,622 files, 72ms full scan)
+- Codebase analysis: `src/project/jar-reader.ts` — ref-counting in `closeProject`, handle lifecycle, `getHandle` validation
+- Codebase analysis: `src/project/types.ts` — `LoadedProject`, `DependencyEntry`, `JarCategory`, `FilterConfig`
+- Codebase analysis: `src/project/jar-registry.ts` — `getFilteredDependencies`, `matchesFilter`, special-case IDs
+- Codebase analysis: `src/browsing/entry-index-cache.ts` — global Map cache, `getOrBuildIndex`, no eviction API
+- Codebase analysis: `src/browsing/source-adapter.ts` — `createJarAdapter` works for any jar path
+- Codebase analysis: `src/tools/tool-helpers.ts` — `CATEGORY_PRIORITY`, `filterDependenciesByJarPattern`, `resolveClassSource`
+- Codebase analysis: `src/jdtls/workspace.ts` — one-shot `extractSourcesToTemp`, `.classpath` generation
+- Codebase analysis: `src/jdtls/uri-mapper.ts` — immutable `jarIdToDirNameMap` and reverse map in closure
+- Codebase analysis: `src/state/project-store.ts` — `generateProjectName` collision avoidance pattern
+- [node-stream-zip GitHub](https://github.com/antelle/node-stream-zip) — central directory index behavior, `storeEntries` memory semantics (metadata only, not file content)
 
 ### Secondary (MEDIUM confidence)
-- [LSP4J-MCP](https://github.com/stephanj/LSP4J-MCP) -- validates JDT LS + MCP integration pattern
-- [cclsp](https://github.com/ktnyt/cclsp) -- validates Claude Code + LSP via MCP pattern
-- [ts-lsp-client](https://www.npmjs.com/package/ts-lsp-client) -- standalone LSP client for Node.js
-- [IntelliJ MCP Server](https://www.jetbrains.com/help/idea/mcp-server.html) -- competitive landscape
-- [MinecraftDev IntelliJ Plugin](https://github.com/minecraft-dev/MinecraftDev) -- competitive landscape
-
-### Tertiary (LOW confidence)
-- [Zod v4 performance claims](https://www.infoq.com/news/2025/08/zod-v4-available/) -- 14x faster parsing, needs independent verification
-- [JDT LS 25-minute startup issue](https://github.com/redhat-developer/vscode-java/issues/4034) -- worst-case latency scenario, may not apply to headless usage
+- [LSP Specification 3.17 — workspace/didChangeWatchedFiles](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#workspace_didChangeWatchedFiles) — JDT LS workspace mutation notifications
+- [IntelliJ IDEA Libraries Documentation](https://www.jetbrains.com/help/idea/library.html) — IDE pattern for manual source jar attachment
+- [VS Code Java Project Management](https://code.visualstudio.com/docs/java/java-project) — `java.project.referencedLibraries` source attachment pattern
 
 ---
-*Research completed: 2026-04-12*
+*Research completed: 2026-04-13*
 *Ready for roadmap: yes*
