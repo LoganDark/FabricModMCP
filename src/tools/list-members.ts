@@ -3,9 +3,13 @@ import { makeSuccess } from '../types/envelope.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { SYMBOL_KIND_NAME } from '../jdtls/symbol-kind.js';
 import { logger } from '../logging/logger.js';
-import { classNameToEntryPath, handleClassSourceError, resolveProjectSafely, returnError, withLspDocument, resolveClassSource } from './tool-helpers.js';
+import { classNameToEntryPath, handleClassSourceError, resolveProjectSafely, returnError, withLspDocument, resolveClassSource, getDependenciesForTool } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import type { TransformedSymbol } from '../browsing/types.js';
+import { enrichSymbols } from '../browsing/member-enrichment.js';
+import { getOrBuildIndex } from '../browsing/entry-index-cache.js';
+import { createSourceAdapter } from '../browsing/source-adapter.js';
+import { jarReader } from './shared-jar-reader.js';
 
 /**
  * Transform a DocumentSymbol from the LSP response into a structured member.
@@ -124,8 +128,31 @@ export function registerListMembersTool(server: McpServer): void {
 					members = [];
 				}
 
+				// Build resolvePackage that searches all loaded jar indices
+				const allDeps = getDependenciesForTool(loadedProject);
+				const resolvePackage = async (packageName: string): Promise<string[]> => {
+					const classNames = new Set<string>();
+					for (const [id, dep] of allDeps) {
+						if (!dep.available) continue;
+						try {
+							const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
+							const entries = await adapter.listJavaEntries();
+							const cacheKey = dep.sourcesJarPath ?? `fs:${loadedProject.rootPath}:${id}`;
+							const index = getOrBuildIndex(entries, cacheKey);
+							for (const entry of index.getClasses(packageName)) {
+								classNames.add(entry.className);
+							}
+						} catch { /* skip unavailable jars */ }
+					}
+					return [...classNames];
+				};
+
+				// Enrich symbols with FQNs, parameters, return types, field types
+				const classFqn = entryPath.replace(/\.java$/, '').replaceAll('/', '.');
+				const enriched = await enrichSymbols(members, sourceText, classFqn, resolvePackage);
+
 				const envelope = makeSuccess(
-					{ jar: sourceJarId, class: className, members },
+					{ jar: sourceJarId, class: className, members: enriched },
 					{ provenance },
 				);
 

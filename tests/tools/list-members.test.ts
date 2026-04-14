@@ -115,6 +115,7 @@ describe('list_members', () => {
 	});
 
 	test.skipIf(!toolModuleAvailable)('returns tree of members from DocumentSymbol response', async () => {
+		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
 		mockDocumentSymbol.mockResolvedValue([
 			{
 				name: 'MinecraftClient',
@@ -178,6 +179,203 @@ describe('list_members', () => {
 			// Verify didOpen/didClose were called
 			expect(mockDidOpen).toHaveBeenCalledOnce();
 			expect(mockDidClose).toHaveBeenCalledOnce();
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
+
+	test.skipIf(!toolModuleAvailable)('enriched method members have memberFqn, parameters, returnType', async () => {
+		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
+		mockDocumentSymbol.mockResolvedValue([
+			{
+				name: 'MinecraftClient',
+				kind: 5, // class
+				detail: '',
+				range: { start: { line: 2, character: 0 }, end: { line: 12, character: 1 } },
+				selectionRange: { start: { line: 2, character: 13 }, end: { line: 2, character: 28 } },
+				children: [
+					{
+						name: 'run()',
+						kind: 6, // method
+						detail: 'void',
+						range: { start: { line: 5, character: 1 }, end: { line: 7, character: 2 } },
+						selectionRange: { start: { line: 5, character: 13 }, end: { line: 5, character: 16 } },
+					},
+				],
+			},
+		]);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'list_members',
+				arguments: {
+					project: 'test',
+					jar: 'minecraft',
+					class: 'net.minecraft.client.MinecraftClient',
+				},
+			});
+
+			const envelope = parseEnvelope(result);
+			expect(envelope.success).toBe(true);
+
+			const cls = envelope.data.members[0];
+			const method = cls.children[0];
+			expect(method.name).toBe('run()');
+			expect(method.memberFqn).toBe('net.minecraft.client.MinecraftClient#run()');
+			expect(method.parameters).toEqual([]);
+			expect(method.returnType).toEqual({ kind: 'void' });
+			// detail string still present for backward compat
+			expect(method.detail).toBe('void');
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
+
+	test.skipIf(!toolModuleAvailable)('enriched field members have memberFqn and fieldType', async () => {
+		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
+		mockDocumentSymbol.mockResolvedValue([
+			{
+				name: 'MinecraftClient',
+				kind: 5, // class
+				detail: '',
+				range: { start: { line: 2, character: 0 }, end: { line: 12, character: 1 } },
+				selectionRange: { start: { line: 2, character: 13 }, end: { line: 2, character: 28 } },
+				children: [
+					{
+						name: 'running',
+						kind: 8, // field
+						detail: 'boolean',
+						range: { start: { line: 3, character: 1 }, end: { line: 3, character: 25 } },
+						selectionRange: { start: { line: 3, character: 17 }, end: { line: 3, character: 24 } },
+					},
+				],
+			},
+		]);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'list_members',
+				arguments: {
+					project: 'test',
+					jar: 'minecraft',
+					class: 'net.minecraft.client.MinecraftClient',
+				},
+			});
+
+			const envelope = parseEnvelope(result);
+			expect(envelope.success).toBe(true);
+
+			const cls = envelope.data.members[0];
+			const field = cls.children[0];
+			expect(field.name).toBe('running');
+			expect(field.memberFqn).toBe('net.minecraft.client.MinecraftClient#running:');
+			expect(field.fieldType).toEqual({ kind: 'primitive', name: 'boolean' });
+			// detail string still present
+			expect(field.detail).toBe('boolean');
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
+
+	test.skipIf(!toolModuleAvailable)('enriched class container has no memberFqn, children are enriched', async () => {
+		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
+		mockDocumentSymbol.mockResolvedValue([
+			{
+				name: 'MinecraftClient',
+				kind: 5, // class
+				detail: '',
+				range: { start: { line: 2, character: 0 }, end: { line: 12, character: 1 } },
+				selectionRange: { start: { line: 2, character: 13 }, end: { line: 2, character: 28 } },
+				children: [
+					{
+						name: 'run()',
+						kind: 6, // method
+						detail: 'void',
+						range: { start: { line: 5, character: 1 }, end: { line: 7, character: 2 } },
+						selectionRange: { start: { line: 5, character: 13 }, end: { line: 5, character: 16 } },
+					},
+				],
+			},
+		]);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'list_members',
+				arguments: {
+					project: 'test',
+					jar: 'minecraft',
+					class: 'net.minecraft.client.MinecraftClient',
+				},
+			});
+
+			const envelope = parseEnvelope(result);
+			const cls = envelope.data.members[0];
+			// Class containers do NOT have memberFqn
+			expect(cls.memberFqn).toBeUndefined();
+			// But children are enriched
+			expect(cls.children[0].memberFqn).toBe('net.minecraft.client.MinecraftClient#run()');
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
+
+	test.skipIf(!toolModuleAvailable)('enriched constructor has memberFqn with class simple name and ()', async () => {
+		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
+		mockDocumentSymbol.mockResolvedValue([
+			{
+				name: 'MinecraftClient',
+				kind: 5, // class
+				detail: '',
+				range: { start: { line: 2, character: 0 }, end: { line: 12, character: 1 } },
+				selectionRange: { start: { line: 2, character: 13 }, end: { line: 2, character: 28 } },
+				children: [
+					{
+						name: 'MinecraftClient()',
+						kind: 9, // constructor
+						detail: null,
+						range: { start: { line: 4, character: 1 }, end: { line: 6, character: 2 } },
+						selectionRange: { start: { line: 4, character: 8 }, end: { line: 4, character: 23 } },
+					},
+				],
+			},
+		]);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'list_members',
+				arguments: {
+					project: 'test',
+					jar: 'minecraft',
+					class: 'net.minecraft.client.MinecraftClient',
+				},
+			});
+
+			const envelope = parseEnvelope(result);
+			const cls = envelope.data.members[0];
+			const ctor = cls.children[0];
+			expect(ctor.memberFqn).toBe('net.minecraft.client.MinecraftClient#MinecraftClient()');
+			expect(ctor.parameters).toEqual([]);
+			expect(ctor.returnType).toBeNull();
 		} finally {
 			await pair.cleanup();
 			projectStore.clear();

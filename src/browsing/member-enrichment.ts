@@ -5,6 +5,8 @@ import { extractImports, createTypeResolver } from './import-resolver.js';
 import { buildMemberFqn } from './member-fqn.js';
 
 const CLASS_KINDS = new Set(['class', 'interface', 'enum']);
+const METHOD_KINDS = new Set(['method', 'constructor']);
+const FIELD_KINDS = new Set(['field', 'constant', 'enumMember']);
 
 export async function enrichSymbols(
 	symbols: TransformedSymbol[],
@@ -36,23 +38,24 @@ async function enrichOne(
 	// Parse the detail string into a structured MemberReference
 	const parsed = await parseDetail(sym.detail, sym.kind, resolveType);
 
-	if (parsed?.kind === 'method') {
-		const memberFqn = buildMemberFqn(classFqn, sym.name, sym.kind);
+	// Determine member FQN based on symbol kind (not just parsed result)
+	const memberFqn = buildMemberFqn(classFqn, sym.name, sym.kind);
+
+	if (parsed?.kind === 'method' || (memberFqn !== null && METHOD_KINDS.has(sym.kind))) {
 		return {
 			...sym,
 			memberFqn: memberFqn!,
-			parameters: parsed.parameters,
-			returnType: parsed.returnType,
+			parameters: parsed?.kind === 'method' ? parsed.parameters : [],
+			returnType: parsed?.kind === 'method' ? parsed.returnType : null,
 			children: enrichedChildren,
 		} as EnrichedMethodSymbol;
 	}
 
-	if (parsed?.kind === 'field') {
-		const memberFqn = buildMemberFqn(classFqn, sym.name, sym.kind);
+	if (parsed?.kind === 'field' || (memberFqn !== null && FIELD_KINDS.has(sym.kind))) {
 		return {
 			...sym,
 			memberFqn: memberFqn!,
-			fieldType: parsed.fieldType,
+			fieldType: parsed?.kind === 'field' ? parsed.fieldType : { kind: 'unresolved', rawType: sym.detail ?? 'unknown' } as TypeReference,
 			children: enrichedChildren,
 		} as EnrichedFieldSymbol;
 	}
