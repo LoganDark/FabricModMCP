@@ -1,5 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
+import { applyPagination } from './pagination.js';
 import { resolveSymbolPosition } from './resolve-symbol-position.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { logger } from '../logging/logger.js';
@@ -17,9 +18,11 @@ export function registerFindImplementationsTool(server: McpServer): void {
 				jar: PARAMS.jar,
 				class: PARAMS.class,
 				patterns: PARAMS.patterns,
+				limit: PARAMS.limit,
+				offset: PARAMS.offset,
 			},
 		},
-		async ({ project, jar, class: className, patterns }) => {
+		async ({ project, jar, class: className, patterns, limit, offset }) => {
 			logger.debug('find_implementations called', { project, jar, class: className, patterns });
 
 			const resolved = resolveProjectSafely(project);
@@ -65,12 +68,13 @@ export function registerFindImplementationsTool(server: McpServer): void {
 
 				// Process implementation results
 				const locations = normalizeLocations(implResult);
-				const results = await processNavigationLocations(locations, loadedProject, uriMapper);
+				const allResults = await processNavigationLocations(locations, loadedProject, uriMapper);
+				const paginated = applyPagination(allResults, { limit, offset });
 
-				const uniqueFiles = new Set(results.map(r => r.className)).size;
+				const uniqueFiles = new Set(paginated.results.map(r => r.className)).size;
 				const envelope = makeSuccess(
 					{
-						results,
+						...paginated,
 						sourcePosition: {
 							jar: sourceJarId,
 							class: className,
@@ -82,10 +86,12 @@ export function registerFindImplementationsTool(server: McpServer): void {
 				);
 
 				let summary: string;
-				if (results.length === 0) {
+				if (paginated.total === 0) {
 					summary = `No implementations found for symbol at line ${cascadeResult.line}, col ${cascadeResult.column}`;
+				} else if (paginated.results.length === paginated.total) {
+					summary = `Found ${paginated.total} implementation${paginated.total === 1 ? '' : 's'} across ${uniqueFiles} file${uniqueFiles === 1 ? '' : 's'}`;
 				} else {
-					summary = `Found ${results.length} implementation${results.length === 1 ? '' : 's'} across ${uniqueFiles} file${uniqueFiles === 1 ? '' : 's'}`;
+					summary = `Found ${paginated.total} implementation${paginated.total === 1 ? '' : 's'} across ${uniqueFiles} file${uniqueFiles === 1 ? '' : 's'} (showing ${paginated.results.length} from offset ${paginated.offset})`;
 				}
 
 				return {

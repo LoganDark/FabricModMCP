@@ -1,5 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
+import { applyPagination } from './pagination.js';
 import { resolveSymbolPosition } from './resolve-symbol-position.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { logger } from '../logging/logger.js';
@@ -17,9 +18,11 @@ export function registerFindDefinitionTool(server: McpServer): void {
 				jar: PARAMS.jar,
 				class: PARAMS.class,
 				patterns: PARAMS.patterns,
+				limit: PARAMS.limit,
+				offset: PARAMS.offset,
 			},
 		},
-		async ({ project, jar, class: className, patterns }) => {
+		async ({ project, jar, class: className, patterns, limit, offset }) => {
 			logger.debug('find_definition called', { project, jar, class: className, patterns });
 
 			const resolved = resolveProjectSafely(project);
@@ -64,11 +67,12 @@ export function registerFindDefinitionTool(server: McpServer): void {
 
 				// Process definition results
 				const locations = normalizeLocations(defResult);
-				const results = await processNavigationLocations(locations, loadedProject, uriMapper);
+				const allResults = await processNavigationLocations(locations, loadedProject, uriMapper);
+				const paginated = applyPagination(allResults, { limit, offset });
 
 				const envelope = makeSuccess(
 					{
-						results,
+						...paginated,
 						sourcePosition: {
 							jar: sourceJarId,
 							class: className,
@@ -80,13 +84,15 @@ export function registerFindDefinitionTool(server: McpServer): void {
 				);
 
 				let summary: string;
-				if (results.length === 0) {
+				if (paginated.total === 0) {
 					summary = `No definition found (cascading regex matched at line ${cascadeResult.line}, col ${cascadeResult.column})`;
-				} else if (results.length === 1) {
-					const r = results[0];
+				} else if (paginated.results.length === 1 && paginated.total === 1) {
+					const r = paginated.results[0];
 					summary = `Found definition in ${r.className} (${r.jar}) at line ${r.line}`;
+				} else if (paginated.results.length === paginated.total) {
+					summary = `Found ${paginated.total} definitions (${paginated.results.map(r => r.className).join(', ')})`;
 				} else {
-					summary = `Found ${results.length} definitions (${results.map(r => r.className).join(', ')})`;
+					summary = `Found ${paginated.total} definition${paginated.total === 1 ? '' : 's'} (showing ${paginated.results.length} from offset ${paginated.offset})`;
 				}
 
 				return {
