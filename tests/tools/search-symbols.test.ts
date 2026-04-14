@@ -245,6 +245,186 @@ describe('search_symbols', () => {
 		}
 	});
 
+	test.skipIf(!toolModuleAvailable)('method results include memberFqn with # separator', async () => {
+		mockEndpointSend.mockResolvedValue(SAMPLE_SYMBOLS);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'search_symbols',
+				arguments: {
+					project: 'test',
+					query: 'MinecraftClient',
+				},
+			});
+
+			const envelope = parseEnvelope(result);
+			expect(envelope.success).toBe(true);
+
+			// Method result: has memberFqn
+			const method = envelope.data.results.find((r: any) => r.name === 'run');
+			expect(method.memberFqn).toBe('MinecraftClient#run()');
+
+			// Constant result: has memberFqn with colon
+			const constant = envelope.data.results.find((r: any) => r.name === 'INSTANCE');
+			expect(constant.memberFqn).toBe('MinecraftClient#INSTANCE:');
+
+			// Class result: memberFqn is null
+			const cls = envelope.data.results.find((r: any) => r.name === 'MinecraftClient');
+			expect(cls.memberFqn).toBeNull();
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
+
+	test.skipIf(!toolModuleAvailable)('memberFqn is null when containerName is missing', async () => {
+		mockEndpointSend.mockResolvedValue([
+			{
+				name: 'SomeClass',
+				kind: 5, // class
+				tags: [],
+				location: {
+					uri: 'file:///tmp/test-jdtls/minecraft/some/SomeClass.java',
+					range: { start: { line: 0, character: 0 }, end: { line: 0, character: 10 } },
+				},
+				// no containerName
+			},
+		]);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'search_symbols',
+				arguments: {
+					project: 'test',
+					query: 'SomeClass',
+				},
+			});
+
+			const envelope = parseEnvelope(result);
+			expect(envelope.success).toBe(true);
+			expect(envelope.data.results[0].memberFqn).toBeNull();
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
+
+	test.skipIf(!toolModuleAvailable)('constructor results get memberFqn with class name and ()', async () => {
+		mockEndpointSend.mockResolvedValue([
+			{
+				name: 'MinecraftClient()',
+				kind: 9, // constructor
+				tags: [],
+				location: {
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
+					range: { start: { line: 4, character: 8 }, end: { line: 4, character: 23 } },
+				},
+				containerName: 'net.minecraft.client.MinecraftClient',
+			},
+		]);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'search_symbols',
+				arguments: {
+					project: 'test',
+					query: 'MinecraftClient',
+				},
+			});
+
+			const envelope = parseEnvelope(result);
+			expect(envelope.success).toBe(true);
+			expect(envelope.data.results[0].memberFqn).toBe('net.minecraft.client.MinecraftClient#MinecraftClient()');
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
+
+	test.skipIf(!toolModuleAvailable)('interface results have null memberFqn', async () => {
+		mockEndpointSend.mockResolvedValue([
+			{
+				name: 'Tickable',
+				kind: 11, // interface
+				tags: [],
+				location: {
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/util/Tickable.java',
+					range: { start: { line: 0, character: 0 }, end: { line: 0, character: 10 } },
+				},
+				containerName: 'net.minecraft.util',
+			},
+		]);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'search_symbols',
+				arguments: {
+					project: 'test',
+					query: 'Tickable',
+				},
+			});
+
+			const envelope = parseEnvelope(result);
+			expect(envelope.success).toBe(true);
+			expect(envelope.data.results[0].memberFqn).toBeNull();
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
+
+	test.skipIf(!toolModuleAvailable)('field results have memberFqn with colon suffix', async () => {
+		mockEndpointSend.mockResolvedValue([
+			{
+				name: 'width',
+				kind: 8, // field
+				tags: [],
+				location: {
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
+					range: { start: { line: 10, character: 5 }, end: { line: 10, character: 10 } },
+				},
+				containerName: 'net.minecraft.client.MinecraftClient',
+			},
+		]);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'search_symbols',
+				arguments: {
+					project: 'test',
+					query: 'width',
+				},
+			});
+
+			const envelope = parseEnvelope(result);
+			expect(envelope.success).toBe(true);
+			expect(envelope.data.results[0].memberFqn).toBe('net.minecraft.client.MinecraftClient#width:');
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
+
 	test.skipIf(!toolModuleAvailable)('returns empty results for no matches', async () => {
 		mockEndpointSend.mockResolvedValue([]);
 

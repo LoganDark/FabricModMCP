@@ -6,6 +6,7 @@ import { SYMBOL_KIND_NAME } from '../jdtls/symbol-kind.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely, returnError } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
+import { buildMemberFqn } from '../browsing/member-fqn.js';
 
 const KIND_NAME_TO_NUMBER: Record<string, number> = {
 	'class': 5,
@@ -92,11 +93,16 @@ export function registerSearchSymbolsTool(server: McpServer): void {
 			const uriMapper = createUriMapper(jdtls.tempDir, jdtls.jarIdToDirName);
 
 			const transformed = page.map((sym: any) => {
+				const kindName = SYMBOL_KIND_NAME[sym.kind] ?? `unknown(${sym.kind})`;
+				const memberFqn = sym.containerName
+					? buildMemberFqn(sym.containerName, sym.name, kindName)
+					: null;
 				const mapping = uriMapper.fromFileUri(sym.location.uri);
 				return {
 					name: sym.name,
-					kind: SYMBOL_KIND_NAME[sym.kind] ?? `unknown(${sym.kind})`,
+					kind: kindName,
 					containerName: sym.containerName ?? null,
+					memberFqn,
 					deprecated: sym.tags?.includes(1) ?? false,
 					location: {
 						uri: sym.location.uri,
