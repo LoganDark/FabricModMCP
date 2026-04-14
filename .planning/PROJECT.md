@@ -27,7 +27,24 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 
 ### Active
 
-(None — next milestone requirements TBD)
+#### Study Jar Management
+- [ ] Add named source jars to loaded projects for study purposes
+- [ ] Remove study jars from projects
+- [ ] List study jars with auto-include status
+- [ ] Toggle auto-include flag per study jar
+
+#### Tool Integration
+- [ ] Study jars selectable via existing `jars` parameter
+- [ ] Auto-include study jars appear in default jar set
+
+## Current Milestone: v1.1 Study Jars
+
+**Goal:** Enable adding arbitrary source jars to projects for study, with opt-in inclusion in default tool resolution.
+
+**Target features:**
+- Add/remove/list named study jars on loaded projects
+- Auto-include flag controlling default jar set membership
+- Full integration with existing jar-aware tools
 
 ### Out of Scope
 
@@ -85,4 +102,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-13 after v1.0 milestone completion*
+*Last updated: 2026-04-13 after v1.1 milestone start*
