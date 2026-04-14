@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Study Jars
 status: unknown
-last_updated: "2026-04-14T07:01:21.463Z"
+last_updated: "2026-04-14T07:03:36.947Z"
 last_activity: 2026-04-14
 progress:
   total_phases: 4
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-04-13)
 
 ## Current Position
 
-Phase: 13 (study-jar-management-tools) — EXECUTING
-Plan: 2 of 2
+Phase: 14
+Plan: Not started
 
 ## Performance Metrics
 
