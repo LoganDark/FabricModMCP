@@ -9,7 +9,7 @@ Requirements for v1.3 Context Management milestone. Each maps to roadmap phases.
 
 ### Source Reading
 
-- [ ] **READ-01**: read_source accepts optional startLine and lineCount to return a line range instead of full source
+- [x] **READ-01**: read_source accepts optional startLine and lineCount to return a line range instead of full source
 - [ ] **READ-02**: read_source with line range requires a specific jar parameter; returns error with jar list when multiple jars match
 - [ ] **READ-03**: read_member accepts optional linesBefore and linesAfter to include surrounding context around the member
 - [ ] **READ-04**: Line-range and context-lines output includes metadata (total lines in file, returned range) so agent knows what it's seeing
@@ -51,7 +51,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| READ-01 | Phase 19 | Pending |
+| READ-01 | Phase 19 | Complete |
 | READ-02 | Phase 19 | Pending |
 | READ-03 | Phase 20 | Pending |
 | READ-04 | Phase 19 | Pending |
