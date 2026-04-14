@@ -8,6 +8,7 @@ import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { SYMBOL_KIND_NAME } from '../jdtls/symbol-kind.js';
 import { logger } from '../logging/logger.js';
+import type { ClassReference } from '../browsing/types.js';
 import type { JarCategory, DependencyEntry } from '../project/types.js';
 
 // Priority order for jar categories when searching all jars
@@ -27,44 +28,14 @@ function sortByPriority(entries: [string, DependencyEntry][]): [string, Dependen
 	});
 }
 
-interface HierarchyEntry {
-	name: string;
-	qualifiedName: string;
-	kind: string;
-	jar: string | null;
-	provenance: string;
-}
+function toClassReference(item: any): ClassReference {
+	const fqn = item.detail ? `${item.detail}.${item.name}` : item.name;
+	const kind = SYMBOL_KIND_NAME[item.kind]?.toLowerCase() ?? 'unknown';
 
-function toHierarchyEntry(
-	item: any,
-	loadedProject: any,
-	uriMapper: ReturnType<typeof createUriMapper>,
-): HierarchyEntry {
-	const qualifiedName = item.detail ? `${item.detail}.${item.name}` : item.name;
-	const kind = SYMBOL_KIND_NAME[item.kind] ?? 'unknown';
-
-	// Check URI scheme: file:// -> look up jar, anything else (jdt://) -> java provenance
-	if (typeof item.uri === 'string' && item.uri.startsWith('file://')) {
-		const mapping = uriMapper.fromFileUri(item.uri);
-		if (mapping) {
-			const dep = loadedProject.dependencyJars.get(mapping.jar);
-			return {
-				name: item.name,
-				qualifiedName,
-				kind,
-				jar: mapping.jar,
-				provenance: dep?.category ?? 'library',
-			};
-		}
-	}
-
-	// JDK type or unmapped URI
 	return {
 		name: item.name,
-		qualifiedName,
+		fqn,
 		kind,
-		jar: null,
-		provenance: 'java',
 	};
 }
 
@@ -279,14 +250,14 @@ export function registerTypeHierarchyTool(server: McpServer): void {
 				const item = items[0];
 
 				// Step 2: Walk supertypes to root
-				const extendsChain: HierarchyEntry[] = [];
-				const implementsList: HierarchyEntry[] = [];
+				const extendsChain: ClassReference[] = [];
+				const implementsList: ClassReference[] = [];
 				let current = item;
 				while (true) {
 					const supers = await endpoint.send('typeHierarchy/supertypes', { item: current });
 					if (!supers || supers.length === 0) break;
 					for (const s of supers) {
-						const entry = toHierarchyEntry(s, loadedProject, uriMapper);
+						const entry = toClassReference(s);
 						// SymbolKind 11 = Interface
 						if (s.kind === 11) {
 							implementsList.push(entry);
@@ -302,7 +273,7 @@ export function registerTypeHierarchyTool(server: McpServer): void {
 
 				// Step 3: Walk subtypes (BFS to depth)
 				const subtypeDepth = depth ?? 1;
-				const subtypes: HierarchyEntry[] = [];
+				const subtypes: ClassReference[] = [];
 				let frontier = [item];
 				for (let d = 0; d < subtypeDepth && frontier.length > 0; d++) {
 					const next: any[] = [];
@@ -310,7 +281,7 @@ export function registerTypeHierarchyTool(server: McpServer): void {
 						const subs = await endpoint.send('typeHierarchy/subtypes', { item: f });
 						if (subs && subs.length > 0) {
 							for (const s of subs) {
-								subtypes.push(toHierarchyEntry(s, loadedProject, uriMapper));
+								subtypes.push(toClassReference(s));
 								next.push(s);
 							}
 						}

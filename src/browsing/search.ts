@@ -3,6 +3,7 @@ import { EntryIndex } from './entry-index.js';
 import { parseClassDeclaration } from './class-parser.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
 import { createSourceAdapter } from './source-adapter.js';
+import type { ClassInfo } from './types.js';
 import type { JarCategory, DependencyEntry, FilterConfig } from '../project/types.js';
 import type { JarReader } from '../project/jar-reader.js';
 
@@ -13,15 +14,8 @@ const CATEGORY_PRIORITY: Record<JarCategory, number> = {
 	'library': 3,
 };
 
-export interface SearchClassResult {
-	fqn: string;
-	type: string;
-	access: string;
-	jars: Array<{ id: string; category: JarCategory }>;
-}
-
 export interface SearchResponse {
-	results: SearchClassResult[];
+	results: ClassInfo[];
 	offset: number;
 	limit: number;
 	total: number;
@@ -93,8 +87,9 @@ export async function searchClasses(
 	// Step 5-6: Enumerate classes from each jar, match against pattern, deduplicate
 	const resultMap = new Map<string, {
 		fqn: string;
-		type: string | null;
+		kind: string | null;
 		access: string | null;
+		modifiers: string[];
 		jars: Array<{ id: string; category: JarCategory }>;
 		firstJarId: string;
 	}>();
@@ -123,8 +118,9 @@ export async function searchClasses(
 				} else {
 					resultMap.set(cls.fqn, {
 						fqn: cls.fqn,
-						type: null,
+						kind: null,
 						access: null,
+						modifiers: [],
 						jars: [{ id, category: dep.category }],
 						firstJarId: id,
 					});
@@ -135,7 +131,7 @@ export async function searchClasses(
 		}
 	}
 
-	// Step 7: Read class declarations for all matched classes to populate type/access
+	// Step 7: Read class declarations for all matched classes to populate kind/access
 	// and apply kind filtering
 	const toDelete: string[] = [];
 
@@ -162,24 +158,25 @@ export async function searchClasses(
 				const parsed = parseClassDeclaration(head);
 
 				if (parsed) {
-					entry.type = parsed.type;
+					entry.kind = parsed.kind;
 					entry.access = parsed.access;
+					entry.modifiers = parsed.modifiers;
 				} else {
-					entry.type = 'unknown';
+					entry.kind = 'unknown';
 					entry.access = 'unknown';
 				}
 			} catch {
-				entry.type = 'unknown';
+				entry.kind = 'unknown';
 				entry.access = 'unknown';
 			}
 		} else {
-			entry.type = 'unknown';
+			entry.kind = 'unknown';
 			entry.access = 'unknown';
 		}
 
 		// Apply kind filter
 		if (options.kind && options.kind.length > 0) {
-			if (!options.kind.includes(entry.type!)) {
+			if (!options.kind.includes(entry.kind!)) {
 				toDelete.push(fqn);
 			}
 		}
@@ -203,12 +200,18 @@ export async function searchClasses(
 
 	// Step 10: Return
 	return {
-		results: sliced.map(r => ({
-			fqn: r.fqn,
-			type: r.type ?? 'unknown',
-			access: r.access ?? 'unknown',
-			jars: r.jars,
-		})),
+		results: sliced.map(r => {
+			const lastDot = r.fqn.lastIndexOf('.');
+			const name = lastDot === -1 ? r.fqn : r.fqn.substring(lastDot + 1);
+			return {
+				name,
+				fqn: r.fqn,
+				kind: r.kind ?? 'unknown',
+				access: r.access ?? 'unknown',
+				modifiers: r.modifiers,
+				jars: r.jars,
+			};
+		}),
 		offset,
 		limit,
 		total,

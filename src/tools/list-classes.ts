@@ -10,7 +10,7 @@ import { EntryIndex } from '../browsing/entry-index.js';
 import { parseClassDeclaration } from '../browsing/class-parser.js';
 import { logger } from '../logging/logger.js';
 import type { SourceAdapter } from '../browsing/source-adapter.js';
-import type { ClassEntry, ClassMetadata, InnerClassEntry } from '../browsing/types.js';
+import type { ClassInfo, InnerClassInfo } from '../browsing/types.js';
 
 // Reuse the entry index cache from list-packages
 import { clearEntryIndexCache } from './list-packages.js';
@@ -31,7 +31,7 @@ async function readClassMetadata(
 	adapter: SourceAdapter,
 	packageName: string,
 	className: string,
-): Promise<ClassMetadata | null> {
+): Promise<{ kind: string; access: string; modifiers: string[] } | null> {
 	const entryPath = packageName
 		? `${packageName.replaceAll('.', '/')}/${className}.java`
 		: `${className}.java`;
@@ -42,7 +42,7 @@ async function readClassMetadata(
 		const head = buffer.subarray(0, 4096).toString('utf-8');
 		const parsed = parseClassDeclaration(head);
 		if (!parsed) return null;
-		return { access: parsed.access, modifiers: parsed.modifiers, type: parsed.type };
+		return { access: parsed.access, modifiers: parsed.modifiers, kind: parsed.kind };
 	} catch {
 		return null;
 	}
@@ -95,7 +95,7 @@ export function registerListClassesTool(server: McpServer): void {
 			}
 
 			// Build merged class listings across all matching jars
-			const mergedClasses = new Map<string, ClassEntry>();
+			const mergedClasses = new Map<string, ClassInfo>();
 
 			for (const [id, dep] of filtered) {
 				if (!dep.available) continue;
@@ -123,24 +123,29 @@ export function registerListClassesTool(server: McpServer): void {
 							const metadata = await readClassMetadata(adapter, pkgName, classInfo.className);
 
 							// Build inner class entries
-							const innerClasses: InnerClassEntry[] = [];
+							const innerClasses: InnerClassInfo[] = [];
 							for (const innerClassName of classInfo.innerClassNames) {
 								const innerMetadata = await readClassMetadata(adapter, pkgName, innerClassName);
 								innerClasses.push({
 									name: innerClassName,
 									fqn: pkgName ? `${pkgName}.${innerClassName}` : innerClassName,
-									metadata: innerMetadata,
+									kind: innerMetadata?.kind ?? 'unknown',
+									access: innerMetadata?.access ?? 'unknown',
+									modifiers: innerMetadata?.modifiers ?? [],
 								});
 							}
 
 							const existing = mergedClasses.get(fqn);
 							if (existing) {
-								if (!existing.jars.includes(id)) {
-									existing.jars.push(id);
+								if (!existing.jars.some(j => j.id === id)) {
+									existing.jars.push({ id, category: dep.category });
 								}
 								// Merge inner classes
 								for (const ic of innerClasses) {
-									if (!existing.innerClasses.some(e => e.fqn === ic.fqn)) {
+									if (!existing.innerClasses?.some(e => e.fqn === ic.fqn)) {
+										if (!existing.innerClasses) {
+											existing.innerClasses = [];
+										}
 										existing.innerClasses.push(ic);
 									}
 								}
@@ -148,9 +153,11 @@ export function registerListClassesTool(server: McpServer): void {
 								mergedClasses.set(fqn, {
 									name: classInfo.className,
 									fqn,
-									metadata,
-									jars: [id],
-									innerClasses,
+									kind: metadata?.kind ?? 'unknown',
+									access: metadata?.access ?? 'unknown',
+									modifiers: metadata?.modifiers ?? [],
+									jars: [{ id, category: dep.category }],
+									innerClasses: innerClasses.length > 0 ? innerClasses : undefined,
 								});
 							}
 						}
