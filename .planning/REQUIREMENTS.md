@@ -1,0 +1,72 @@
+# Requirements: MinecraftDevMCP
+
+**Defined:** 2026-04-13
+**Core Value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
+
+## v1.1 Requirements
+
+Requirements for v1.1 Study Jars milestone. Each maps to roadmap phases.
+
+### Study Jar Management
+
+- [ ] **STUDY-01**: User can add a named source jar to a loaded project by file path
+- [ ] **STUDY-02**: User can remove a study jar from a project by name
+- [ ] **STUDY-03**: User can list all study jars on a project with their auto-include status
+- [ ] **STUDY-04**: User can set a study jar's auto-include flag (default: off)
+
+### Tool Integration
+
+- [ ] **INTG-01**: Study jars are selectable via existing `jars` parameter on all jar-aware tools
+- [ ] **INTG-02**: Study jars with auto-include=true are included in the default jar set when `jars` is omitted
+
+### Infrastructure
+
+- [ ] **INFRA-01**: JarReader supports granular add/remove of individual jar handles per project
+- [ ] **INFRA-02**: EntryIndex cache supports single-entry eviction when a study jar is removed
+
+### Semantic Navigation
+
+- [ ] **LSP-01**: Study jars are extracted to JDT LS workspace and included in classpath
+- [ ] **LSP-02**: JDT LS workspace updates incrementally when study jars are added or removed
+
+## Future Requirements
+
+### Study Jar Enhancements
+
+- **STUDY-05**: User can add class-only jars with automatic decompilation
+- **STUDY-06**: User can bulk-add jars matching a glob pattern
+- **STUDY-07**: Study jar names auto-derived from jar metadata when not specified
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Auto-decompilation of class-only jars | Future capability, v1.1 is source jars only |
+| Bulk glob add (add all jars matching pattern) | Polish, defer to future |
+| Auto-name from jar metadata | Polish, defer to future |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| STUDY-01 | — | Pending |
+| STUDY-02 | — | Pending |
+| STUDY-03 | — | Pending |
+| STUDY-04 | — | Pending |
+| INTG-01 | — | Pending |
+| INTG-02 | — | Pending |
+| INFRA-01 | — | Pending |
+| INFRA-02 | — | Pending |
+| LSP-01 | — | Pending |
+| LSP-02 | — | Pending |
+
+**Coverage:**
+- v1.1 requirements: 10 total
+- Mapped to phases: 0
+- Unmapped: 10 ⚠️
+
+---
+*Requirements defined: 2026-04-13*
+*Last updated: 2026-04-13 after initial definition*
