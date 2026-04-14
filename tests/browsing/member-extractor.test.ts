@@ -220,6 +220,9 @@ public int count;`;
 		expect(results[0].source).toContain('this.doStuff()');
 		expect(results[0].startLine).toBe(3);
 		expect(results[0].endLine).toBe(8);
+		// Backward compat: memberStartLine===startLine when no context expansion
+		expect(results[0].memberStartLine).toBe(3);
+		expect(results[0].memberEndLine).toBe(8);
 	});
 
 	it('extracts a field without Javadoc', () => {
@@ -336,5 +339,195 @@ public class MinecraftClient {
 
 		const results = extractMemberSource('public void tick() {\n}\n', symbols, 'test.Foo#nonexistent()');
 		expect(results).toHaveLength(0);
+	});
+
+	// ─── Context expansion tests ────────────────────────────────────────────
+
+	// Source for context expansion tests (12 lines, 1-based):
+	// 1: package test;
+	// 2: (blank)
+	// 3: import java.util.List;
+	// 4: (blank)
+	// 5: /**
+	// 6:  * My method.
+	// 7:  */
+	// 8: public void doStuff() {
+	// 9:     int x = 1;
+	// 10: }
+	// 11: (blank)
+	// 12: public int count;
+
+	const contextSource = [
+		'package test;',
+		'',
+		'import java.util.List;',
+		'',
+		'/**',
+		' * My method.',
+		' */',
+		'public void doStuff() {',
+		'    int x = 1;',
+		'}',
+		'',
+		'public int count;',
+	].join('\n');
+
+	// Method at lines 8-10 (1-based), Javadoc starts at line 5
+	// So decorationStart=4 (0-based), rangeEndIdx=10 (0-based exclusive)
+	// Without context: startLine=5, endLine=10, memberStartLine=5, memberEndLine=10
+	const contextMethodSymbol = makeMethodSymbol({
+		name: 'doStuff()',
+		memberFqn: 'test.Foo#doStuff()',
+		range: {
+			start: { line: 8, character: 0 },
+			end: { line: 10, character: 1 },
+		},
+	});
+
+	it('without linesBefore/linesAfter returns memberStartLine===startLine and memberEndLine===endLine', () => {
+		const results = extractMemberSource(contextSource, [contextMethodSymbol], 'test.Foo#doStuff()');
+		expect(results).toHaveLength(1);
+		expect(results[0].memberStartLine).toBe(results[0].startLine);
+		expect(results[0].memberEndLine).toBe(results[0].endLine);
+		expect(results[0].startLine).toBe(5);
+		expect(results[0].endLine).toBe(10);
+	});
+
+	it('with linesBefore=2 expands source 2 lines above the member decoration start', () => {
+		const results = extractMemberSource(contextSource, [contextMethodSymbol], 'test.Foo#doStuff()', 2);
+		expect(results).toHaveLength(1);
+		// decorationStart is line 5 (1-based), 2 lines before = line 3
+		expect(results[0].startLine).toBe(3);
+		expect(results[0].endLine).toBe(10);
+		expect(results[0].source).toContain('import java.util.List;');
+		expect(results[0].source).toContain('/**');
+		expect(results[0].source).toContain('public void doStuff()');
+		// Member range unchanged
+		expect(results[0].memberStartLine).toBe(5);
+		expect(results[0].memberEndLine).toBe(10);
+	});
+
+	it('with linesAfter=2 expands source 2 lines below the member end', () => {
+		const results = extractMemberSource(contextSource, [contextMethodSymbol], 'test.Foo#doStuff()', undefined, 2);
+		expect(results).toHaveLength(1);
+		expect(results[0].startLine).toBe(5);
+		expect(results[0].endLine).toBe(12);
+		expect(results[0].source).toContain('public void doStuff()');
+		expect(results[0].source).toContain('public int count;');
+		// Member range unchanged
+		expect(results[0].memberStartLine).toBe(5);
+		expect(results[0].memberEndLine).toBe(10);
+	});
+
+	it('with both linesBefore=2 and linesAfter=2 expands in both directions', () => {
+		const results = extractMemberSource(contextSource, [contextMethodSymbol], 'test.Foo#doStuff()', 2, 2);
+		expect(results).toHaveLength(1);
+		expect(results[0].startLine).toBe(3);
+		expect(results[0].endLine).toBe(12);
+		expect(results[0].source).toContain('import java.util.List;');
+		expect(results[0].source).toContain('public int count;');
+		expect(results[0].lineCount).toBe(10);
+		// Member range unchanged
+		expect(results[0].memberStartLine).toBe(5);
+		expect(results[0].memberEndLine).toBe(10);
+	});
+
+	it('linesBefore=0 produces identical output to omitting linesBefore', () => {
+		const withZero = extractMemberSource(contextSource, [contextMethodSymbol], 'test.Foo#doStuff()', 0);
+		const withOmit = extractMemberSource(contextSource, [contextMethodSymbol], 'test.Foo#doStuff()');
+		expect(withZero).toEqual(withOmit);
+	});
+
+	it('linesBefore extending past file start clamps to line 1', () => {
+		const results = extractMemberSource(contextSource, [contextMethodSymbol], 'test.Foo#doStuff()', 100);
+		expect(results).toHaveLength(1);
+		expect(results[0].startLine).toBe(1);
+		expect(results[0].source).toContain('package test;');
+		// Member range unchanged
+		expect(results[0].memberStartLine).toBe(5);
+		expect(results[0].memberEndLine).toBe(10);
+	});
+
+	it('linesAfter extending past file end clamps to last line', () => {
+		const results = extractMemberSource(contextSource, [contextMethodSymbol], 'test.Foo#doStuff()', undefined, 100);
+		expect(results).toHaveLength(1);
+		expect(results[0].endLine).toBe(12);
+		expect(results[0].source).toContain('public int count;');
+		// Member range unchanged
+		expect(results[0].memberStartLine).toBe(5);
+		expect(results[0].memberEndLine).toBe(10);
+	});
+
+	it('memberStartLine/memberEndLine reflect original member range regardless of context expansion', () => {
+		const results = extractMemberSource(contextSource, [contextMethodSymbol], 'test.Foo#doStuff()', 50, 50);
+		expect(results).toHaveLength(1);
+		// Full file range due to clamping
+		expect(results[0].startLine).toBe(1);
+		expect(results[0].endLine).toBe(12);
+		// But member range stays fixed
+		expect(results[0].memberStartLine).toBe(5);
+		expect(results[0].memberEndLine).toBe(10);
+	});
+
+	it('two overloaded methods each get independent context expansion with their own memberStartLine/memberEndLine', () => {
+		// Source:
+		// 1: package test;
+		// 2: (blank)
+		// 3: public void process() {
+		// 4:     // first
+		// 5: }
+		// 6: (blank)
+		// 7: public void process() {
+		// 8:     // second
+		// 9: }
+		// 10: (blank)
+		// 11: public int end;
+		const overloadSource = [
+			'package test;',
+			'',
+			'public void process() {',
+			'    // first',
+			'}',
+			'',
+			'public void process() {',
+			'    // second',
+			'}',
+			'',
+			'public int end;',
+		].join('\n');
+
+		const overloadSymbols: EnrichedSymbol[] = [
+			makeMethodSymbol({
+				name: 'process()',
+				memberFqn: 'test.Foo#process()',
+				range: {
+					start: { line: 3, character: 0 },
+					end: { line: 5, character: 1 },
+				},
+			}),
+			makeMethodSymbol({
+				name: 'process()',
+				memberFqn: 'test.Foo#process()',
+				range: {
+					start: { line: 7, character: 0 },
+					end: { line: 9, character: 1 },
+				},
+			}),
+		];
+
+		const results = extractMemberSource(overloadSource, overloadSymbols, 'test.Foo#process()', 1, 1);
+		expect(results).toHaveLength(2);
+
+		// First overload: member lines 3-5, context lines 2-6
+		expect(results[0].memberStartLine).toBe(3);
+		expect(results[0].memberEndLine).toBe(5);
+		expect(results[0].startLine).toBe(2);
+		expect(results[0].endLine).toBe(6);
+
+		// Second overload: member lines 7-9, context lines 6-10
+		expect(results[1].memberStartLine).toBe(7);
+		expect(results[1].memberEndLine).toBe(9);
+		expect(results[1].startLine).toBe(6);
+		expect(results[1].endLine).toBe(10);
 	});
 });
