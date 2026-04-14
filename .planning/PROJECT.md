@@ -36,6 +36,7 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 
 ### Active
 
+- Navigation pagination on find_references/find_implementations/find_definition — Validated in Phase 21: navigation-pagination (moving to Validated next milestone close)
 - Context lines on read_member — Validated in Phase 20: member-context-lines (moving to Validated next milestone close)
 - Line-range reading on read_source — Validated in Phase 19: line-range-reading (moving to Validated next milestone close)
 - (Remaining v1.3 Context Management requirements in progress)
@@ -116,4 +117,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-14 after Phase 20 (member-context-lines) complete*
+*Last updated: 2026-04-14 after Phase 21 (navigation-pagination) complete*
