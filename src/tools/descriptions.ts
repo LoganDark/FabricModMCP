@@ -124,7 +124,7 @@ export const TOOL_DESCRIPTIONS = {
 	// -- Position ------------------------------------------------------------
 
 	locate_in_source:
-		'Find a precise character position in Java source using cascading regex patterns. Returns offset, line, column, and matched text. Searches all jars containing the class unless a specific jar is given. This is the building block used by the LSP navigation tools — use it directly only when you need raw position data.',
+		'Find a precise character position in Java source using cascading regex patterns. Returns offset, line, column, and matched text. Searches all jars containing the class unless a specific jar is given. This is the building block used by the LSP navigation tools — use it directly only when you need raw position data. Optionally include surrounding context lines with the context parameter — useful for seeing the matched line in context without reading the full source.',
 
 	// -- LSP navigation ------------------------------------------------------
 

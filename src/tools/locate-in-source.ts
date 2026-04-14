@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
 import { makeSuccess } from '../types/envelope.js';
 import { getAllDependencies, getResolvedDependencies } from '../project/dependency-resolver.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
@@ -9,7 +10,21 @@ import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import type { LocateFailure } from './tool-helpers.js';
-import type { LocateResult } from '../browsing/types.js';
+import type { LocateResult, LocateResultContext } from '../browsing/types.js';
+
+function extractContext(
+	source: string,
+	line: number,
+	linesBefore: number,
+	linesAfter: number,
+): LocateResultContext {
+	const lines = source.split('\n');
+	const totalLines = lines.length;
+	const startLine = Math.max(1, line - linesBefore);
+	const endLine = Math.min(totalLines, line + linesAfter);
+	const text = lines.slice(startLine - 1, endLine).join('\n');
+	return { text, startLine, endLine };
+}
 
 export function registerLocateInSourceTool(server: McpServer): void {
 	server.registerTool(
@@ -22,9 +37,13 @@ export function registerLocateInSourceTool(server: McpServer): void {
 				jar: PARAMS.jar,
 				class: PARAMS.class,
 				patterns: PARAMS.patterns,
+				context: z.object({
+					linesBefore: z.number().int().min(0).describe('Number of lines to include before the match'),
+					linesAfter: z.number().int().min(0).describe('Number of lines to include after the match'),
+				}).optional().describe('When provided, extends match to whole line boundaries and includes surrounding lines. Even {linesBefore: 0, linesAfter: 0} extends to the full line.'),
 			},
 		},
-		async ({ project, jar, class: className, patterns }) => {
+		async ({ project, jar, class: className, patterns, context }) => {
 			logger.debug('locate_in_source called', { project, jar, class: className, patterns });
 
 			const resolved = resolveProjectSafely(project);
@@ -76,6 +95,9 @@ export function registerLocateInSourceTool(server: McpServer): void {
 							line: result.line,
 							column: result.column,
 						};
+						if (context !== undefined) {
+							locateResult.context = extractContext(source, result.line, context.linesBefore, context.linesAfter);
+						}
 						const envelope = makeSuccess({ results: [locateResult], failures: [] }, { provenance });
 						return {
 							content: [{ type: 'text' as const, text: `Located in ${className} (${dep.id}) at line ${result.line}, col ${result.column}` }],
@@ -129,7 +151,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 				const result = cascadeRegex(source, patterns);
 
 				if (result.success) {
-					results.push({
+					const locateResult: LocateResult = {
 						jar: id,
 						category: dep.category,
 						provenanceChains: dep.provenanceChains,
@@ -137,7 +159,11 @@ export function registerLocateInSourceTool(server: McpServer): void {
 						offset: result.offset,
 						line: result.line,
 						column: result.column,
-					});
+					};
+					if (context !== undefined) {
+						locateResult.context = extractContext(source, result.line, context.linesBefore, context.linesAfter);
+					}
+					results.push(locateResult);
 				} else {
 					failures.push({
 						jar: id,
