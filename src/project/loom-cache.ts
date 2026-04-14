@@ -5,7 +5,7 @@ import type { GradleConfig } from './types.js';
 export function resolveSourcesJarPath(config: GradleConfig): string {
 	const base = join(homedir(), '.gradle', 'caches', 'fabric-loom', 'minecraftMaven', 'net', 'minecraft');
 
-	if (config.mappingEra === 'yarn') {
+	if (config.mappingEra === 'mapped') {
 		const artifactId = 'minecraft-merged';
 		const sanitizedMcVersion = config.minecraftVersion.replace(/\./g, '_');
 		const version = `${config.minecraftVersion}-net.fabricmc.yarn.${sanitizedMcVersion}.${config.yarnMappings}`;

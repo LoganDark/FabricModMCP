@@ -24,7 +24,7 @@ export function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedP
 		rootPath: '/fake/path',
 		gradleConfig: {
 			minecraftVersion: '1.21.11',
-			mappingEra: 'yarn',
+			mappingEra: 'mapped',
 			yarnMappings: '1.21.11+build.4',
 			loaderVersion: '0.16.14',
 			fabricApiVersion: '0.119.5+1.21.11',

@@ -6,10 +6,10 @@ import type { GradleConfig } from '../../src/project/types.js';
 describe('resolveSourcesJarPath', () => {
 	const base = `${homedir()}/.gradle/caches/fabric-loom/minecraftMaven/net/minecraft`;
 
-	it('constructs correct yarn-era path', () => {
+	it('constructs correct mapped-era path', () => {
 		const config: GradleConfig = {
 			minecraftVersion: '1.21.11',
-			mappingEra: 'yarn',
+			mappingEra: 'mapped',
 			yarnMappings: '1.21.11+build.4',
 			loaderVersion: '0.18.6',
 			dependencies: [],
@@ -19,10 +19,10 @@ describe('resolveSourcesJarPath', () => {
 		expect(result).toContain(base);
 	});
 
-	it('constructs correct unobfuscated-era path', () => {
+	it('constructs correct unmapped-era path', () => {
 		const config: GradleConfig = {
 			minecraftVersion: '26.2-snapshot-2',
-			mappingEra: 'unobfuscated',
+			mappingEra: 'unmapped',
 			loaderVersion: '0.18.6',
 			dependencies: [],
 		};
@@ -34,7 +34,7 @@ describe('resolveSourcesJarPath', () => {
 	it('paths start with homedir gradle cache base', () => {
 		const config: GradleConfig = {
 			minecraftVersion: '1.21.11',
-			mappingEra: 'yarn',
+			mappingEra: 'mapped',
 			yarnMappings: '1.21.11+build.4',
 			dependencies: [],
 		};

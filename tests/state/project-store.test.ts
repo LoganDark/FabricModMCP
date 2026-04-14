@@ -9,7 +9,7 @@ function makeMockProject(name: string): LoadedProject {
 		rootPath: `/mock/${name}`,
 		gradleConfig: {
 			minecraftVersion: '1.21.11',
-			mappingEra: 'yarn',
+			mappingEra: 'mapped',
 			yarnMappings: '1.21.11+build.4',
 			loaderVersion: '0.16.14',
 			dependencies: [],

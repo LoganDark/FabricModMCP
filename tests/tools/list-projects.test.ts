@@ -11,7 +11,7 @@ function makeFakeProject(name: string, mcVersion: string = '1.21.11'): LoadedPro
 		rootPath: `/fake/${name}`,
 		gradleConfig: {
 			minecraftVersion: mcVersion,
-			mappingEra: 'yarn',
+			mappingEra: 'mapped',
 			yarnMappings: `${mcVersion}+build.4`,
 			loaderVersion: '0.16.14',
 			fabricApiVersion: '0.119.5+1.21.11',
@@ -54,7 +54,7 @@ describe('list_projects tool', () => {
 		const projA = envelope.data.projects.find((p: any) => p.name === 'mod-a');
 		expect(projA).toBeDefined();
 		expect(projA.minecraftVersion).toBe('1.21.11');
-		expect(projA.mappingEra).toBe('yarn');
+		expect(projA.mappingEra).toBe('mapped');
 		expect(projA.dependencyCount).toBe(1);
 		expect(projA.isDefault).toBe(true);
 

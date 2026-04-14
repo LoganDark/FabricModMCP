@@ -48,12 +48,12 @@ describe('parseBuildGradle', () => {
 			buildGradle = await readFile(resolve(fixturesDir, 'yarn-era', 'build.gradle.kts'), 'utf-8');
 		});
 
-		it('detects yarn mapping era', async () => {
+		it('detects mapped era', async () => {
 			const propsContent = await readFile(resolve(fixturesDir, 'yarn-era', 'gradle.properties'), 'utf-8');
 			const props = parseGradleProperties(propsContent);
 			const gradle = await readFile(resolve(fixturesDir, 'yarn-era', 'build.gradle.kts'), 'utf-8');
 			const config = parseBuildGradle(gradle, props);
-			expect(config.mappingEra).toBe('yarn');
+			expect(config.mappingEra).toBe('mapped');
 		});
 
 		it('extracts minecraft version', async () => {
@@ -97,12 +97,12 @@ describe('parseBuildGradle', () => {
 	});
 
 	describe('unobfuscated era', () => {
-		it('detects unobfuscated mapping era', async () => {
+		it('detects unmapped era', async () => {
 			const propsContent = await readFile(resolve(fixturesDir, 'unobfuscated-era', 'gradle.properties'), 'utf-8');
 			const props = parseGradleProperties(propsContent);
 			const gradle = await readFile(resolve(fixturesDir, 'unobfuscated-era', 'build.gradle.kts'), 'utf-8');
 			const config = parseBuildGradle(gradle, props);
-			expect(config.mappingEra).toBe('unobfuscated');
+			expect(config.mappingEra).toBe('unmapped');
 		});
 
 		it('extracts minecraft version', async () => {

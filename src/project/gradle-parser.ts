@@ -49,7 +49,7 @@ export function parseBuildGradle(content: string, properties: Map<string, string
 
 	// Step 5: Era detection
 	const hasMappings = dependencies.some(d => d.configuration === 'mappings');
-	const mappingEra: MappingEra = hasMappings ? 'yarn' : 'unobfuscated';
+	const mappingEra: MappingEra = hasMappings ? 'mapped' : 'unmapped';
 
 	// Step 6: Extract convenience fields
 	const minecraftDep = dependencies.find(d => d.configuration === 'minecraft');

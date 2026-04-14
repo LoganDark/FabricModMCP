@@ -117,7 +117,7 @@ describe('get_project_metadata tool', () => {
 		const envelope = parseEnvelope(result);
 		const pi = envelope.data.projectInfo;
 		expect(pi.minecraftVersion).toBe('1.21.11');
-		expect(pi.mappingEra).toBe('yarn');
+		expect(pi.mappingEra).toBe('mapped');
 		expect(pi.yarnMappings).toBe('1.21.11+build.4');
 		expect(pi.loaderVersion).toBe('0.16.14');
 		expect(pi.fabricApiVersion).toBe('0.119.5+1.21.11');
@@ -306,6 +306,6 @@ describe('get_project_metadata tool', () => {
 		});
 
 		const envelope = parseEnvelope(result);
-		expect(envelope.data.projectInfo.mappingEra).toBe('yarn');
+		expect(envelope.data.projectInfo.mappingEra).toBe('mapped');
 	});
 });

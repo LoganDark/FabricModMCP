@@ -27,7 +27,7 @@ const mockedFindSourcesJar = vi.mocked(findSourcesJar);
 function makeConfig(overrides: Partial<GradleConfig> = {}): GradleConfig {
 	return {
 		minecraftVersion: '1.21.11',
-		mappingEra: 'yarn',
+		mappingEra: 'mapped',
 		yarnMappings: '1.21.11+build.4',
 		loaderVersion: '0.16.14',
 		fabricApiVersion: '0.141.3+1.21.11',

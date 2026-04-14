@@ -45,7 +45,7 @@ describe('loadProject', () => {
 			// Happy path: sources jar exists on this machine
 			expect(project.name).toBe('yarn-era');
 			expect(project.rootPath).toMatch(/tests\/fixtures\/yarn-era$/);
-			expect(project.gradleConfig.mappingEra).toBe('yarn');
+			expect(project.gradleConfig.mappingEra).toBe('mapped');
 			expect(project.gradleConfig.minecraftVersion).toBe('1.21.11');
 			expect(project.fabricMod.id).toBe('testmod');
 			expect(project.sourcesJar.exists).toBe(true);
@@ -72,7 +72,7 @@ describe('ProjectStore', () => {
 			rootPath: '/fake/path',
 			gradleConfig: {
 				minecraftVersion: '1.21.11',
-				mappingEra: 'yarn' as const,
+				mappingEra: 'mapped' as const,
 				yarnMappings: '1.21.11+build.4',
 				dependencies: [],
 			},

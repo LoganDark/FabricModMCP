@@ -1,6 +1,6 @@
 import type { JdtLsSession } from '../jdtls/types.js';
 
-export type MappingEra = 'yarn' | 'unobfuscated';
+export type MappingEra = 'mapped' | 'unmapped';
 
 export interface DependencyCoordinate {
 	configuration: string;  // "minecraft", "mappings", "modImplementation", "implementation", etc.
