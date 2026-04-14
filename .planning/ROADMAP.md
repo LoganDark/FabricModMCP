@@ -94,7 +94,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 15 → 16 → 17
+Phases execute in numeric order: 15 → 16 → 17 → 18
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -115,3 +115,14 @@ Phases execute in numeric order: 15 → 16 → 17
 | 15. Enable Method Search | v1.2 | 1/1 | Complete    | 2026-04-14 |
 | 16. Member Parser Domain Module | v1.2 | 2/2 | Complete    | 2026-04-14 |
 | 17. Structured Member Output | v1.2 | 2/2 | Complete    | 2026-04-14 |
+
+### Phase 18: Member Inspection & Context Lines
+
+**Goal:** Add read_member tool for reading individual method/field source by FQN, and add optional context lines parameter to locate_in_source
+**Requirements**: P18-01 through P18-09
+**Depends on:** Phase 17
+**Plans:** 2 plans
+
+Plans:
+- [ ] 18-01-PLAN.md — Member extractor domain module and read_member MCP tool
+- [ ] 18-02-PLAN.md — locate_in_source context lines parameter
