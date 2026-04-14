@@ -2,17 +2,12 @@ import { z } from 'zod';
 import { readFile } from 'node:fs/promises';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
-import { getFilteredDependencies } from '../project/jar-registry.js';
-import { jarReader } from './shared-jar-reader.js';
-import { createSourceAdapter } from '../browsing/source-adapter.js';
-import { cascadeRegex } from '../browsing/cascading-regex.js';
+import { resolveSymbolPosition } from './resolve-symbol-position.js';
 import { createUriMapper, entryPathToClassName } from '../jdtls/uri-mapper.js';
 import { extractEnclosingContext } from '../jdtls/context-extractor.js';
 import { logger } from '../logging/logger.js';
-import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError } from './tool-helpers.js';
-import type { LocateFailure } from './tool-helpers.js';
+import { resolveProjectSafely, returnError } from './tool-helpers.js';
 import type { NavigationResult } from '../jdtls/types.js';
-import type { CascadeSuccess } from '../browsing/cascading-regex.js';
 
 export function registerFindReferencesTool(server: McpServer): void {
 	server.registerTool(
@@ -47,8 +42,6 @@ export function registerFindReferencesTool(server: McpServer): void {
 			const jdtls = loadedProject.jdtls;
 			const lspClient = jdtls.client!;
 
-			const entryPath = classNameToEntryPath(className);
-
 			const provenance = {
 				tool: 'find_references',
 				project: loadedProject.name,
@@ -57,108 +50,51 @@ export function registerFindReferencesTool(server: McpServer): void {
 
 			const uriMapper = createUriMapper(jdtls.tempDir, jdtls.jarIdToDirName);
 
-			// Resolve source position via cascading regex
-			let sourceJarId: string;
-			let sourceText: string;
-			let cascadeResult: CascadeSuccess;
+			// Resolve symbol position using shared helper
+			const posResult = await resolveSymbolPosition(loadedProject, className, patterns, jar);
 
-			if (jar !== undefined) {
-				// Specific jar mode
-				const dep = loadedProject.dependencyJars.get(jar);
-				if (!dep) {
+			if (!posResult.success) {
+				if (posResult.kind === 'jar-not-found') {
 					return returnError(
 						'JAR_NOT_FOUND',
-						`Jar '${jar}' not found in project '${loadedProject.name}'`,
-						[jar],
+						`Jar '${posResult.jar}' not found in project '${loadedProject.name}'`,
+						[posResult.jar],
 						['Check available jars with get_project_metadata'],
 					);
 				}
-
-				if (!dep.available) {
+				if (posResult.kind === 'jar-not-available') {
 					return returnError(
 						'JAR_NOT_AVAILABLE',
-						`Sources for jar '${jar}' are not available`,
-						[jar],
+						`Sources for jar '${posResult.jar}' are not available`,
+						[posResult.jar],
 						['The dependency does not have a sources jar'],
 					);
 				}
-
-				try {
-					const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
-					const buffer = await adapter.readEntry(entryPath);
-					sourceText = buffer.toString('utf-8');
-				} catch {
-					return returnError(
-						'CLASS_NOT_FOUND',
-						`Class '${className}' not found in jar '${jar}'`,
-						[entryPath],
-						['Check the fully-qualified class name'],
-					);
-				}
-
-				const rawCascade = cascadeRegex(sourceText, patterns);
-				if (!rawCascade.success) {
-					const failure: LocateFailure = {
-						jar: dep.id,
-						category: dep.category,
-						provenanceChains: dep.provenanceChains,
-						steps: rawCascade.steps,
-						failedStep: rawCascade.failedStep,
-						error: rawCascade.error,
+				if (posResult.kind === 'cascade-failure') {
+					const failure = {
+						jar: posResult.jar,
+						category: posResult.category,
+						provenanceChains: posResult.provenanceChains,
+						steps: posResult.steps,
+						failedStep: posResult.failedStep,
+						error: posResult.error,
 					};
 					const envelope = makeSuccess({ results: [], failures: [failure] }, { provenance });
 					return {
-						content: [{ type: 'text' as const, text: `Cascade failed at step ${rawCascade.failedStep + 1} in ${className} (${dep.id})` }],
+						content: [{ type: 'text' as const, text: `Cascade failed at step ${posResult.failedStep + 1} in ${className} (${posResult.jar})` }],
 						structuredContent: envelope,
 					};
 				}
-
-				cascadeResult = rawCascade;
-				sourceJarId = jar;
-			} else {
-				// All-jars mode: find first jar containing the class
-				const filtered = getFilteredDependencies(loadedProject.dependencyJars, loadedProject.filterConfig);
-				const sorted = sortByPriority(Array.from(filtered.entries()));
-
-				let found = false;
-				sourceJarId = '';
-				sourceText = '';
-				cascadeResult = undefined!;
-
-				for (const [id, dep] of sorted) {
-					if (!dep.available) continue;
-
-					let text: string;
-					try {
-						const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
-						const buffer = await adapter.readEntry(entryPath);
-						text = buffer.toString('utf-8');
-					} catch {
-						continue;
-					}
-
-					const result = cascadeRegex(text, patterns);
-					if (result.success) {
-						sourceJarId = id;
-						sourceText = text;
-						cascadeResult = result;
-						found = true;
-						break;
-					}
-				}
-
-				if (!found) {
-					return returnError(
-						'CLASS_NOT_FOUND',
-						`Class '${className}' not found in any jar, or cascading regex failed in all jars`,
-						[entryPath],
-						['Check the fully-qualified class name', 'Use list_packages to browse available packages'],
-					);
-				}
+				// not-found
+				return returnError(
+					'CLASS_NOT_FOUND',
+					`Class '${className}' not found in any jar, or cascading regex failed in all jars`,
+					[posResult.entryPath],
+					['Check the fully-qualified class name', 'Use list_packages to browse available packages'],
+				);
 			}
 
-			// Build file URI for the cascading regex target
-			const fileUri = uriMapper.toFileUri(sourceJarId, entryPath);
+			const { sourceJarId, sourceText, cascadeResult, fileUri } = posResult;
 
 			// Send textDocument/didOpen
 			await lspClient.didOpen({
