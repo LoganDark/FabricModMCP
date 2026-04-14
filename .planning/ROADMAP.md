@@ -100,7 +100,7 @@ Phases execute in numeric order: 11 -> 12 -> 13 -> 14
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 11. Types and Domain Logic | v1.1 | 2/2 | Complete   | 2026-04-14 |
+| 11. Types and Domain Logic | v1.1 | 2/2 | Complete    | 2026-04-14 |
 | 12. Existing Tool Integration | v1.1 | 0/? | Not started | - |
 | 13. Study Jar Management Tools | v1.1 | 0/? | Not started | - |
 | 14. JDT LS Workspace Sync | v1.1 | 0/? | Not started | - |
