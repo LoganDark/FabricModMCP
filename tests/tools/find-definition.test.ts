@@ -166,6 +166,173 @@ describe('find_definition', () => {
 		}
 	});
 
+	describe('pagination', () => {
+		test.skipIf(!toolModuleAvailable)('no pagination params returns all results with hasMore=false', async () => {
+			mockDefinition.mockResolvedValue([
+				{
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
+					range: { start: { line: 5, character: 13 }, end: { line: 5, character: 16 } },
+				},
+				{
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
+					range: { start: { line: 9, character: 13 }, end: { line: 9, character: 17 } },
+				},
+			]);
+
+			const pair = await createTestPair();
+			try {
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+				projectStore.set('test', fake);
+
+				const result = await pair.client.callTool({
+					name: 'find_definition',
+					arguments: {
+						project: 'test',
+						jar: 'minecraft',
+						class: 'net.minecraft.client.MinecraftClient',
+						patterns: ['public void run\\('],
+					},
+				});
+
+				const envelope = parseEnvelope(result);
+				expect(envelope.success).toBe(true);
+				expect(envelope.data.hasMore).toBe(false);
+				expect(envelope.data.offset).toBe(0);
+				expect(envelope.data.total).toBe(envelope.data.results.length);
+			} finally {
+				await pair.cleanup();
+				projectStore.clear();
+			}
+		});
+
+		test.skipIf(!toolModuleAvailable)('limit returns a subset with correct metadata', async () => {
+			mockDefinition.mockResolvedValue([
+				{
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
+					range: { start: { line: 5, character: 13 }, end: { line: 5, character: 16 } },
+				},
+				{
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
+					range: { start: { line: 9, character: 13 }, end: { line: 9, character: 17 } },
+				},
+			]);
+
+			const pair = await createTestPair();
+			try {
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+				projectStore.set('test', fake);
+
+				const result = await pair.client.callTool({
+					name: 'find_definition',
+					arguments: {
+						project: 'test',
+						jar: 'minecraft',
+						class: 'net.minecraft.client.MinecraftClient',
+						patterns: ['public void run\\('],
+						limit: 1,
+					},
+				});
+
+				const envelope = parseEnvelope(result);
+				expect(envelope.success).toBe(true);
+				expect(envelope.data.results).toHaveLength(1);
+				expect(envelope.data.total).toBe(2);
+				expect(envelope.data.hasMore).toBe(true);
+				expect(envelope.data.offset).toBe(0);
+			} finally {
+				await pair.cleanup();
+				projectStore.clear();
+			}
+		});
+
+		test.skipIf(!toolModuleAvailable)('offset skips results', async () => {
+			mockDefinition.mockResolvedValue([
+				{
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
+					range: { start: { line: 5, character: 13 }, end: { line: 5, character: 16 } },
+				},
+				{
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
+					range: { start: { line: 9, character: 13 }, end: { line: 9, character: 17 } },
+				},
+			]);
+
+			const pair = await createTestPair();
+			try {
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+				projectStore.set('test', fake);
+
+				const result = await pair.client.callTool({
+					name: 'find_definition',
+					arguments: {
+						project: 'test',
+						jar: 'minecraft',
+						class: 'net.minecraft.client.MinecraftClient',
+						patterns: ['public void run\\('],
+						limit: 1,
+						offset: 1,
+					},
+				});
+
+				const envelope = parseEnvelope(result);
+				expect(envelope.success).toBe(true);
+				expect(envelope.data.results).toHaveLength(1);
+				expect(envelope.data.offset).toBe(1);
+				expect(envelope.data.hasMore).toBe(false);
+			} finally {
+				await pair.cleanup();
+				projectStore.clear();
+			}
+		});
+
+		test.skipIf(!toolModuleAvailable)('text summary reflects pagination state', async () => {
+			mockDefinition.mockResolvedValue([
+				{
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
+					range: { start: { line: 5, character: 13 }, end: { line: 5, character: 16 } },
+				},
+				{
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
+					range: { start: { line: 9, character: 13 }, end: { line: 9, character: 17 } },
+				},
+			]);
+
+			const pair = await createTestPair();
+			try {
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+				projectStore.set('test', fake);
+
+				// Paginated
+				const paginatedResult = await pair.client.callTool({
+					name: 'find_definition',
+					arguments: {
+						project: 'test',
+						jar: 'minecraft',
+						class: 'net.minecraft.client.MinecraftClient',
+						patterns: ['public void run\\('],
+						limit: 1,
+					},
+				});
+				expect((paginatedResult as any).content[0].text).toContain('showing');
+
+				// Full
+				const fullResult = await pair.client.callTool({
+					name: 'find_definition',
+					arguments: {
+						project: 'test',
+						jar: 'minecraft',
+						class: 'net.minecraft.client.MinecraftClient',
+						patterns: ['public void run\\('],
+					},
+				});
+				expect((fullResult as any).content[0].text).not.toContain('showing');
+			} finally {
+				await pair.cleanup();
+				projectStore.clear();
+			}
+		});
+	});
+
 	test.skipIf(!toolModuleAvailable)('returns cascade failure when patterns do not match', async () => {
 		const pair = await createTestPair();
 		try {

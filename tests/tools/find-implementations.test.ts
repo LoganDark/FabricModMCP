@@ -181,6 +181,177 @@ describe('find_implementations', () => {
 		}
 	});
 
+	describe('pagination', () => {
+		test.skipIf(!toolModuleAvailable)('no pagination params returns all results with hasMore=false', async () => {
+			mockEndpointSend.mockResolvedValue([
+				{
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/render/GameRenderer.java',
+					range: { start: { line: 3, character: 13 }, end: { line: 3, character: 19 } },
+				},
+				{
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/render/WorldRenderer.java',
+					range: { start: { line: 4, character: 13 }, end: { line: 4, character: 19 } },
+				},
+			]);
+			mockReadFile.mockResolvedValue(FAKE_IMPL_SOURCE);
+
+			const pair = await createTestPair();
+			try {
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });
+				projectStore.set('test', fake);
+
+				const result = await pair.client.callTool({
+					name: 'find_implementations',
+					arguments: {
+						project: 'test',
+						jar: 'minecraft',
+						class: 'net.minecraft.client.MinecraftClient',
+						patterns: ['public void run\\('],
+					},
+				});
+
+				const envelope = parseEnvelope(result);
+				expect(envelope.success).toBe(true);
+				expect(envelope.data.hasMore).toBe(false);
+				expect(envelope.data.offset).toBe(0);
+				expect(envelope.data.total).toBe(envelope.data.results.length);
+			} finally {
+				await pair.cleanup();
+				projectStore.clear();
+			}
+		});
+
+		test.skipIf(!toolModuleAvailable)('limit returns a subset with correct metadata', async () => {
+			mockEndpointSend.mockResolvedValue([
+				{
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/render/GameRenderer.java',
+					range: { start: { line: 3, character: 13 }, end: { line: 3, character: 19 } },
+				},
+				{
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/render/WorldRenderer.java',
+					range: { start: { line: 4, character: 13 }, end: { line: 4, character: 19 } },
+				},
+			]);
+			mockReadFile.mockResolvedValue(FAKE_IMPL_SOURCE);
+
+			const pair = await createTestPair();
+			try {
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });
+				projectStore.set('test', fake);
+
+				const result = await pair.client.callTool({
+					name: 'find_implementations',
+					arguments: {
+						project: 'test',
+						jar: 'minecraft',
+						class: 'net.minecraft.client.MinecraftClient',
+						patterns: ['public void run\\('],
+						limit: 1,
+					},
+				});
+
+				const envelope = parseEnvelope(result);
+				expect(envelope.success).toBe(true);
+				expect(envelope.data.results).toHaveLength(1);
+				expect(envelope.data.total).toBe(2);
+				expect(envelope.data.hasMore).toBe(true);
+				expect(envelope.data.offset).toBe(0);
+			} finally {
+				await pair.cleanup();
+				projectStore.clear();
+			}
+		});
+
+		test.skipIf(!toolModuleAvailable)('offset skips results', async () => {
+			mockEndpointSend.mockResolvedValue([
+				{
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/render/GameRenderer.java',
+					range: { start: { line: 3, character: 13 }, end: { line: 3, character: 19 } },
+				},
+				{
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/render/WorldRenderer.java',
+					range: { start: { line: 4, character: 13 }, end: { line: 4, character: 19 } },
+				},
+			]);
+			mockReadFile.mockResolvedValue(FAKE_IMPL_SOURCE);
+
+			const pair = await createTestPair();
+			try {
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });
+				projectStore.set('test', fake);
+
+				const result = await pair.client.callTool({
+					name: 'find_implementations',
+					arguments: {
+						project: 'test',
+						jar: 'minecraft',
+						class: 'net.minecraft.client.MinecraftClient',
+						patterns: ['public void run\\('],
+						limit: 1,
+						offset: 1,
+					},
+				});
+
+				const envelope = parseEnvelope(result);
+				expect(envelope.success).toBe(true);
+				expect(envelope.data.results).toHaveLength(1);
+				expect(envelope.data.offset).toBe(1);
+				expect(envelope.data.hasMore).toBe(false);
+			} finally {
+				await pair.cleanup();
+				projectStore.clear();
+			}
+		});
+
+		test.skipIf(!toolModuleAvailable)('text summary reflects pagination state', async () => {
+			mockEndpointSend.mockResolvedValue([
+				{
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/render/GameRenderer.java',
+					range: { start: { line: 3, character: 13 }, end: { line: 3, character: 19 } },
+				},
+				{
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/render/WorldRenderer.java',
+					range: { start: { line: 4, character: 13 }, end: { line: 4, character: 19 } },
+				},
+			]);
+			mockReadFile.mockResolvedValue(FAKE_IMPL_SOURCE);
+
+			const pair = await createTestPair();
+			try {
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });
+				projectStore.set('test', fake);
+
+				// Paginated
+				const paginatedResult = await pair.client.callTool({
+					name: 'find_implementations',
+					arguments: {
+						project: 'test',
+						jar: 'minecraft',
+						class: 'net.minecraft.client.MinecraftClient',
+						patterns: ['public void run\\('],
+						limit: 1,
+					},
+				});
+				expect((paginatedResult as any).content[0].text).toContain('showing');
+
+				// Full
+				const fullResult = await pair.client.callTool({
+					name: 'find_implementations',
+					arguments: {
+						project: 'test',
+						jar: 'minecraft',
+						class: 'net.minecraft.client.MinecraftClient',
+						patterns: ['public void run\\('],
+					},
+				});
+				expect((fullResult as any).content[0].text).not.toContain('showing');
+			} finally {
+				await pair.cleanup();
+				projectStore.clear();
+			}
+		});
+	});
+
 	test.skipIf(!toolModuleAvailable)('returns cascade failure when patterns do not match', async () => {
 		const pair = await createTestPair();
 		try {
