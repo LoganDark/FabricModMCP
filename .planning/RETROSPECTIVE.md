@@ -76,14 +76,57 @@
 - The dependency resolver abstraction was the highest-leverage change — touched every tool file but made study jars "just work"
 - JDT LS hot-reload behavior (classpath changes) needs empirical validation — flagged as human verification item
 
+## Milestone: v1.2 — Symbol Resolution
+
+**Shipped:** 2026-04-14
+**Phases:** 4 | **Plans:** 7 | **Tasks:** 12
+
+### What Was Built
+- Method search unlock: JDT LS includeSourceMethodDeclarations enabled, readiness probe removed
+- Member parser domain module: TypeReference (6 variants), MemberReference types, import resolver with 4-stage cascade, detail string parser
+- Structured member output: enrichSymbols pipeline with FQNs wired into list_members and search_symbols
+- read_member MCP tool: FQN-based member source extraction with Javadoc, annotations, overload support, inner class handling
+- locate_in_source context lines: optional parameter extending matches to whole line boundaries with surrounding context
+- 103 new tests (423 → 526), zero regressions
+
+### What Worked
+- Phase 18 (added after initial roadmap) integrated smoothly — building blocks from Phases 16-17 made it a natural extension
+- Parallel execution of Plans 18-01 and 18-02 worked cleanly despite shared file edits (additive, non-overlapping changes)
+- symbol-transform extraction (18-01 deviation) was the right call — reduced duplication between list-members and read-member
+- enrichOne null-detail fallback (17-02 deviation) caught a real edge case for constructors/fields before it became a bug
+- Discussion → plan → execute pipeline efficiently captured user decisions (FQN format, overload handling, context result shape)
+
+### What Was Inefficient
+- createResolvePackage was designed, implemented, tested, but never used in production — multi-jar inline approach was always needed
+- VALIDATION.md files created for all 4 phases but none formally signed off (nyquist_compliant stays false)
+- Phase 18 was added post-roadmap — could have been anticipated during v1.2 requirements if "inspection parity" was decomposed earlier
+
+### Patterns Established
+- `Class#method()` / `Class#field:` FQN scheme matching Javadoc convention
+- EnrichedSymbol discriminated union pattern (method/field/class variants with no nullable fields)
+- Multi-jar resolvePackage built inline rather than using single-EntryIndex helper
+- Decoration scanning (Javadoc + annotations) via upward line traversal from LSP range start
+- Shared symbol-transform module for LSP response normalization across tools
+
+### Key Lessons
+- Building domain primitives first (Phases 16-17) then wiring tools (Phase 17-18) is the right sequence — each phase had a clean dependency chain
+- The FQN format decision (#-separator, no parameter types) was locked early in discuss-phase and never needed revision
+- Parallel plan execution saves time when changes are additive to shared files — the key is non-overlapping edits
+- Adding phases to an in-progress milestone works fine when they're natural extensions of the existing work
+
+### Cost Observations
+- Model mix: primarily opus for execution and planning, sonnet for verification and plan checking
+- 4 phases completed in a single session continuation
+- Phase 18 end-to-end (discuss → plan → execute → verify) took ~20 minutes of wall clock
+
 ## Cross-Milestone Trends
 
-| Metric | v1.0 | v1.1 |
-|--------|------|------|
-| Phases | 10 | 4 |
-| Plans | 22 | 8 |
-| Tasks | 41 | ~66 |
-| LOC | 5,336 | 6,030 |
-| Tests | 327 | 423 |
-| Timeline | 2 days | 1 day |
-| Requirements | 46/46 | 10/10 |
+| Metric | v1.0 | v1.1 | v1.2 |
+|--------|------|------|------|
+| Phases | 10 | 4 | 4 |
+| Plans | 22 | 8 | 7 |
+| Tasks | 41 | ~66 | 12 |
+| LOC | 5,336 | 6,030 | 6,863 |
+| Tests | 327 | 423 | 526 |
+| Timeline | 2 days | 1 day | 1 day |
+| Requirements | 46/46 | 10/10 | 7/7 |

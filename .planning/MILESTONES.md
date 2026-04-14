@@ -1,5 +1,21 @@
 # Milestones
 
+## v1.2 Symbol Resolution (Shipped: 2026-04-14)
+
+**Phases completed:** 4 phases, 7 plans, 12 tasks
+
+**Key accomplishments:**
+
+- Unlocked JDT LS method declarations in workspace/symbol, removed explosion-prone readiness probe, corrected search_symbols description to types+methods (not fields)
+- TypeReference/MemberReference discriminated unions and four-stage import-based type name resolver with star import caching
+- parseDetail function converting JDT LS detail strings into structured FieldReference/MethodReference with annotation stripping, depth-counted generic removal, and array/vararg detection
+- buildMemberFqn, EnrichedSymbol types, createResolvePackage bridge, and enrichSymbols pipeline for structured member output
+- Wired enrichment pipeline into list_members (structured types + FQNs) and added memberFqn to search_symbols results
+- read_member MCP tool that extracts individual method/field source by FQN with Javadoc, including overload and inner class support
+- Optional context parameter on locate_in_source that extends matches to whole line boundaries with configurable surrounding lines
+
+---
+
 ## v1.1 Study Jars (Shipped: 2026-04-14)
 
 **Phases completed:** 4 phases, 8 plans, 18 tasks
