@@ -10,7 +10,6 @@ import type { JSONRPCEndpoint } from 'ts-lsp-client';
 import {
 	extractStudyJarToWorkspace,
 	removeStudyJarFromWorkspace,
-	waitForWorkspaceSync,
 	isWorkspaceSynced,
 	syncStudyJarToWorkspace,
 	unsyncStudyJarFromWorkspace,
@@ -140,24 +139,7 @@ describe('workspace-sync', () => {
 		});
 	});
 
-	describe('waitForWorkspaceSync', () => {
-		it('resolves when endpoint responds with an array', async () => {
-			const endpoint = createMockEndpoint();
-			await expect(waitForWorkspaceSync(endpoint, 5000)).resolves.toBeUndefined();
-		});
-
-		it('throws after timeout when endpoint keeps failing', async () => {
-			const endpoint = {
-				notify: vi.fn(),
-				send: vi.fn().mockRejectedValue(new Error('not ready')),
-			} as unknown as JSONRPCEndpoint;
-
-			await expect(waitForWorkspaceSync(endpoint, 1500))
-				.rejects.toThrow('did not complete');
-		}, 10_000);
-	});
-
-	describe('isWorkspaceSynced', () => {
+describe('isWorkspaceSynced', () => {
 		it('returns false when jdtls is undefined', () => {
 			expect(isWorkspaceSynced('myjar', undefined)).toBe(false);
 		});
@@ -189,7 +171,7 @@ describe('workspace-sync', () => {
 			expect(result.warning).toContain('JDT LS unavailable');
 		});
 
-		it('extracts sources, updates jarIdToDirName, writes .classpath, notifies, waits', async () => {
+		it('extracts sources, updates jarIdToDirName, writes .classpath, notifies JDT LS', async () => {
 			const tempDir = await mkdtemp(join(tmpdir(), 'test-ws-sync-'));
 			tempDirs.push(tempDir);
 
@@ -231,8 +213,6 @@ describe('workspace-sync', () => {
 				}),
 			);
 
-			// Check endpoint.send called (waitForWorkspaceSync)
-			expect(endpoint.send).toHaveBeenCalledWith('workspace/symbol', { query: '*' });
 		});
 
 		it('rolls back jarIdToDirName on failure and returns synced=false with warning', async () => {

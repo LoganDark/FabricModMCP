@@ -2,8 +2,8 @@
  * Workspace Sync -- Incremental extraction of study jar sources to JDT LS workspace
  *
  * Handles adding/removing individual study jars from the JDT LS workspace without
- * re-extracting all existing jars. Updates .classpath, notifies JDT LS of changes,
- * and uses probe-based readiness detection to confirm indexing is complete.
+ * re-extracting all existing jars. Updates .classpath and notifies JDT LS of changes
+ * for asynchronous re-indexing.
  */
 
 import { mkdir, writeFile, rm } from 'node:fs/promises';
@@ -15,7 +15,6 @@ import { generateClasspathFile } from './workspace.js';
 import type { JarReader } from '../project/jar-reader.js';
 import type { StudyJar } from '../project/types.js';
 import type { JdtLsSession } from './types.js';
-import type { JSONRPCEndpoint } from 'ts-lsp-client';
 
 /**
  * Extract a single study jar's .java files into the JDT LS temp directory.
@@ -63,42 +62,6 @@ export async function removeStudyJarFromWorkspace(
 	await rm(depDir, { recursive: true, force: true });
 }
 
-/**
- * Wait for JDT LS to finish processing a workspace change by probing with
- * workspace/symbol requests.
- *
- * Uses exponential backoff: initial delay 500ms, multiply by 1.5, cap at 5000ms.
- * Resolves when endpoint responds with an array (even empty).
- * Throws if timeout expires before a successful response.
- */
-export async function waitForWorkspaceSync(
-	endpoint: JSONRPCEndpoint,
-	timeoutMs: number,
-): Promise<void> {
-	const deadline = Date.now() + timeoutMs;
-	let delay = 500;
-
-	await new Promise<void>(resolve => setTimeout(resolve, delay));
-
-	while (Date.now() < deadline) {
-		try {
-			const result = await endpoint.send('workspace/symbol', { query: '*' });
-			if (Array.isArray(result)) {
-				return;
-			}
-		} catch {
-			// JDT LS not ready yet, retry
-		}
-
-		delay = Math.min(delay * 1.5, 5000);
-		if (Date.now() + delay > deadline) {
-			break;
-		}
-		await new Promise<void>(resolve => setTimeout(resolve, delay));
-	}
-
-	throw new Error(`JDT LS did not complete workspace sync within ${timeoutMs}ms`);
-}
 
 /**
  * Check whether a study jar is currently synced to the JDT LS workspace.
@@ -113,7 +76,7 @@ export function isWorkspaceSynced(
 
 /**
  * Sync a study jar to the JDT LS workspace: extract sources, update .classpath,
- * notify JDT LS, and wait for indexing to complete.
+ * and notify JDT LS for asynchronous re-indexing.
  *
  * Returns { synced: true } on success, or { synced: false, warning } when
  * JDT LS is unavailable or sync fails.
@@ -140,8 +103,6 @@ export async function syncStudyJarToWorkspace(
 			changes: [{ uri: 'file://' + resolvedTempDir + '/.classpath', type: 2 }],
 		});
 
-		await waitForWorkspaceSync(jdtls.endpoint, 120_000);
-
 		return { synced: true };
 	} catch (err) {
 		jdtls.jarIdToDirName.delete('study:' + studyJar.name);
@@ -154,7 +115,7 @@ export async function syncStudyJarToWorkspace(
 
 /**
  * Remove a study jar from the JDT LS workspace: delete extracted directory,
- * update .classpath, notify JDT LS, and wait for re-indexing.
+ * update .classpath, and notify JDT LS for asynchronous re-indexing.
  *
  * Returns { synced: true } on success, or { synced: false } when JDT LS
  * is unavailable or the operation fails.
@@ -179,8 +140,6 @@ export async function unsyncStudyJarFromWorkspace(
 		jdtls.endpoint.notify('workspace/didChangeWatchedFiles', {
 			changes: [{ uri: 'file://' + resolvedTempDir + '/.classpath', type: 2 }],
 		});
-
-		await waitForWorkspaceSync(jdtls.endpoint, 120_000);
 
 		return { synced: true };
 	} catch {
