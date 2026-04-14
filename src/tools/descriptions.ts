@@ -118,6 +118,9 @@ export const TOOL_DESCRIPTIONS = {
 	read_source:
 		'Read the full Java source of a class by FQN. When no jar is specified, returns source from every jar containing the class, with provenance labels. Use list_members first to understand structure, then read_source for implementation details.',
 
+	read_member:
+		'Read the source of a specific method, constructor, or field by its member FQN (e.g., net.minecraft.client.MinecraftClient#tick()). Returns the full declaration including Javadoc, annotations, signature, and body. When multiple overloads share the same FQN, returns all of them as separate entries. Get FQNs from list_members or search_symbols output.',
+
 	read_jar_entry:
 		'Read any file from a source jar by its internal path (slash-separated, e.g. "net/minecraft/client/MinecraftClient.java"). Unlike read_source which takes a class FQN, this takes a raw entry path — useful for non-Java files or when you know the exact path.',
 

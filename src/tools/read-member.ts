@@ -1,30 +1,44 @@
+import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, handleClassSourceError, resolveProjectSafely, returnError, withLspDocument, resolveClassSource, getDependenciesForTool } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
-import type { TransformedSymbol } from '../browsing/types.js';
+import type { MemberResult } from '../browsing/types.js';
 import { enrichSymbols } from '../browsing/member-enrichment.js';
 import { getOrBuildIndex } from '../browsing/entry-index-cache.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { jarReader } from './shared-jar-reader.js';
 import { transformSymbolResponse } from '../browsing/symbol-transform.js';
+import { parseMemberFqn, extractMemberSource } from '../browsing/member-extractor.js';
+import { getAllDependencies } from '../project/dependency-resolver.js';
 
-export function registerListMembersTool(server: McpServer): void {
+export function registerReadMemberTool(server: McpServer): void {
 	server.registerTool(
-		'list_members',
+		'read_member',
 		{
-			title: 'List Members',
-			description: TOOL_DESCRIPTIONS.list_members,
+			title: 'Read Member',
+			description: TOOL_DESCRIPTIONS.read_member,
 			inputSchema: {
 				project: PARAMS.project,
 				jar: PARAMS.jar,
-				class: PARAMS.class,
+				memberFqn: z.string().describe('Member FQN from list_members or search_symbols (e.g., net.minecraft.client.MinecraftClient#tick())'),
 			},
 		},
-		async ({ class: className, jar, project }) => {
-			logger.debug('list_members called', { class: className, jar, project });
+		async ({ project, jar, memberFqn }) => {
+			logger.debug('read_member called', { project, jar, memberFqn });
+
+			// Parse and validate FQN
+			const parsed = parseMemberFqn(memberFqn);
+			if (!parsed) {
+				return returnError(
+					'INVALID_FQN',
+					`Malformed member FQN: '${memberFqn}'`,
+					[memberFqn],
+					['FQN format: ClassName#method() or ClassName#field:'],
+				);
+			}
 
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
@@ -44,16 +58,21 @@ export function registerListMembersTool(server: McpServer): void {
 			const lspClient = jdtls.client!;
 
 			const provenance = {
-				tool: 'list_members',
+				tool: 'read_member',
 				project: loadedProject.name,
-				class: className,
+				memberFqn,
 			};
 
 			const uriMapper = createUriMapper(jdtls.tempDir, jdtls.jarIdToDirName);
 
+			// For inner class FQNs (className contains $), use the outer class for file lookup
+			const outerClassName = parsed.className.includes('$')
+				? parsed.className.substring(0, parsed.className.indexOf('$'))
+				: parsed.className;
+
 			// Resolve class source from jars
-			const sourceResult = await resolveClassSource(loadedProject, className, jar);
-			if (!sourceResult.success) return handleClassSourceError(sourceResult, className, loadedProject.name, jar);
+			const sourceResult = await resolveClassSource(loadedProject, outerClassName, jar);
+			if (!sourceResult.success) return handleClassSourceError(sourceResult, outerClassName, loadedProject.name, jar);
 			const { sourceJarId, sourceText, entryPath } = sourceResult;
 
 			// Build file URI for the class
@@ -68,7 +87,7 @@ export function registerListMembersTool(server: McpServer): void {
 				// Transform response
 				const members = transformSymbolResponse(symbolResult);
 
-				// Build resolvePackage that searches all loaded jar indices
+				// Build resolvePackage for enrichment
 				const allDeps = getDependenciesForTool(loadedProject);
 				const resolvePackage = async (packageName: string): Promise<string[]> => {
 					const classNames = new Set<string>();
@@ -91,12 +110,38 @@ export function registerListMembersTool(server: McpServer): void {
 				const classFqn = entryPath.replace(/\.java$/, '').replaceAll('/', '.');
 				const enriched = await enrichSymbols(members, sourceText, classFqn, resolvePackage);
 
-				const envelope = makeSuccess(
-					{ jar: sourceJarId, class: className, members: enriched },
-					{ provenance },
-				);
+				// Extract member source
+				const extractions = extractMemberSource(sourceText, enriched, memberFqn);
 
-				const summary = `Found ${members.length} top-level member${members.length === 1 ? '' : 's'} in ${className}`;
+				if (extractions.length === 0) {
+					return returnError(
+						'MEMBER_NOT_FOUND',
+						`Member '${memberFqn}' not found in class '${outerClassName}'`,
+						[memberFqn],
+						['Check the member FQN from list_members output', 'Use list_members to see available members'],
+					);
+				}
+
+				// Look up jar metadata for result
+				const dep = getAllDependencies(loadedProject).get(sourceJarId)!;
+
+				const results: MemberResult[] = extractions.map(ext => ({
+					jar: sourceJarId,
+					category: dep.category,
+					provenanceChains: dep.provenanceChains,
+					memberFqn: ext.memberFqn,
+					kind: ext.kind,
+					source: ext.source,
+					startLine: ext.startLine,
+					endLine: ext.endLine,
+					lineCount: ext.lineCount,
+				}));
+
+				const envelope = makeSuccess({ members: results }, { provenance });
+
+				const summary = extractions.length === 1
+					? `Read ${memberFqn} from ${sourceJarId} (${extractions[0].lineCount} lines)`
+					: `Read ${extractions.length} overloads of ${memberFqn} from ${sourceJarId}`;
 
 				return {
 					content: [{ type: 'text' as const, text: summary }],

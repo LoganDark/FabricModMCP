@@ -24,6 +24,7 @@ import { registerAddStudyJarTool } from './add-study-jar.js';
 import { registerRemoveStudyJarTool } from './remove-study-jar.js';
 import { registerListStudyJarsTool } from './list-study-jars.js';
 import { registerConfigureStudyJarTool } from './configure-study-jar.js';
+import { registerReadMemberTool } from './read-member.js';
 
 export function registerAllTools(server: McpServer): void {
 	registerEchoTool(server);
@@ -51,4 +52,5 @@ export function registerAllTools(server: McpServer): void {
 	registerRemoveStudyJarTool(server);
 	registerListStudyJarsTool(server);
 	registerConfigureStudyJarTool(server);
+	registerReadMemberTool(server);
 }

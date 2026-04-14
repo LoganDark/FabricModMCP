@@ -91,3 +91,15 @@ export interface SourceResult {
 	source: string;
 	lineCount: number;
 }
+
+export interface MemberResult {
+	jar: string;
+	category: JarCategory;
+	provenanceChains: string[][];
+	memberFqn: string;
+	kind: string;
+	source: string;
+	startLine: number;
+	endLine: number;
+	lineCount: number;
+}
