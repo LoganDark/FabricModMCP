@@ -1,9 +1,8 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
-import { parseEnvelope, makeFakeProject } from '../helpers/factories.js';
+import { parseEnvelope, makeFakeProject, makeJdtlsSession } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
 import type { LoadedProject } from '../../src/project/types.js';
-import type { JdtLsSession } from '../../src/jdtls/types.js';
 
 const toolModuleAvailable = await import('../../src/tools/search-symbols.js').then(() => true).catch(() => false);
 
@@ -40,18 +39,6 @@ function makeMockClient() {
 		documentSymbol: vi.fn(),
 		didOpen: mockDidOpen,
 		didClose: mockDidClose,
-	};
-}
-
-function makeJdtlsSession(overrides: Partial<JdtLsSession> = {}): JdtLsSession {
-	return {
-		available: true,
-		tempDir: '/tmp/test-jdtls',
-		dataDir: '/tmp/test-jdtls-data',
-		jarIdToDirName: new Map([['minecraft', 'minecraft']]),
-		client: makeMockClient() as any,
-		endpoint: { send: mockEndpointSend } as any,
-		...overrides,
 	};
 }
 
@@ -133,7 +120,7 @@ describe('search_symbols', () => {
 
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession() });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
@@ -171,7 +158,7 @@ describe('search_symbols', () => {
 
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession() });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
@@ -200,7 +187,7 @@ describe('search_symbols', () => {
 
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession() });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
@@ -232,7 +219,7 @@ describe('search_symbols', () => {
 
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession() });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({

@@ -1,9 +1,8 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
-import { parseEnvelope, makeFakeProject as makeFakeProjectBase } from '../helpers/factories.js';
+import { parseEnvelope, makeFakeProject as makeFakeProjectBase, makeJdtlsSession } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
 import type { LoadedProject, DependencyEntry } from '../../src/project/types.js';
-import type { JdtLsSession } from '../../src/jdtls/types.js';
 
 const toolModuleAvailable = await import('../../src/tools/find-references.js').then(() => true).catch(() => false);
 
@@ -95,20 +94,6 @@ function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedProject 
 	return makeFakeProjectBase({ dependencyJars: deps, ...overrides });
 }
 
-function makeJdtlsSession(overrides: Partial<JdtLsSession> = {}): JdtLsSession {
-	return {
-		available: true,
-		tempDir: '/tmp/test-jdtls',
-		dataDir: '/tmp/test-jdtls-data',
-		jarIdToDirName: new Map([
-			['minecraft', 'minecraft'],
-			['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1'],
-		]),
-		client: makeMockClient() as any,
-		...overrides,
-	};
-}
-
 describe('find_references', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -169,7 +154,7 @@ describe('find_references', () => {
 
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession() });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['minecraft', 'minecraft'], ['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1']]) }) });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
@@ -201,7 +186,7 @@ describe('find_references', () => {
 
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession() });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['minecraft', 'minecraft'], ['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1']]) }) });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
@@ -226,7 +211,7 @@ describe('find_references', () => {
 	test.skipIf(!toolModuleAvailable)('returns error on cascading regex failure', async () => {
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession() });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['minecraft', 'minecraft'], ['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1']]) }) });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
@@ -271,7 +256,7 @@ describe('find_references', () => {
 
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession() });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['minecraft', 'minecraft'], ['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1']]) }) });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
@@ -304,7 +289,7 @@ describe('find_references', () => {
 
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession() });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['minecraft', 'minecraft'], ['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1']]) }) });
 			projectStore.set('test', fake);
 
 			await pair.client.callTool({

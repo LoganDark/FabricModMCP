@@ -1,9 +1,8 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
-import { parseEnvelope, makeFakeProject } from '../helpers/factories.js';
+import { parseEnvelope, makeFakeProject, makeJdtlsSession } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
 import type { LoadedProject } from '../../src/project/types.js';
-import type { JdtLsSession } from '../../src/jdtls/types.js';
 
 const toolModuleAvailable = await import('../../src/tools/list-members.js').then(() => true).catch(() => false);
 
@@ -59,17 +58,6 @@ function makeMockClient() {
 }
 
 
-function makeJdtlsSession(overrides: Partial<JdtLsSession> = {}): JdtLsSession {
-	return {
-		available: true,
-		tempDir: '/tmp/test-jdtls',
-		dataDir: '/tmp/test-jdtls-data',
-		jarIdToDirName: new Map([['minecraft', 'minecraft']]),
-		client: makeMockClient() as any,
-		...overrides,
-	};
-}
-
 describe('list_members', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -105,7 +93,7 @@ describe('list_members', () => {
 
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession() });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
@@ -155,7 +143,7 @@ describe('list_members', () => {
 
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession() });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
@@ -214,7 +202,7 @@ describe('list_members', () => {
 
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession() });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
@@ -241,7 +229,7 @@ describe('list_members', () => {
 
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession() });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({

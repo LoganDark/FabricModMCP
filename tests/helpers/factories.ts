@@ -1,5 +1,6 @@
 import type { TestPair } from './client.js';
 import type { LoadedProject, DependencyEntry } from '../../src/project/types.js';
+import type { JdtLsSession } from '../../src/jdtls/types.js';
 
 export function parseEnvelope(result: Awaited<ReturnType<TestPair['client']['callTool']>>): any {
 	return (result as any).structuredContent;
@@ -44,6 +45,17 @@ export function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedP
 		},
 		dependencyJars: deps,
 		filterConfig: { mode: 'include-all', patterns: [] },
+		...overrides,
+	};
+}
+
+export function makeJdtlsSession(client: any, overrides: Partial<JdtLsSession> = {}): JdtLsSession {
+	return {
+		available: true,
+		tempDir: '/tmp/test-jdtls',
+		dataDir: '/tmp/test-jdtls-data',
+		jarIdToDirName: new Map([['minecraft', 'minecraft']]),
+		client,
 		...overrides,
 	};
 }
