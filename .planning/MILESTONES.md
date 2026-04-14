@@ -1,5 +1,22 @@
 # Milestones
 
+## v1.1 Study Jars (Shipped: 2026-04-14)
+
+**Phases completed:** 4 phases, 8 plans, 18 tasks
+
+**Key accomplishments:**
+
+- StudyJar type system with granular JarReader add/remove and per-key cache eviction
+- Study jar lifecycle domain service with validation, creation, staleness detection, DependencyEntry conversion, and refresh_dependencies survival wiring
+- Two-mode dependency resolver (resolved vs all) with getDependenciesForTool helper and simplified searchClasses signature
+- All 11 tool files updated to use dependency resolver, eliminating direct dependencyJars access across the entire tool layer
+- Four MCP tools (add, remove, list, configure) for study jar lifecycle management, wired into registerAllTools with 379 tests green
+- 18 integration tests across 4 files covering add/remove/list/configure study jar tools with success, error, and batch fail-fast behavior
+- Incremental study jar extraction with classpath regeneration, JDT LS notification, and probe-based readiness detection
+- Study jar tools wired to workspace sync -- add blocks until indexed, remove unsyncs before cleanup, list shows workspaceSynced per jar
+
+---
+
 ## v1.0 MVP (Shipped: 2026-04-14)
 
 **Phases completed:** 10 phases, 22 plans, 41 tasks

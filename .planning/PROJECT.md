@@ -24,31 +24,18 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - ✓ Cascading regex engine: array of patterns that narrow progressively to a precise character position — v1.0
 - ✓ Semantic navigation via JDT LS: find-definition, find-references across all sources — v1.0
 - ✓ Advanced LSP browsing: list members, hover info, type hierarchy, find implementations, workspace symbol search — v1.0
+- ✓ Add/remove/list/configure named study jars on loaded projects — v1.1
+- ✓ Study jars selectable via existing `jars` parameter on all jar-aware tools — v1.1
+- ✓ Auto-include study jars appear in default jar set when `jars` omitted — v1.1
+- ✓ Incremental JDT LS workspace sync for study jars (extraction, classpath, notification) — v1.1
 
 ### Active
 
-#### Study Jar Management
-- [x] Add named source jars to loaded projects for study purposes — Validated in Phase 13: study-jar-management-tools
-- [x] Remove study jars from projects — Validated in Phase 13: study-jar-management-tools
-- [x] List study jars with auto-include status — Validated in Phase 13: study-jar-management-tools
-- [x] Toggle auto-include flag per study jar — Validated in Phase 13: study-jar-management-tools
+(None yet — define in next milestone)
 
-#### Tool Integration
-- [x] Study jars selectable via existing `jars` parameter — Validated in Phase 12: existing-tool-integration
-- [x] Auto-include study jars appear in default jar set — Validated in Phase 12: existing-tool-integration
+## Current Milestone
 
-#### JDT LS Workspace Sync
-- [x] Study jar sources extracted incrementally to JDT LS workspace — Validated in Phase 14: jdtls-workspace-sync
-- [x] Classpath regenerated and JDT LS notified on add/remove without full reload — Validated in Phase 14: jdtls-workspace-sync
-
-## Current Milestone: v1.1 Study Jars
-
-**Goal:** Enable adding arbitrary source jars to projects for study, with opt-in inclusion in default tool resolution.
-
-**Target features:**
-- Add/remove/list named study jars on loaded projects
-- Auto-include flag controlling default jar set membership
-- Full integration with existing jar-aware tools
+Planning next milestone. See `/gsd:new-milestone` to start.
 
 ### Out of Scope
 
@@ -61,15 +48,12 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 ## Context
 
 - **Shipped:** v1.0 MVP on 2026-04-14 — 5,336 LOC TypeScript, 21 MCP tools, 327 tests
-- **Phase 11 complete:** StudyJar type system, jar handle management (add/remove with ref-counting), cache eviction, domain service module (7 functions), refresh_dependencies wiring — 361 tests
-- **Phase 12 complete:** Unified dependency resolver integrating study jars into all 11 existing tools via `getDependenciesForTool` — 379 tests
-- **Phase 13 complete:** Four MCP tools for study jar CRUD (add, remove, list, configure) with 18 integration tests — 397 tests
-- **Phase 14 complete:** JDT LS workspace sync — incremental study jar extraction, classpath regeneration, LSP notification, probe-based readiness detection. 26 new tests — 423 tests
+- **Shipped:** v1.1 Study Jars on 2026-04-14 — 6,030 LOC TypeScript, 25 MCP tools, 423 tests (+96 tests, +4 tools)
 - **Tech stack:** TypeScript 5.7+, Node.js 22 LTS, official MCP SDK 1.29.x, Zod 4, node-stream-zip, JDT LS via ts-lsp-client
-- **Architecture:** Layered domain → tool pattern. Domain modules handle logic; tool layer wires Zod schemas and MCP registration. Shared abstractions: ProjectStore, JarReader, EntryIndex, SourceAdapter, cascadeRegex, resolveSymbolPosition
+- **Architecture:** Layered domain → tool pattern. Domain modules handle logic; tool layer wires Zod schemas and MCP registration. Shared abstractions: ProjectStore, JarReader, EntryIndex, SourceAdapter, cascadeRegex, resolveSymbolPosition, dependency-resolver
 - **Ecosystem:** Fabric mod development uses Gradle with Fabric Loom. Loom's genSources decompiles Minecraft into a sources jar (~6,600 .java files) in `~/.gradle/caches/fabric-loom/minecraftMaven/`
-- **JDT LS integration:** Eclipse JDT Language Server provides semantic analysis. Workspace extraction on project load, eager initialization with graceful degradation when Java 21 or JDT LS unavailable
-- **Known tech debt:** 5 non-critical items (non-null assertion in resolveSymbolPosition, inconsistent guard pattern in type-hierarchy, redundant casts, unused includeSchema pattern). See v1.0 audit for details.
+- **JDT LS integration:** Eclipse JDT Language Server provides semantic analysis. Workspace extraction on project load, eager initialization with graceful degradation when Java 21 or JDT LS unavailable. Study jars incrementally synced to workspace.
+- **Known tech debt:** 20 pre-existing TypeScript `tsc --noEmit` errors (ToolError/ToolSuccess index signature vs MCP SDK structuredContent). Runtime and tests unaffected. 5 non-critical items from v1.0 audit still open.
 
 ## Constraints
 
@@ -90,7 +74,11 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 | Direct jar reading, no extraction cache | User preference; keeps disk usage low, avoids stale cache | ✓ Good — node-stream-zip handles this well |
 | Multi-project from the start | Porting use case requires comparing two MC versions side-by-side | ✓ Good — shared jar handles with ref counting |
 | Dual mapping-era support | MC <=1.21.11 uses Yarn mappings, MC >=26.1 uses unobfuscated names | ✓ Good — both paths work, era auto-detected |
-| Domain → tool layered architecture | Domain modules testable independently; tools are thin wiring | ✓ Good — 327 tests, clean separation |
+| Domain → tool layered architecture | Domain modules testable independently; tools are thin wiring | ✓ Good — 423 tests, clean separation |
+| Two-mode dependency resolver | getResolvedDependencies for defaults, getAllDependencies for explicit selection | ✓ Good — clean study jar integration across all tools |
+| Incremental workspace sync | Extract/remove study jars individually, not full rebuild | ✓ Good — fast add/remove, no full project reload |
+| Probe-based readiness detection | Query workspace/symbol '*' to detect JDT LS indexing completion | ✓ Good — contents of arbitrary jars unknown |
+| Study jar `study:` namespace prefix | Collision avoidance with real dependency IDs | ✓ Good — clear separation |
 
 ## Evolution
 
@@ -110,4 +98,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-14 after Phase 14 completion*
+*Last updated: 2026-04-14 after v1.1 milestone*
