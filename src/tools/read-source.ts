@@ -5,16 +5,8 @@ import { getFilteredDependencies } from '../project/jar-registry.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { logger } from '../logging/logger.js';
-import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError, resolveClassSource } from './tool-helpers.js';
-import type { JarCategory } from '../project/types.js';
-
-interface SourceResult {
-	jar: string;
-	category: JarCategory;
-	provenanceChains: string[][];
-	source: string;
-	lineCount: number;
-}
+import { classNameToEntryPath, handleClassSourceError, sortByPriority, resolveProjectSafely, returnError, resolveClassSource } from './tool-helpers.js';
+import type { SourceResult } from '../browsing/types.js';
 
 export function registerReadSourceTool(server: McpServer): void {
 	server.registerTool(
@@ -40,15 +32,7 @@ export function registerReadSourceTool(server: McpServer): void {
 			// If specific jar is requested
 			if (jar !== undefined) {
 				const sourceResult = await resolveClassSource(loadedProject, className, jar);
-				if (!sourceResult.success) {
-					if (sourceResult.kind === 'jar-not-found') {
-						return returnError('JAR_NOT_FOUND', `Jar '${sourceResult.jar}' not found in project '${loadedProject.name}'`, [sourceResult.jar], ['Check available jars with get_project_metadata']);
-					}
-					if (sourceResult.kind === 'jar-not-available') {
-						return returnError('JAR_NOT_AVAILABLE', `Sources for jar '${sourceResult.jar}' are not available`, [sourceResult.jar], ['The dependency does not have a sources jar']);
-					}
-					return returnError('CLASS_NOT_FOUND', `Class '${className}' not found in jar '${jar}'`, [sourceResult.entryPath], ['Check the fully-qualified class name']);
-				}
+				if (!sourceResult.success) return handleClassSourceError(sourceResult, className, loadedProject.name, jar);
 
 				const dep = loadedProject.dependencyJars.get(jar)!;
 				const lineCount = sourceResult.sourceText.split('\n').length;

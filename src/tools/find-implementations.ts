@@ -6,7 +6,7 @@ import { resolveSymbolPosition } from './resolve-symbol-position.js';
 import { createUriMapper, entryPathToClassName } from '../jdtls/uri-mapper.js';
 import { extractEnclosingContext } from '../jdtls/context-extractor.js';
 import { logger } from '../logging/logger.js';
-import { normalizeLocations, resolveProjectSafely, returnError, withLspDocument } from './tool-helpers.js';
+import { handleSymbolPositionError, normalizeLocations, resolveProjectSafely, returnError, withLspDocument } from './tool-helpers.js';
 import type { NavigationResult } from '../jdtls/types.js';
 
 export function registerFindImplementationsTool(server: McpServer): void {
@@ -54,46 +54,7 @@ export function registerFindImplementationsTool(server: McpServer): void {
 			// Resolve symbol position using shared helper
 			const posResult = await resolveSymbolPosition(loadedProject, className, patterns, jar);
 
-			if (!posResult.success) {
-				if (posResult.kind === 'jar-not-found') {
-					return returnError(
-						'JAR_NOT_FOUND',
-						`Jar '${posResult.jar}' not found in project '${loadedProject.name}'`,
-						[posResult.jar],
-						['Check available jars with get_project_metadata'],
-					);
-				}
-				if (posResult.kind === 'jar-not-available') {
-					return returnError(
-						'JAR_NOT_AVAILABLE',
-						`Sources for jar '${posResult.jar}' are not available`,
-						[posResult.jar],
-						['The dependency does not have a sources jar'],
-					);
-				}
-				if (posResult.kind === 'cascade-failure') {
-					const failure = {
-						jar: posResult.jar,
-						category: posResult.category,
-						provenanceChains: posResult.provenanceChains,
-						steps: posResult.steps,
-						failedStep: posResult.failedStep,
-						error: posResult.error,
-					};
-					const envelope = makeSuccess({ results: [], failures: [failure] }, { provenance });
-					return {
-						content: [{ type: 'text' as const, text: `Cascade failed at step ${posResult.failedStep + 1} in ${className} (${posResult.jar})` }],
-						structuredContent: envelope,
-					};
-				}
-				// not-found
-				return returnError(
-					'CLASS_NOT_FOUND',
-					`Class '${className}' not found in any jar, or cascading regex failed in all jars`,
-					[posResult.entryPath],
-					['Check the fully-qualified class name', 'Use list_packages to browse available packages'],
-				);
-			}
+			if (!posResult.success) return handleSymbolPositionError(posResult, loadedProject.name, provenance);
 
 			const { sourceJarId, sourceText, cascadeResult, fileUri } = posResult;
 

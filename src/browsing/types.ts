@@ -1,4 +1,5 @@
 import type { JarCategory } from '../project/types.js';
+import type { CascadeStep } from './cascading-regex.js';
 
 export interface PackageEntry {
 	name: string;          // dot-separated: "net.minecraft.client"
@@ -28,4 +29,38 @@ export interface ClassInfo {
 	modifiers: string[];
 	jars: Array<{ id: string; category: JarCategory }>;
 	innerClasses?: InnerClassInfo[];
+}
+
+export interface LocateResult {
+	jar: string;
+	category: JarCategory;
+	provenanceChains: string[][];
+	steps: CascadeStep[];
+	offset: number;
+	line: number;
+	column: number;
+}
+
+export interface TransformedSymbol {
+	name: string;
+	kind: string;
+	detail: string | null;
+	deprecated: boolean;
+	range: {
+		start: { line: number; character: number };
+		end: { line: number; character: number };
+	};
+	selectionRange: {
+		start: { line: number; character: number };
+		end: { line: number; character: number };
+	};
+	children: TransformedSymbol[];
+}
+
+export interface SourceResult {
+	jar: string;
+	category: JarCategory;
+	provenanceChains: string[][];
+	source: string;
+	lineCount: number;
 }

@@ -1,30 +1,13 @@
 import { z } from 'zod';
-import picomatch from 'picomatch';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
-import { EntryIndex } from '../browsing/entry-index.js';
+import { getOrBuildIndex } from '../browsing/entry-index-cache.js';
 import { logger } from '../logging/logger.js';
-import { resolveProjectSafely } from './tool-helpers.js';
+import { filterDependenciesByJarPattern, resolveProjectSafely } from './tool-helpers.js';
 import type { PackageEntry } from '../browsing/types.js';
-
-// Cache EntryIndex per jar path to avoid rebuilding on repeated calls
-export const entryIndexCache = new Map<string, EntryIndex>();
-
-export function getOrBuildIndex(entries: string[], cacheKey: string): EntryIndex {
-	const cached = entryIndexCache.get(cacheKey);
-	if (cached) return cached;
-
-	const index = new EntryIndex(entries);
-	entryIndexCache.set(cacheKey, index);
-	return index;
-}
-
-export function clearEntryIndexCache(): void {
-	entryIndexCache.clear();
-}
 
 export function registerListPackagesTool(server: McpServer): void {
 	server.registerTool(
@@ -51,14 +34,7 @@ export function registerListPackagesTool(server: McpServer): void {
 
 			// Apply jars parameter if provided
 			if (jars && jars.length > 0) {
-				const isMatch = picomatch(jars);
-				const scoped = new Map<string, typeof filtered extends Map<string, infer V> ? V : never>();
-				for (const [id, entry] of filtered) {
-					if (isMatch(id)) {
-						scoped.set(id, entry);
-					}
-				}
-				filtered = scoped;
+				filtered = filterDependenciesByJarPattern(filtered, jars);
 			}
 
 			// Build merged package listings across all matching jars

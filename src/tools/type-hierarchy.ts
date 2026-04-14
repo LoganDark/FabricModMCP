@@ -4,7 +4,7 @@ import { makeSuccess } from '../types/envelope.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { SYMBOL_KIND_NAME } from '../jdtls/symbol-kind.js';
 import { logger } from '../logging/logger.js';
-import { classNameToEntryPath, resolveProjectSafely, returnError, withLspDocument, resolveClassSource } from './tool-helpers.js';
+import { classNameToEntryPath, handleClassSourceError, resolveProjectSafely, returnError, withLspDocument, resolveClassSource } from './tool-helpers.js';
 import type { ClassReference } from '../browsing/types.js';
 
 function toClassReference(item: any): ClassReference {
@@ -62,15 +62,7 @@ export function registerTypeHierarchyTool(server: McpServer): void {
 
 			// Resolve class source from jars
 			const sourceResult = await resolveClassSource(loadedProject, className, jar);
-			if (!sourceResult.success) {
-				if (sourceResult.kind === 'jar-not-found') {
-					return returnError('JAR_NOT_FOUND', `Jar '${sourceResult.jar}' not found in project '${loadedProject.name}'`, [sourceResult.jar], ['Check available jars with get_project_metadata']);
-				}
-				if (sourceResult.kind === 'jar-not-available') {
-					return returnError('JAR_NOT_AVAILABLE', `Sources for jar '${sourceResult.jar}' are not available`, [sourceResult.jar], ['The dependency does not have a sources jar']);
-				}
-				return returnError('CLASS_NOT_FOUND', `Class '${className}' not found in ${jar ? `jar '${jar}'` : 'any jar'}`, [sourceResult.entryPath], jar ? ['Check the fully-qualified class name'] : ['Check the fully-qualified class name', 'Use list_packages to browse available packages']);
-			}
+			if (!sourceResult.success) return handleClassSourceError(sourceResult, className, loadedProject.name, jar);
 			const { sourceJarId, sourceText, entryPath } = sourceResult;
 
 			// Build file URI

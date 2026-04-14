@@ -1,12 +1,12 @@
 import picomatch from 'picomatch';
-import { EntryIndex } from './entry-index.js';
 import { parseClassDeclaration } from './class-parser.js';
+import { getOrBuildIndex } from './entry-index-cache.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
 import { createSourceAdapter } from './source-adapter.js';
 import type { ClassInfo } from './types.js';
-import type { DependencyEntry, FilterConfig } from '../project/types.js';
+import type { DependencyEntry, FilterConfig, JarCategory } from '../project/types.js';
 import type { JarReader } from '../project/jar-reader.js';
-import { CATEGORY_PRIORITY, classNameToEntryPath } from '../tools/tool-helpers.js';
+import { CATEGORY_PRIORITY, classNameToEntryPath, filterDependenciesByJarPattern, sortByPriority } from '../tools/tool-helpers.js';
 
 export interface SearchResponse {
 	results: ClassInfo[];
@@ -24,18 +24,6 @@ export interface SearchOptions {
 	limit?: number;
 }
 
-// Module-level cache for EntryIndex instances keyed by jar path/identifier
-const entryIndexCache = new Map<string, EntryIndex>();
-
-function getOrBuildIndex(entries: string[], cacheKey: string): EntryIndex {
-	const cached = entryIndexCache.get(cacheKey);
-	if (cached) return cached;
-
-	const index = new EntryIndex(entries);
-	entryIndexCache.set(cacheKey, index);
-	return index;
-}
-
 export async function searchClasses(
 	options: SearchOptions,
 	dependencies: Map<string, DependencyEntry>,
@@ -51,23 +39,11 @@ export async function searchClasses(
 
 	// Step 2: Apply jar scoping if provided
 	if (options.jars && options.jars.length > 0) {
-		const isJarMatch = picomatch(options.jars);
-		const scoped = new Map<string, DependencyEntry>();
-		for (const [id, entry] of filtered) {
-			if (isJarMatch(id)) {
-				scoped.set(id, entry);
-			}
-		}
-		filtered = scoped;
+		filtered = filterDependenciesByJarPattern(filtered, options.jars);
 	}
 
 	// Step 3: Sort jars by priority
-	const sortedJars = Array.from(filtered.entries()).sort((a, b) => {
-		const pa = CATEGORY_PRIORITY[a[1].category] ?? 99;
-		const pb = CATEGORY_PRIORITY[b[1].category] ?? 99;
-		if (pa !== pb) return pa - pb;
-		return a[0].localeCompare(b[0]);
-	});
+	const sortedJars = sortByPriority(Array.from(filtered.entries()));
 
 	// Step 4: Create FQN matcher using dot-to-slash conversion
 	let matchPattern = options.pattern.replaceAll('.', '/');

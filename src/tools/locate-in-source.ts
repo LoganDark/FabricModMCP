@@ -8,18 +8,7 @@ import { cascadeRegex } from '../browsing/cascading-regex.js';
 import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError } from './tool-helpers.js';
 import type { LocateFailure } from './tool-helpers.js';
-import type { JarCategory } from '../project/types.js';
-import type { CascadeStep } from '../browsing/cascading-regex.js';
-
-interface LocateResult {
-	jar: string;
-	category: JarCategory;
-	provenanceChains: string[][];
-	steps: CascadeStep[];
-	offset: number;
-	line: number;
-	column: number;
-}
+import type { LocateResult } from '../browsing/types.js';
 
 export function registerLocateInSourceTool(server: McpServer): void {
 	server.registerTool(

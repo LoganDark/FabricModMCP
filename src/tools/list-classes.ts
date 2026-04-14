@@ -1,14 +1,13 @@
 import { z } from 'zod';
-import picomatch from 'picomatch';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { parseClassDeclaration } from '../browsing/class-parser.js';
+import { getOrBuildIndex } from '../browsing/entry-index-cache.js';
 import { logger } from '../logging/logger.js';
-import { resolveProjectSafely } from './tool-helpers.js';
-import { getOrBuildIndex } from './list-packages.js';
+import { filterDependenciesByJarPattern, resolveProjectSafely } from './tool-helpers.js';
 import type { SourceAdapter } from '../browsing/source-adapter.js';
 import type { ClassInfo, InnerClassInfo } from '../browsing/types.js';
 
@@ -58,14 +57,7 @@ export function registerListClassesTool(server: McpServer): void {
 
 			// Apply jars parameter if provided
 			if (jars && jars.length > 0) {
-				const isMatch = picomatch(jars);
-				const scoped = new Map<string, typeof filtered extends Map<string, infer V> ? V : never>();
-				for (const [id, entry] of filtered) {
-					if (isMatch(id)) {
-						scoped.set(id, entry);
-					}
-				}
-				filtered = scoped;
+				filtered = filterDependenciesByJarPattern(filtered, jars);
 			}
 
 			// Build merged class listings across all matching jars
