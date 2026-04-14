@@ -3,14 +3,17 @@
  *
  * Single source of truth for: CATEGORY_PRIORITY, sortByPriority, classNameToEntryPath,
  * normalizeLocations, LocateFailure, resolveProjectSafely, returnError, withLspDocument,
- * and resolveClassSource.
+ * resolveClassSource, handleSymbolPositionError, handleClassSourceError,
+ * and filterDependenciesByJarPattern.
  */
 
+import picomatch from 'picomatch';
 import type { JarCategory, DependencyEntry, LoadedProject } from '../project/types.js';
 import type { CascadeStep } from '../browsing/cascading-regex.js';
+import type { SymbolPositionResult } from './resolve-symbol-position.js';
 import type { LspClient } from 'ts-lsp-client';
 import { projectStore } from '../state/project-store.js';
-import { makeError } from '../types/envelope.js';
+import { makeError, makeSuccess } from '../types/envelope.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
@@ -168,4 +171,91 @@ export async function resolveClassSource(
 	}
 
 	return { success: false, kind: 'class-not-found', entryPath };
+}
+
+/**
+ * Handle error results from resolveSymbolPosition().
+ * Shared by find-definition, find-references, find-implementations, and get-symbol-info.
+ */
+export function handleSymbolPositionError(
+	posResult: Extract<SymbolPositionResult, { success: false }>,
+	projectName: string,
+	provenance: Record<string, string>,
+): { content: { type: 'text'; text: string }[]; structuredContent: any } {
+	if (posResult.kind === 'jar-not-found') {
+		return returnError(
+			'JAR_NOT_FOUND',
+			`Jar '${posResult.jar}' not found in project '${projectName}'`,
+			[posResult.jar],
+			['Check available jars with get_project_metadata'],
+		);
+	}
+	if (posResult.kind === 'jar-not-available') {
+		return returnError(
+			'JAR_NOT_AVAILABLE',
+			`Sources for jar '${posResult.jar}' are not available`,
+			[posResult.jar],
+			['The dependency does not have a sources jar'],
+		);
+	}
+	if (posResult.kind === 'cascade-failure') {
+		const failure: LocateFailure = {
+			jar: posResult.jar,
+			category: posResult.category,
+			provenanceChains: posResult.provenanceChains,
+			steps: posResult.steps,
+			failedStep: posResult.failedStep,
+			error: posResult.error,
+		};
+		const envelope = makeSuccess({ results: [], failures: [failure] }, { provenance });
+		return {
+			content: [{ type: 'text' as const, text: `Cascade failed at step ${posResult.failedStep + 1} in ${provenance.class} (${posResult.jar})` }],
+			structuredContent: envelope,
+		};
+	}
+	// not-found (only remaining kind after jar-not-found, jar-not-available, cascade-failure)
+	const notFound = posResult as Extract<SymbolPositionResult, { kind: 'not-found' }>;
+	return returnError(
+		'CLASS_NOT_FOUND',
+		`Class '${provenance.class}' not found in any jar, or cascading regex failed in all jars`,
+		[notFound.entryPath],
+		['Check the fully-qualified class name', 'Use list_packages to browse available packages'],
+	);
+}
+
+/**
+ * Handle error results from resolveClassSource().
+ * Shared by list-members, type-hierarchy, and read-source.
+ */
+export function handleClassSourceError(
+	sourceResult: Extract<Awaited<ReturnType<typeof resolveClassSource>>, { success: false }>,
+	className: string,
+	projectName: string,
+	jar?: string,
+): { content: { type: 'text'; text: string }[]; structuredContent: any } {
+	if (sourceResult.kind === 'jar-not-found') {
+		return returnError('JAR_NOT_FOUND', `Jar '${sourceResult.jar}' not found in project '${projectName}'`, [sourceResult.jar], ['Check available jars with get_project_metadata']);
+	}
+	if (sourceResult.kind === 'jar-not-available') {
+		return returnError('JAR_NOT_AVAILABLE', `Sources for jar '${sourceResult.jar}' are not available`, [sourceResult.jar], ['The dependency does not have a sources jar']);
+	}
+	return returnError('CLASS_NOT_FOUND', `Class '${className}' not found in ${jar ? `jar '${jar}'` : 'any jar'}`, [sourceResult.entryPath], jar ? ['Check the fully-qualified class name'] : ['Check the fully-qualified class name', 'Use list_packages to browse available packages']);
+}
+
+/**
+ * Filter dependencies by jar glob patterns using picomatch.
+ * Shared by list-packages, list-classes, and search.
+ */
+export function filterDependenciesByJarPattern(
+	filtered: Map<string, DependencyEntry>,
+	jars: string[],
+): Map<string, DependencyEntry> {
+	const isMatch = picomatch(jars);
+	const scoped = new Map<string, DependencyEntry>();
+	for (const [id, entry] of filtered) {
+		if (isMatch(id)) {
+			scoped.set(id, entry);
+		}
+	}
+	return scoped;
 }
