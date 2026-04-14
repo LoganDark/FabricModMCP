@@ -32,6 +32,12 @@ export interface ClassInfo {
 	innerClasses?: InnerClassInfo[];
 }
 
+export interface LocateResultContext {
+	text: string;
+	startLine: number;
+	endLine: number;
+}
+
 export interface LocateResult {
 	jar: string;
 	category: JarCategory;
@@ -40,6 +46,7 @@ export interface LocateResult {
 	offset: number;
 	line: number;
 	column: number;
+	context?: LocateResultContext;
 }
 
 export interface TransformedSymbol {
