@@ -13,6 +13,37 @@ export class JarReader {
 		return this.projectHandles.get(projectName);
 	}
 
+	addProjectJar(projectName: string, jarPath: string): void {
+		const paths = this.projectHandles.get(projectName);
+		if (!paths) {
+			throw new DomainError(
+				'PROJECT_NOT_REGISTERED',
+				`Project '${projectName}' is not registered with the jar reader`,
+				[projectName],
+				['Load the project first'],
+			);
+		}
+		paths.add(jarPath);
+	}
+
+	async removeProjectJar(projectName: string, jarPath: string): Promise<void> {
+		const paths = this.projectHandles.get(projectName);
+		if (!paths) return;
+		paths.delete(jarPath);
+
+		// Check if any other project still references this jar
+		let shared = false;
+		for (const [otherName, otherPaths] of this.projectHandles) {
+			if (otherName !== projectName && otherPaths.has(jarPath)) {
+				shared = true;
+				break;
+			}
+		}
+		if (!shared) {
+			await this.close(jarPath);
+		}
+	}
+
 	async closeProject(projectName: string): Promise<void> {
 		const paths = this.projectHandles.get(projectName);
 		if (!paths) return;
