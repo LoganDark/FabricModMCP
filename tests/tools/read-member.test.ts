@@ -303,4 +303,144 @@ describe('read_member', () => {
 			projectStore.clear();
 		}
 	});
+
+	describe('context lines', () => {
+		const tickSymbol = {
+			name: 'MinecraftClient',
+			kind: 5,
+			detail: '',
+			range: { start: { line: 0, character: 0 }, end: { line: 10, character: 1 } },
+			selectionRange: { start: { line: 0, character: 13 }, end: { line: 0, character: 28 } },
+			children: [
+				{
+					name: 'tick()',
+					kind: 6,
+					detail: 'void',
+					range: { start: { line: 5, character: 0 }, end: { line: 7, character: 1 } },
+					selectionRange: { start: { line: 5, character: 12 }, end: { line: 5, character: 16 } },
+				},
+			],
+		};
+
+		function setupMocks() {
+			mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
+			mockDocumentSymbol.mockResolvedValue([tickSymbol]);
+		}
+
+		test.skipIf(!toolModuleAvailable)('returns memberStartLine/memberEndLine without context params', async () => {
+			setupMocks();
+			const pair = await createTestPair();
+			try {
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+				projectStore.set('test', fake);
+
+				const result = await pair.client.callTool({
+					name: 'read_member',
+					arguments: {
+						project: 'test',
+						jar: 'minecraft',
+						memberFqn: 'net.minecraft.client.MinecraftClient#tick()',
+					},
+				});
+
+				const envelope = parseEnvelope(result);
+				expect(envelope.success).toBe(true);
+				const member = envelope.data.members[0];
+				expect(member.memberStartLine).toBe(member.startLine);
+				expect(member.memberEndLine).toBe(member.endLine);
+			} finally {
+				await pair.cleanup();
+				projectStore.clear();
+			}
+		});
+
+		test.skipIf(!toolModuleAvailable)('expands source with linesBefore', async () => {
+			setupMocks();
+			const pair = await createTestPair();
+			try {
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+				projectStore.set('test', fake);
+
+				const result = await pair.client.callTool({
+					name: 'read_member',
+					arguments: {
+						project: 'test',
+						jar: 'minecraft',
+						memberFqn: 'net.minecraft.client.MinecraftClient#tick()',
+						linesBefore: 3,
+					},
+				});
+
+				const envelope = parseEnvelope(result);
+				expect(envelope.success).toBe(true);
+				const member = envelope.data.members[0];
+				expect(member.startLine).toBeLessThan(member.memberStartLine);
+				expect(member.source).toContain('package net.minecraft.client;');
+				expect(member.memberEndLine).toBe(member.endLine);
+			} finally {
+				await pair.cleanup();
+				projectStore.clear();
+			}
+		});
+
+		test.skipIf(!toolModuleAvailable)('expands source with linesAfter', async () => {
+			setupMocks();
+			const pair = await createTestPair();
+			try {
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+				projectStore.set('test', fake);
+
+				const result = await pair.client.callTool({
+					name: 'read_member',
+					arguments: {
+						project: 'test',
+						jar: 'minecraft',
+						memberFqn: 'net.minecraft.client.MinecraftClient#tick()',
+						linesAfter: 3,
+					},
+				});
+
+				const envelope = parseEnvelope(result);
+				expect(envelope.success).toBe(true);
+				const member = envelope.data.members[0];
+				expect(member.endLine).toBeGreaterThan(member.memberEndLine);
+				expect(member.source).toContain('public int count;');
+				expect(member.memberStartLine).toBe(member.startLine);
+			} finally {
+				await pair.cleanup();
+				projectStore.clear();
+			}
+		});
+
+		test.skipIf(!toolModuleAvailable)('expands source with both linesBefore and linesAfter', async () => {
+			setupMocks();
+			const pair = await createTestPair();
+			try {
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+				projectStore.set('test', fake);
+
+				const result = await pair.client.callTool({
+					name: 'read_member',
+					arguments: {
+						project: 'test',
+						jar: 'minecraft',
+						memberFqn: 'net.minecraft.client.MinecraftClient#tick()',
+						linesBefore: 3,
+						linesAfter: 3,
+					},
+				});
+
+				const envelope = parseEnvelope(result);
+				expect(envelope.success).toBe(true);
+				const member = envelope.data.members[0];
+				expect(member.startLine).toBeLessThan(member.memberStartLine);
+				expect(member.endLine).toBeGreaterThan(member.memberEndLine);
+				expect(member.source).toContain('package net.minecraft.client;');
+				expect(member.source).toContain('public int count;');
+			} finally {
+				await pair.cleanup();
+				projectStore.clear();
+			}
+		});
+	});
 });
