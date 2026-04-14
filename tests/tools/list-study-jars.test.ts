@@ -1,4 +1,10 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+
+vi.mock('../../src/jdtls/workspace-sync.js', () => ({
+	syncStudyJarToWorkspace: vi.fn().mockResolvedValue({ synced: true }),
+	unsyncStudyJarFromWorkspace: vi.fn().mockResolvedValue({ synced: true }),
+	isWorkspaceSynced: vi.fn().mockReturnValue(false),
+}));
 import { writeFile, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -7,6 +13,7 @@ import { createTestPair, type TestPair } from '../helpers/client.js';
 import { parseEnvelope, makeFakeProject } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
 import { jarReader } from '../../src/tools/shared-jar-reader.js';
+import { isWorkspaceSynced } from '../../src/jdtls/workspace-sync.js';
 
 const testDir = join(tmpdir(), 'list-study-jars-test-' + Date.now());
 const testJarPath = join(testDir, 'lib-a-sources.jar');
@@ -109,5 +116,62 @@ describe('list_study_jars tool', () => {
 		const textContent = (result as any).content[0].text;
 		expect(typeof textContent).toBe('string');
 		expect(textContent).toContain('readable-lib');
+	});
+
+	describe('workspaceSynced field', () => {
+		it('includes workspaceSynced field per jar', async () => {
+			vi.mocked(isWorkspaceSynced).mockReturnValue(false);
+
+			await pair.client.callTool({
+				name: 'add_study_jar',
+				arguments: { project: 'test', path: testJarPath, name: 'field-check-lib' },
+			});
+
+			const result = await pair.client.callTool({
+				name: 'list_study_jars',
+				arguments: { project: 'test' },
+			});
+
+			const envelope = parseEnvelope(result);
+			expect(envelope.success).toBe(true);
+			for (const jar of envelope.data.jars) {
+				expect(jar).toHaveProperty('workspaceSynced');
+				expect(typeof jar.workspaceSynced).toBe('boolean');
+			}
+		});
+
+		it('shows workspaceSynced=false when JDT LS unavailable', async () => {
+			vi.mocked(isWorkspaceSynced).mockReturnValue(false);
+
+			await pair.client.callTool({
+				name: 'add_study_jar',
+				arguments: { project: 'test', path: testJarPath, name: 'unsynced-lib' },
+			});
+
+			const result = await pair.client.callTool({
+				name: 'list_study_jars',
+				arguments: { project: 'test' },
+			});
+
+			const envelope = parseEnvelope(result);
+			expect(envelope.data.jars[0].workspaceSynced).toBe(false);
+		});
+
+		it('shows workspaceSynced=true when jar is synced', async () => {
+			vi.mocked(isWorkspaceSynced).mockReturnValue(true);
+
+			await pair.client.callTool({
+				name: 'add_study_jar',
+				arguments: { project: 'test', path: testJarPath, name: 'synced-lib' },
+			});
+
+			const result = await pair.client.callTool({
+				name: 'list_study_jars',
+				arguments: { project: 'test' },
+			});
+
+			const envelope = parseEnvelope(result);
+			expect(envelope.data.jars[0].workspaceSynced).toBe(true);
+		});
 	});
 });

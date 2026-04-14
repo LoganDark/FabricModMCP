@@ -1,4 +1,10 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+
+vi.mock('../../src/jdtls/workspace-sync.js', () => ({
+	syncStudyJarToWorkspace: vi.fn().mockResolvedValue({ synced: true }),
+	unsyncStudyJarFromWorkspace: vi.fn().mockResolvedValue({ synced: true }),
+	isWorkspaceSynced: vi.fn().mockReturnValue(false),
+}));
 import { writeFile, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -7,6 +13,7 @@ import { createTestPair, type TestPair } from '../helpers/client.js';
 import { parseEnvelope, makeFakeProject } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
 import { jarReader } from '../../src/tools/shared-jar-reader.js';
+import { unsyncStudyJarFromWorkspace } from '../../src/jdtls/workspace-sync.js';
 
 const testDir = join(tmpdir(), 'remove-study-jar-test-' + Date.now());
 const testJarPath = join(testDir, 'lib-a-sources.jar');
@@ -130,5 +137,62 @@ describe('remove_study_jar tool', () => {
 		const listEnvelope = parseEnvelope(listResult);
 		expect(listEnvelope.data.count).toBe(1);
 		expect(listEnvelope.data.jars[0].name).toBe('a');
+	});
+
+	describe('workspace sync', () => {
+		beforeEach(() => {
+			vi.mocked(unsyncStudyJarFromWorkspace).mockClear();
+			vi.mocked(unsyncStudyJarFromWorkspace).mockResolvedValue({ synced: true });
+		});
+
+		it('mentions semantic navigation update in response', async () => {
+			await pair.client.callTool({
+				name: 'add_study_jar',
+				arguments: { project: 'test', path: testJarPath, name: 'nav-lib' },
+			});
+
+			const result = await pair.client.callTool({
+				name: 'remove_study_jar',
+				arguments: { project: 'test', names: ['nav-lib'] },
+			});
+
+			const textContent = (result as any).content[0].text;
+			expect(textContent).toContain('Semantic navigation results have been updated');
+		});
+
+		it('calls unsync for each removed jar', async () => {
+			await pair.client.callTool({
+				name: 'add_study_jar',
+				arguments: { project: 'test', path: testJarPath, name: 'unsync-a' },
+			});
+			await pair.client.callTool({
+				name: 'add_study_jar',
+				arguments: { project: 'test', path: testJarPath2, name: 'unsync-b' },
+			});
+
+			await pair.client.callTool({
+				name: 'remove_study_jar',
+				arguments: { project: 'test', names: ['unsync-a', 'unsync-b'] },
+			});
+
+			expect(vi.mocked(unsyncStudyJarFromWorkspace).mock.calls.length).toBe(2);
+		});
+
+		it('does not warn about JDT LS unavailability on remove', async () => {
+			vi.mocked(unsyncStudyJarFromWorkspace).mockResolvedValue({ synced: false });
+
+			await pair.client.callTool({
+				name: 'add_study_jar',
+				arguments: { project: 'test', path: testJarPath, name: 'no-warn-lib' },
+			});
+
+			const result = await pair.client.callTool({
+				name: 'remove_study_jar',
+				arguments: { project: 'test', names: ['no-warn-lib'] },
+			});
+
+			const textContent = (result as any).content[0].text;
+			expect(textContent).not.toContain('JDT LS unavailable');
+		});
 	});
 });

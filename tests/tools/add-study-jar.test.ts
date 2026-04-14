@@ -1,4 +1,10 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+
+vi.mock('../../src/jdtls/workspace-sync.js', () => ({
+	syncStudyJarToWorkspace: vi.fn().mockResolvedValue({ synced: true }),
+	unsyncStudyJarFromWorkspace: vi.fn().mockResolvedValue({ synced: true }),
+	isWorkspaceSynced: vi.fn().mockReturnValue(false),
+}));
 import { writeFile, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -7,6 +13,7 @@ import { createTestPair, type TestPair } from '../helpers/client.js';
 import { parseEnvelope, makeFakeProject } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
 import { jarReader } from '../../src/tools/shared-jar-reader.js';
+import { syncStudyJarToWorkspace } from '../../src/jdtls/workspace-sync.js';
 
 const testDir = join(tmpdir(), 'add-study-jar-test-' + Date.now());
 const testJarPath = join(testDir, 'test-lib-1.0-sources.jar');
@@ -135,5 +142,70 @@ describe('add_study_jar tool', () => {
 		expect(envelope.success).toBe(true);
 		expect(envelope.data.count).toBe(1);
 		expect(envelope.data.jars[0].name).toBe('visible-lib');
+	});
+
+	describe('workspace sync', () => {
+		beforeEach(() => {
+			vi.mocked(syncStudyJarToWorkspace).mockResolvedValue({ synced: true });
+		});
+
+		it('triggers workspace sync after adding jar', async () => {
+			const result = await pair.client.callTool({
+				name: 'add_study_jar',
+				arguments: { project: 'test', path: testJarPath, name: 'synced-lib' },
+			});
+
+			const textContent = (result as any).content[0].text;
+			expect(textContent).not.toContain('JDT LS');
+			expect(textContent).not.toContain('sync failed');
+			expect(textContent).not.toContain('warning');
+			expect(syncStudyJarToWorkspace).toHaveBeenCalled();
+		});
+
+		it('includes warning when JDT LS is unavailable', async () => {
+			vi.mocked(syncStudyJarToWorkspace).mockResolvedValue({
+				synced: false,
+				warning: 'Note: JDT LS unavailable -- semantic navigation disabled',
+			});
+
+			const result = await pair.client.callTool({
+				name: 'add_study_jar',
+				arguments: { project: 'test', path: testJarPath, name: 'no-jdtls-lib' },
+			});
+
+			const textContent = (result as any).content[0].text;
+			expect(textContent).toContain('Note: JDT LS unavailable -- semantic navigation disabled');
+		});
+
+		it('includes warning when workspace sync fails', async () => {
+			vi.mocked(syncStudyJarToWorkspace).mockResolvedValue({
+				synced: false,
+				warning: 'Workspace sync failed: timeout',
+			});
+
+			const result = await pair.client.callTool({
+				name: 'add_study_jar',
+				arguments: { project: 'test', path: testJarPath, name: 'sync-fail-lib' },
+			});
+
+			const textContent = (result as any).content[0].text;
+			expect(textContent).toContain('Workspace sync failed');
+		});
+
+		it('succeeds even when workspace sync fails', async () => {
+			vi.mocked(syncStudyJarToWorkspace).mockResolvedValue({
+				synced: false,
+				warning: 'Workspace sync failed: timeout',
+			});
+
+			const result = await pair.client.callTool({
+				name: 'add_study_jar',
+				arguments: { project: 'test', path: testJarPath, name: 'still-ok-lib' },
+			});
+
+			const envelope = parseEnvelope(result);
+			expect(envelope.success).toBe(true);
+			expect(envelope.data.name).toBe('still-ok-lib');
+		});
 	});
 });
