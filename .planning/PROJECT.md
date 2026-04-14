@@ -12,24 +12,22 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 
 ### Validated
 
-- [x] Strongly typed tool interfaces — every MCP tool has precise parameter types and rich return types (Validated in Phase 1: Server Bootstrap)
-- [x] Performant and optimized — stderr-only logging, no stdout pollution, structured response envelope (Validated in Phase 1: Server Bootstrap)
-- [x] Auto-discover Minecraft sources jar from Gradle/Loom cache by parsing project config (build.gradle.kts, gradle.properties) (Validated in Phase 2: Project Discovery)
-- [x] Expose rich, strongly-typed project metadata: Minecraft version, Yarn mappings version, loader version, Fabric API version, mod metadata (Validated in Phase 2: Project Discovery)
-- [x] Auto-discover all dependency source jars (Fabric API, libraries, etc.) with include/exclude filtering; Minecraft sources have stable "minecraft" identifier (Validated in Phase 3: Dependency Discovery)
-- [x] Read .java files directly from source jars on demand — no extraction, no caching of extracted files (Validated in Phase 3: Dependency Discovery)
-- [x] Multi-project support — handle multiple Fabric/Loom Gradle projects simultaneously, explicitly supporting the mod-porting use case (comparing two MC versions side-by-side) (Validated in Phase 4: Multi-Project Sessions)
-- [x] Expose structured project metadata via MCP tool — Minecraft version, mappings, mod info, jar inventory with provenance chains (Validated in Phase 5: Project Metadata)
+- ✓ MCP server runs over stdio with typed Zod tool schemas and structured response envelope — v1.0
+- ✓ Stderr-only logging, zero stdout pollution outside JSON-RPC — v1.0
+- ✓ Auto-discover Minecraft sources jar from Gradle/Loom cache, supporting both Yarn-mapped and unobfuscated eras — v1.0
+- ✓ Auto-discover dependency source jars (Fabric API, libraries) with include/exclude filtering — v1.0
+- ✓ Read .java files directly from source jars on demand, no extraction to disk — v1.0
+- ✓ Multi-project sessions with named projects, simultaneous loading, listing, unloading — v1.0
+- ✓ Rich structured project metadata (versions, mod info, jar inventory with provenance chains) — v1.0
+- ✓ Hierarchical source browsing: list packages, list classes, read full source across jars and mod source — v1.0
+- ✓ Class search by glob pattern with scoping, pagination, and rich context — v1.0
+- ✓ Cascading regex engine: array of patterns that narrow progressively to a precise character position — v1.0
+- ✓ Semantic navigation via JDT LS: find-definition, find-references across all sources — v1.0
+- ✓ Advanced LSP browsing: list members, hover info, type hierarchy, find implementations, workspace symbol search — v1.0
 
 ### Active
-- [ ] Manual path override for sources jar (fallback when auto-discovery fails)
-- [x] Browse decompiled source — list packages, list classes in a package, read full source of a class (Validated in Phase 6: Source Browsing)
-- [x] Search by name — find classes by glob pattern across all sources with scoping and pagination (Validated in Phase 7: Search)
-- [x] Find definition — given a cascading regex pattern array (each regex narrows within the previous match), locate the definition site in source (Validated in Phase 8: Cascading Regex Engine)
-- [x] Find references/usages — given a cascading regex pattern array to identify a symbol position, find all places that reference it across all sources (Validated in Phase 9: Semantic Navigation)
-- [x] ~~Version comparison~~ — Deferred to v2 (only useful for unmapped sources, not needed for v1)
-- [ ] Strongly typed tool interfaces — every MCP tool has precise parameter types and rich return types, erring on the side of providing more information rather than less
-- [ ] Performant and optimized — fast jar reading, efficient search, minimal memory footprint
+
+(None — next milestone requirements TBD)
 
 ### Out of Scope
 
@@ -37,16 +35,16 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - Code generation / writing files — this is a read/analysis server, Claude handles code generation itself
 - Minecraft runtime interaction (connecting to a running game) — not relevant to the development workflow
 - Supporting non-Fabric toolchains (Forge, NeoForge, Quilt) — Fabric + Loom only for now
+- Version comparison across MC versions — deferred to v2 (useful for unmapped sources)
 
 ## Context
 
-- **Ecosystem**: Fabric mod development uses Gradle with the Fabric Loom plugin. Loom's `genSources` task decompiles Minecraft into a sources jar stored in `~/.gradle/caches/fabric-loom/minecraftMaven/`. The jar contains ~6,600 .java files with Yarn-mapped names.
-- **Sources jar structure**: Standard jar with Java source files at their package paths (e.g., `net/minecraft/client/MinecraftClient.java`). No special metadata — just decompiled Java source.
-- **Example project**: `/Users/LoganDark/Documents/Projects/CreatorCore/Debrand` — a Fabric mod using Loom with `genSources` already run. Sources jar located at `~/.gradle/caches/fabric-loom/minecraftMaven/net/minecraft/minecraft-merged/1.21.11-net.fabricmc.yarn.1_21_11.1.21.11+build.4/minecraft-merged-1.21.11-net.fabricmc.yarn.1_21_11.1.21.11+build.4-sources.jar`.
-- **Mod source structure**: Mixin classes use `@Mixin(Target.class)` annotations and reference MC internals by Yarn-mapped names. Mod sources live in `src/main/java/`.
-- **Find-by-reference design**: Uses cascading regex — an array of patterns where each pattern searches within the text matched by the previous one. This locates a precise position in a file without fragile line numbers, enabling the Java LSP to then find definitions/usages from that position.
-- **Java LSP dependency**: Full find-definition and find-references require a Java language server or similar tooling that understands Java semantics (imports, type resolution, method dispatch). The MCP server needs to integrate with or embed such infrastructure.
-- **Porting use case**: A key workflow is having two projects open (old MC version and new MC version) and comparing how the same class/method changed between versions to guide migration of Mixin targets and mod logic.
+- **Shipped:** v1.0 MVP on 2026-04-14 — 5,336 LOC TypeScript, 21 MCP tools, 327 tests
+- **Tech stack:** TypeScript 5.7+, Node.js 22 LTS, official MCP SDK 1.29.x, Zod 4, node-stream-zip, JDT LS via ts-lsp-client
+- **Architecture:** Layered domain → tool pattern. Domain modules handle logic; tool layer wires Zod schemas and MCP registration. Shared abstractions: ProjectStore, JarReader, EntryIndex, SourceAdapter, cascadeRegex, resolveSymbolPosition
+- **Ecosystem:** Fabric mod development uses Gradle with Fabric Loom. Loom's genSources decompiles Minecraft into a sources jar (~6,600 .java files) in `~/.gradle/caches/fabric-loom/minecraftMaven/`
+- **JDT LS integration:** Eclipse JDT Language Server provides semantic analysis. Workspace extraction on project load, eager initialization with graceful degradation when Java 21 or JDT LS unavailable
+- **Known tech debt:** 5 non-critical items (non-null assertion in resolveSymbolPosition, inconsistent guard pattern in type-hierarchy, redundant casts, unused includeSchema pattern). See v1.0 audit for details.
 
 ## Constraints
 
@@ -60,10 +58,14 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Cascading regex for position identification | Avoids fragile line numbers; each pattern narrows within previous match to locate precise position in source | Validated — Phase 8 |
-| Direct jar reading, no extraction cache | User preference for minimal caching; keeps disk usage low and avoids stale cache issues | — Pending |
-| Java LSP integration for find-by-reference | Full semantic navigation requires type-aware tooling beyond regex; LSP provides this | Validated — Phase 9 |
-| Multi-project from the start | Porting use case requires comparing two MC versions side-by-side | — Pending |
+| TypeScript + Node.js 22 LTS | Best MCP SDK maturity; bottleneck is jar I/O and JDT LS, not JSON-RPC | ✓ Good — performant, full SDK compliance |
+| node-stream-zip for jar reading | Central directory indexing, O(1) lookup by path, no full-memory load | ✓ Good — 72ms full scan of 6,622 files |
+| Cascading regex for position identification | Avoids fragile line numbers; patterns narrow progressively | ✓ Good — clean API, works across all sources |
+| JDT LS for semantic navigation | Full semantic analysis requires type-aware tooling beyond regex | ✓ Good — find-definition/references/hierarchy all work |
+| Direct jar reading, no extraction cache | User preference; keeps disk usage low, avoids stale cache | ✓ Good — node-stream-zip handles this well |
+| Multi-project from the start | Porting use case requires comparing two MC versions side-by-side | ✓ Good — shared jar handles with ref counting |
+| Dual mapping-era support | MC <=1.21.11 uses Yarn mappings, MC >=26.1 uses unobfuscated names | ✓ Good — both paths work, era auto-detected |
+| Domain → tool layered architecture | Domain modules testable independently; tools are thin wiring | ✓ Good — 327 tests, clean separation |
 
 ## Evolution
 
@@ -83,4 +85,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-13 after Phase 10 completion (final phase of v1.0)*
+*Last updated: 2026-04-13 after v1.0 milestone completion*
