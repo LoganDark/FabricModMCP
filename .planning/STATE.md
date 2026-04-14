@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Symbol Resolution
 status: unknown
-stopped_at: Completed 18-02-PLAN.md
-last_updated: "2026-04-14T12:52:27.297Z"
+stopped_at: Completed 18-01-PLAN.md
+last_updated: "2026-04-14T12:55:21.838Z"
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 7
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # Project State
@@ -52,6 +52,7 @@ Plan: 2 of 2
 | Phase 17-structured-member-output P01 | 2min | 2 tasks | 7 files |
 | Phase 17-structured-member-output P02 | 4min | 2 tasks | 5 files |
 | Phase 18 P02 | 2min | 1 tasks | 4 files |
+| Phase 18 P01 | 5min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,9 @@ Recent decisions affecting current work:
 - [Phase 17-structured-member-output]: Multi-jar resolvePackage built inline in list-members (cached EntryIndex, O(1) after first call)
 - [Phase 17-structured-member-output]: enrichOne falls back to kind-based classification when detail is null (constructors/fields still get memberFqn)
 - [Phase 18]: extractContext uses 1-based line indexing with Math.max/Math.min clamping, context field omitted when not requested
+- [Phase 18]: Extracted transformSymbol to shared symbol-transform.ts rather than duplicating
+- [Phase 18]: Inner class FQNs use outer class name for file lookup, full className for FQN matching
+- [Phase 18]: findDecorationsStart only scans for Javadoc since JDT LS range already includes annotations
 
 ### Pending Todos
 
@@ -87,6 +91,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-14T12:52:27.294Z
-Stopped at: Completed 18-02-PLAN.md
+Last session: 2026-04-14T12:55:21.836Z
+Stopped at: Completed 18-01-PLAN.md
 Resume file: None

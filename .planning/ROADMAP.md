@@ -121,8 +121,8 @@ Phases execute in numeric order: 15 → 16 → 17 → 18
 **Goal:** Add read_member tool for reading individual method/field source by FQN, and add optional context lines parameter to locate_in_source
 **Requirements**: P18-01 through P18-09
 **Depends on:** Phase 17
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 18-01-PLAN.md — Member extractor domain module and read_member MCP tool
+- [x] 18-01-PLAN.md — Member extractor domain module and read_member MCP tool
 - [x] 18-02-PLAN.md — locate_in_source context lines parameter
