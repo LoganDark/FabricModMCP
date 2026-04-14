@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Symbol Resolution
 status: unknown
-stopped_at: Completed 16-02-PLAN.md
-last_updated: "2026-04-14T10:25:48.424Z"
+stopped_at: Completed 17-01-PLAN.md
+last_updated: "2026-04-14T11:57:41.906Z"
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 5
+  completed_plans: 4
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-14)
 
 **Core value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
-**Current focus:** Phase 16 — member-parser
+**Current focus:** Phase 17 — structured-member-output
 
 ## Current Position
 
-Phase: 17
-Plan: Not started
+Phase: 17 (structured-member-output) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Plan: Not started
 | Phase 15-enable-method-search P01 | 2min | 2 tasks | 5 files |
 | Phase 16-member-parser P01 | 2min | 2 tasks | 4 files |
 | Phase 16-member-parser P02 | 2min | 1 tasks | 2 files |
+| Phase 17-structured-member-output P01 | 2min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,8 @@ Recent decisions affecting current work:
 - [Phase 16-member-parser]: java.lang types resolved via hardcoded set rather than resolvePackage callback
 - [Phase 16-member-parser]: Star import cache stores Promise to deduplicate concurrent resolution
 - [Phase 16-member-parser]: No-arg methods detected by absence of parens; generics stripped via depth-counting loop
+- [Phase 17-structured-member-output]: FQN uses # separator (Class#method(), Class#field:) matching Javadoc convention
+- [Phase 17-structured-member-output]: EnrichedClassSymbol has no memberFqn -- classes are containers, not members
 
 ### Pending Todos
 
@@ -75,6 +78,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-14T10:23:07.007Z
-Stopped at: Completed 16-02-PLAN.md
+Last session: 2026-04-14T11:57:41.904Z
+Stopped at: Completed 17-01-PLAN.md
 Resume file: None

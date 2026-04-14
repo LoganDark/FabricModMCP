@@ -18,7 +18,7 @@ Requirements for v1.2 Symbol Resolution. Each maps to roadmap phases.
 
 - [x] **TYPE-01**: MemberReference domain type with ClassReference for parameter types and return type
 - [x] **TYPE-02**: Detail string parser converts JDT LS detail strings into structured MemberReference with graceful degradation
-- [ ] **TYPE-03**: list_members output enriched with structured MemberReference types
+- [x] **TYPE-03**: list_members output enriched with structured MemberReference types
 
 ## Future Requirements
 
@@ -52,7 +52,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SRCH-04 | Phase 15 | Complete |
 | TYPE-01 | Phase 16 | Complete |
 | TYPE-02 | Phase 16 | Complete |
-| TYPE-03 | Phase 17 | Pending |
+| TYPE-03 | Phase 17 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 7 total
