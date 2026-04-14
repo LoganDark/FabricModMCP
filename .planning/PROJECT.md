@@ -31,11 +31,20 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 
 ### Active
 
-(None yet — define in next milestone)
+- [ ] search_symbols returns methods and fields (not just types)
+- [ ] Structured member representations with ClassReference types for parameters and return types
+- [ ] FQN scheme for methods (`Class;method()`) and fields (`Class;field:`)
+- [ ] Method/field inspection parity with class-level tooling
 
-## Current Milestone
+## Current Milestone: v1.2 Symbol Resolution
 
-Planning next milestone. See `/gsd:new-milestone` to start.
+**Goal:** Make methods and fields first-class citizens in the symbol navigation system — searchable, inspectable, and structurally typed for future Mixin integration.
+
+**Target features:**
+- Fix search_symbols to return methods/fields via JDT LS config
+- Rich method/field type representations with ClassReference parameter/return types
+- FQN scheme for members (`SomeClass;method()`, `SomeClass;field:`)
+- Inspection capabilities for methods and fields comparable to classes
 
 ### Out of Scope
 
@@ -49,6 +58,7 @@ Planning next milestone. See `/gsd:new-milestone` to start.
 
 - **Shipped:** v1.0 MVP on 2026-04-14 — 5,336 LOC TypeScript, 21 MCP tools, 327 tests
 - **Shipped:** v1.1 Study Jars on 2026-04-14 — 6,030 LOC TypeScript, 25 MCP tools, 423 tests (+96 tests, +4 tools)
+- **Known issue:** search_symbols only returns types because JDT LS `workspace/symbol` defaults to type-only; `includeSourceMethodDeclarations` setting not enabled
 - **Tech stack:** TypeScript 5.7+, Node.js 22 LTS, official MCP SDK 1.29.x, Zod 4, node-stream-zip, JDT LS via ts-lsp-client
 - **Architecture:** Layered domain → tool pattern. Domain modules handle logic; tool layer wires Zod schemas and MCP registration. Shared abstractions: ProjectStore, JarReader, EntryIndex, SourceAdapter, cascadeRegex, resolveSymbolPosition, dependency-resolver
 - **Ecosystem:** Fabric mod development uses Gradle with Fabric Loom. Loom's genSources decompiles Minecraft into a sources jar (~6,600 .java files) in `~/.gradle/caches/fabric-loom/minecraftMaven/`
@@ -98,4 +108,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-14 after v1.1 milestone*
+*Last updated: 2026-04-14 after v1.2 milestone start*
