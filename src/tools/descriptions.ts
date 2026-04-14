@@ -141,7 +141,7 @@ export const TOOL_DESCRIPTIONS = {
 		'Get hover information (type signature, Javadoc, metadata) for a symbol located by cascading regex patterns. Returns raw markdown from JDT LS. Use to check a symbol\'s type or read its documentation without navigating to its definition.',
 
 	search_symbols:
-		'Search for any Java symbol (methods, fields, classes, constructors, etc.) by name across the entire workspace using JDT LS. Unlike search_classes which matches class names from the jar index, this finds all symbol types semantically. Filterable by kind. Paginated. Use to find methods or fields by name — e.g., "find all methods named tick".',
+		'Search for Java types (classes, interfaces, enums) and methods/constructors by name across the entire workspace using JDT LS. Unlike search_classes which matches class names from the jar index, this finds symbols semantically via the language server. Fields are NOT searchable via this tool (use list_members on a specific class instead). Filterable by kind. Paginated.',
 
 	type_hierarchy:
 		'Get the type hierarchy for a class: supertype chain (extends lineage and implements list, separated) and subtypes to configurable depth. Returns ClassReferences (name, FQN, kind) for each entry. Essential for understanding Mixin targets — e.g., finding what a class extends, what interfaces it implements, or what classes extend it.',

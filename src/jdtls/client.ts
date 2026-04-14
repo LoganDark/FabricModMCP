@@ -221,6 +221,9 @@ export async function startJdtLs(
 			settings: {
 				java: {
 					autobuild: { enabled: true },
+					symbols: {
+						includeSourceMethodDeclarations: true,
+					},
 					import: {
 						maven: { enabled: false },
 						gradle: { enabled: false },

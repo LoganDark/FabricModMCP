@@ -153,6 +153,37 @@ describe('search_symbols', () => {
 		}
 	});
 
+	test.skipIf(!toolModuleAvailable)('method results include containerName identifying declaring class', async () => {
+		mockEndpointSend.mockResolvedValue(SAMPLE_SYMBOLS);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'search_symbols',
+				arguments: {
+					project: 'test',
+					query: 'run',
+					kind: 'method',
+				},
+			});
+
+			const envelope = parseEnvelope(result);
+			expect(envelope.success).toBe(true);
+			expect(envelope.data.results.length).toBeGreaterThan(0);
+
+			const method = envelope.data.results[0];
+			expect(method.name).toBe('run');
+			expect(method.kind).toBe('method');
+			expect(method.containerName).toBe('MinecraftClient');
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
+
 	test.skipIf(!toolModuleAvailable)('filters by kind', async () => {
 		mockEndpointSend.mockResolvedValue(SAMPLE_SYMBOLS);
 
