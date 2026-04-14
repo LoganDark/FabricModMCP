@@ -9,10 +9,10 @@ Requirements for v1.2 Symbol Resolution. Each maps to roadmap phases.
 
 ### Method Search
 
-- [ ] **SRCH-01**: search_symbols returns method results from JDT LS workspace/symbol
-- [ ] **SRCH-02**: Readiness probe query changed to avoid result explosion with method declarations enabled
+- [x] **SRCH-01**: search_symbols returns method results from JDT LS workspace/symbol
+- [x] **SRCH-02**: Readiness probe query changed to avoid result explosion with method declarations enabled
 - [ ] **SRCH-03**: search_symbols results include member FQN (`Class;method()` format)
-- [ ] **SRCH-04**: search_symbols tool description accurately documents it finds types and methods, not fields
+- [x] **SRCH-04**: search_symbols tool description accurately documents it finds types and methods, not fields
 
 ### Structured Member Types
 
@@ -46,10 +46,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SRCH-01 | Phase 15 | Pending |
-| SRCH-02 | Phase 15 | Pending |
+| SRCH-01 | Phase 15 | Complete |
+| SRCH-02 | Phase 15 | Complete |
 | SRCH-03 | Phase 17 | Pending |
-| SRCH-04 | Phase 15 | Pending |
+| SRCH-04 | Phase 15 | Complete |
 | TYPE-01 | Phase 16 | Pending |
 | TYPE-02 | Phase 16 | Pending |
 | TYPE-03 | Phase 17 | Pending |
