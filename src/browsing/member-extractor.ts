@@ -22,6 +22,8 @@ export interface MemberExtraction {
 	startLine: number;
 	endLine: number;
 	lineCount: number;
+	memberStartLine: number;
+	memberEndLine: number;
 	memberFqn: string;
 	kind: string;
 }
@@ -110,12 +112,16 @@ export function findDecorationsStart(lines: string[], rangeStartIdx: number): nu
  * @param sourceText Full source text of the class file
  * @param enrichedSymbols Enriched symbol tree from enrichSymbols()
  * @param targetFqn Member FQN to search for (e.g., "ClassName#method()")
+ * @param linesBefore Optional number of context lines to include before the member
+ * @param linesAfter Optional number of context lines to include after the member
  * @returns Array of extractions (multiple for overloaded methods)
  */
 export function extractMemberSource(
 	sourceText: string,
 	enrichedSymbols: EnrichedSymbol[],
 	targetFqn: string,
+	linesBefore?: number,
+	linesAfter?: number,
 ): MemberExtraction[] {
 	const lines = sourceText.split('\n');
 	const matches = collectMatchingSymbols(enrichedSymbols, targetFqn);
@@ -125,13 +131,24 @@ export function extractMemberSource(
 		const rangeEndIdx = sym.range.end.line; // 1-based end line = exclusive 0-based slice end
 
 		const decorationStart = findDecorationsStart(lines, rangeStartIdx);
-		const source = lines.slice(decorationStart, rangeEndIdx).join('\n');
+
+		// Member boundaries (1-based, including Javadoc)
+		const memberStartLine = decorationStart + 1;
+		const memberEndLine = sym.range.end.line;
+
+		// Context expansion with clamping at file boundaries
+		const contextStartIdx = Math.max(0, decorationStart - (linesBefore ?? 0));
+		const contextEndIdx = Math.min(lines.length, rangeEndIdx + (linesAfter ?? 0));
+
+		const source = lines.slice(contextStartIdx, contextEndIdx).join('\n');
 
 		return {
 			source,
-			startLine: decorationStart + 1, // Convert back to 1-based
-			endLine: sym.range.end.line,
-			lineCount: rangeEndIdx - decorationStart,
+			startLine: contextStartIdx + 1, // Convert back to 1-based
+			endLine: contextEndIdx,
+			lineCount: contextEndIdx - contextStartIdx,
+			memberStartLine,
+			memberEndLine,
 			memberFqn: (sym as EnrichedMethodSymbol | EnrichedFieldSymbol).memberFqn,
 			kind: sym.kind,
 		};

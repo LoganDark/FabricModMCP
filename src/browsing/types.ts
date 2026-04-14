@@ -105,4 +105,6 @@ export interface MemberResult {
 	startLine: number;
 	endLine: number;
 	lineCount: number;
+	memberStartLine: number;
+	memberEndLine: number;
 }

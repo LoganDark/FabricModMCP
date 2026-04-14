@@ -135,6 +135,8 @@ export function registerReadMemberTool(server: McpServer): void {
 					startLine: ext.startLine,
 					endLine: ext.endLine,
 					lineCount: ext.lineCount,
+					memberStartLine: ext.memberStartLine,
+					memberEndLine: ext.memberEndLine,
 				}));
 
 				const envelope = makeSuccess({ members: results }, { provenance });
