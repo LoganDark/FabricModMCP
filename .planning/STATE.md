@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Study Jars
 status: unknown
-last_updated: "2026-04-14T05:41:13.241Z"
+last_updated: "2026-04-14T05:47:31.421Z"
 last_activity: 2026-04-14
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -44,6 +44,8 @@ See PROJECT.md Key Decisions table for full decision log from v1.0.
 
 - [Phase 11]: StudyJar types separate from DependencyEntry -- different lifecycle and semantics
 - [Phase 11]: removeProjectJar is no-op for unregistered projects -- consistent with closeProject
+- [Phase 11]: Selective eviction over blanket cache clear -- study jar caches preserved during dependency refresh
+- [Phase 11]: Name validation pattern: alphanumeric start, then alphanumeric/hyphen/dot only
 
 ### Blockers/Concerns
 
