@@ -26,7 +26,6 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PROJ-07**: Server auto-discovers dependency source jars (Fabric API, libraries) from Gradle dependency resolution
 - [x] **PROJ-08**: User can include/exclude specific dependencies from the discovered set
 - [x] **PROJ-09**: Minecraft sources jar has a stable, predictable identifier (e.g., "minecraft") distinct from other dependency jars
-- [ ] **PROJ-10**: User can manually override any auto-discovered jar path
 - [x] **PROJ-11**: Server correctly handles both Yarn-mapped jar era (MC <=1.21.11) and unobfuscated jar era (MC >=26.1) with different Loom cache path structures
 
 ### Project Metadata
@@ -130,7 +129,6 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROJ-07 | Phase 3 | Complete |
 | PROJ-08 | Phase 3 | Complete |
 | PROJ-09 | Phase 3 | Complete |
-| PROJ-10 | Deferred | Pending |
 | BROW-05 | Phase 3 | Complete |
 | PROJ-02 | Phase 4 | Complete |
 | PROJ-03 | Phase 4 | Complete |
@@ -172,8 +170,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ALSB-05 | Phase 10 | Complete |
 
 **Coverage:**
-- v1 requirements: 47 total
-- Mapped to phases: 47
+- v1 requirements: 46 total
+- Mapped to phases: 46
 - Unmapped: 0
 
 ---
