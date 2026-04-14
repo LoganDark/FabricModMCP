@@ -123,7 +123,7 @@ describe('read_source tool', () => {
 		expect(envelope.data.sources).toHaveLength(1);
 		expect(envelope.data.sources[0].jar).toBe('minecraft');
 		expect(envelope.data.sources[0].source).toContain('public class MinecraftClient');
-		expect(envelope.data.sources[0].lineCount).toBeGreaterThan(0);
+		expect(envelope.data.sources[0].totalLineCount).toBeGreaterThan(0);
 		expect(envelope.data.sources[0].category).toBe('minecraft');
 	});
 
@@ -283,7 +283,7 @@ describe('read_source tool', () => {
 		expect(envelope.data.sources[0].jar).toBe('minecraft');
 	});
 
-	it('lineCount reflects actual number of lines', async () => {
+	it('totalLineCount reflects actual number of lines', async () => {
 		const fake = makeFakeProject();
 		projectStore.set('test', fake);
 
@@ -294,6 +294,178 @@ describe('read_source tool', () => {
 
 		const envelope = parseEnvelope(result);
 		const lines = MC_SOURCE_TEXT.split('\n').length;
-		expect(envelope.data.sources[0].lineCount).toBe(lines);
+		expect(envelope.data.sources[0].totalLineCount).toBe(lines);
+	});
+
+	it('returns metadata fields on every response', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient' },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		const src = envelope.data.sources[0];
+		expect(src.startLine).toBe(1);
+		expect(src.endLine).toBe(MC_SOURCE_TEXT.split('\n').length);
+		expect(src.totalLineCount).toBe(MC_SOURCE_TEXT.split('\n').length);
+		expect(src.truncated).toBe(false);
+	});
+
+	it('reads specific line range with startLine and lineCount', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient', startLine: 3, lineCount: 2 },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		const src = envelope.data.sources[0];
+		expect(src.source).toBe(MC_SOURCE_TEXT.split('\n').slice(2, 4).join('\n'));
+		expect(src.startLine).toBe(3);
+		expect(src.endLine).toBe(4);
+		expect(src.truncated).toBe(true);
+	});
+
+	it('reads from startLine to EOF when lineCount omitted', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient', startLine: 5 },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		const src = envelope.data.sources[0];
+		expect(src.startLine).toBe(5);
+		expect(src.endLine).toBe(MC_SOURCE_TEXT.split('\n').length);
+		expect(src.truncated).toBe(true);
+	});
+
+	it('reads first N lines when only lineCount provided', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient', lineCount: 3 },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		const src = envelope.data.sources[0];
+		expect(src.startLine).toBe(1);
+		expect(src.endLine).toBe(3);
+		expect(src.truncated).toBe(true);
+	});
+
+	it('returns JAR_REQUIRED error when startLine without jar', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', class: 'net.minecraft.client.MinecraftClient', startLine: 1 },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(false);
+		expect(envelope.error.code).toBe('JAR_REQUIRED');
+	});
+
+	it('returns JAR_REQUIRED error when lineCount without jar', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', class: 'net.minecraft.client.MinecraftClient', lineCount: 10 },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(false);
+		expect(envelope.error.code).toBe('JAR_REQUIRED');
+	});
+
+	it('clamps range when extending beyond file', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient', startLine: 10, lineCount: 500 },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		const src = envelope.data.sources[0];
+		expect(src.endLine).toBe(src.totalLineCount);
+		expect(src.truncated).toBe(true);
+	});
+
+	it('chunk concatenation invariant', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		// Read full file
+		const fullResult = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient' },
+		});
+		const fullEnv = parseEnvelope(fullResult);
+		const totalLines = fullEnv.data.sources[0].totalLineCount;
+
+		// Read first 5 lines
+		const chunk1Result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient', startLine: 1, lineCount: 5 },
+		});
+		const chunk1Env = parseEnvelope(chunk1Result);
+
+		// Read remaining lines
+		const chunk2Result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient', startLine: 6, lineCount: totalLines - 5 },
+		});
+		const chunk2Env = parseEnvelope(chunk2Result);
+
+		const concatenated = chunk1Env.data.sources[0].source + '\n' + chunk2Env.data.sources[0].source;
+		expect(concatenated).toBe(fullEnv.data.sources[0].source);
+	});
+
+	it('multi-jar search includes metadata on each result', async () => {
+		// Make the fabric jar also contain the same class
+		mockReadEntry.mockImplementation(async (jarPath: string, entryPath: string) => {
+			if (entryPath === 'net/minecraft/client/MinecraftClient.java') {
+				return Buffer.from(MC_SOURCE_TEXT, 'utf-8');
+			}
+			throw new Error(`Entry not found: ${entryPath}`);
+		});
+
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', class: 'net.minecraft.client.MinecraftClient' },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		expect(envelope.data.sources.length).toBeGreaterThanOrEqual(2);
+		for (const src of envelope.data.sources) {
+			expect(src.startLine).toBe(1);
+			expect(src.endLine).toBe(MC_SOURCE_TEXT.split('\n').length);
+			expect(src.totalLineCount).toBe(MC_SOURCE_TEXT.split('\n').length);
+			expect(src.truncated).toBe(false);
+		}
 	});
 });

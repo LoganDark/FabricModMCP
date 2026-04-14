@@ -7,6 +7,7 @@ import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, handleClassSourceError, sortByPriority, resolveProjectSafely, returnError, resolveClassSource } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
+import { sliceLines } from '../browsing/line-slicer.js';
 import type { SourceResult } from '../browsing/types.js';
 
 export function registerReadSourceTool(server: McpServer): void {
@@ -19,10 +20,12 @@ export function registerReadSourceTool(server: McpServer): void {
 				project: PARAMS.project,
 				jar: PARAMS.jar,
 				class: PARAMS.class,
+				startLine: PARAMS.startLine,
+				lineCount: PARAMS.lineCount,
 			},
 		},
-		async ({ project, jar, class: className }) => {
-			logger.debug('read_source called', { project, jar, class: className });
+		async ({ project, jar, class: className, startLine, lineCount }) => {
+			logger.debug('read_source called', { project, jar, class: className, startLine, lineCount });
 
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
@@ -30,20 +33,35 @@ export function registerReadSourceTool(server: McpServer): void {
 
 			const entryPath = classNameToEntryPath(className);
 
+			// Validate: line-range params require a specific jar
+			if ((startLine !== undefined || lineCount !== undefined) && jar === undefined) {
+				const allDeps = getAllDependencies(loadedProject);
+				const jarIds = Array.from(allDeps.keys());
+				return returnError(
+					'JAR_REQUIRED',
+					`Line-range parameters (startLine/lineCount) require specifying a jar. Available jars: ${jarIds.join(', ')}`,
+					[],
+					['Specify the jar parameter to use line-range reading', 'Use get_project_metadata with include_jar_inventory to see all available jars'],
+				);
+			}
+
 			// If specific jar is requested
 			if (jar !== undefined) {
 				const sourceResult = await resolveClassSource(loadedProject, className, jar);
 				if (!sourceResult.success) return handleClassSourceError(sourceResult, className, loadedProject.name, jar);
 
 				const dep = getAllDependencies(loadedProject).get(jar)!;
-				const lineCount = sourceResult.sourceText.split('\n').length;
+				const sliced = sliceLines(sourceResult.sourceText, startLine, lineCount);
 
 				const sources: SourceResult[] = [{
 					jar: dep.id,
 					category: dep.category,
 					provenanceChains: dep.provenanceChains,
-					source: sourceResult.sourceText,
-					lineCount,
+					source: sliced.source,
+					startLine: sliced.startLine,
+					endLine: sliced.endLine,
+					totalLineCount: sliced.totalLineCount,
+					truncated: sliced.truncated,
 				}];
 
 				const envelope = makeSuccess({ sources }, {
@@ -55,7 +73,7 @@ export function registerReadSourceTool(server: McpServer): void {
 				});
 
 				return {
-					content: [{ type: 'text' as const, text: `Read ${className} from ${dep.id} (${lineCount} lines)` }],
+					content: [{ type: 'text' as const, text: `Read ${className} from ${dep.id} (${sliced.totalLineCount} lines${sliced.truncated ? `, showing ${sliced.startLine}-${sliced.endLine}` : ''})` }],
 					structuredContent: envelope,
 				};
 			}
@@ -73,14 +91,17 @@ export function registerReadSourceTool(server: McpServer): void {
 					const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
 					const buffer = await adapter.readEntry(entryPath);
 					const source = buffer.toString('utf-8');
-					const lineCount = source.split('\n').length;
+					const sliced = sliceLines(source);
 
 					sources.push({
 						jar: id,
 						category: dep.category,
 						provenanceChains: dep.provenanceChains,
-						source,
-						lineCount,
+						source: sliced.source,
+						startLine: sliced.startLine,
+						endLine: sliced.endLine,
+						totalLineCount: sliced.totalLineCount,
+						truncated: sliced.truncated,
 					});
 				} catch {
 					// Class not in this jar, continue to next
