@@ -24,9 +24,11 @@ export function registerReadMemberTool(server: McpServer): void {
 				project: PARAMS.project,
 				jar: PARAMS.jar,
 				memberFqn: z.string().describe('Member FQN from list_members or search_symbols (e.g., net.minecraft.client.MinecraftClient#tick())'),
+				linesBefore: PARAMS.linesBefore,
+				linesAfter: PARAMS.linesAfter,
 			},
 		},
-		async ({ project, jar, memberFqn }) => {
+		async ({ project, jar, memberFqn, linesBefore, linesAfter }) => {
 			logger.debug('read_member called', { project, jar, memberFqn });
 
 			// Parse and validate FQN
@@ -111,7 +113,7 @@ export function registerReadMemberTool(server: McpServer): void {
 				const enriched = await enrichSymbols(members, sourceText, classFqn, resolvePackage);
 
 				// Extract member source
-				const extractions = extractMemberSource(sourceText, enriched, memberFqn);
+				const extractions = extractMemberSource(sourceText, enriched, memberFqn, linesBefore, linesAfter);
 
 				if (extractions.length === 0) {
 					return returnError(
