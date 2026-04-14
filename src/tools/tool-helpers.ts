@@ -7,10 +7,15 @@
  * and filterDependenciesByJarPattern.
  */
 
+import { readFile } from 'node:fs/promises';
 import picomatch from 'picomatch';
 import type { JarCategory, DependencyEntry, LoadedProject } from '../project/types.js';
 import type { CascadeStep } from '../browsing/cascading-regex.js';
 import type { SymbolPositionResult } from './resolve-symbol-position.js';
+import type { NavigationResult } from '../jdtls/types.js';
+import type { UriMapper } from '../jdtls/uri-mapper.js';
+import { entryPathToClassName } from '../jdtls/uri-mapper.js';
+import { extractEnclosingContext } from '../jdtls/context-extractor.js';
 import type { LspClient } from 'ts-lsp-client';
 import { projectStore } from '../state/project-store.js';
 import { makeError, makeSuccess } from '../types/envelope.js';
@@ -240,6 +245,51 @@ export function handleClassSourceError(
 		return returnError('JAR_NOT_AVAILABLE', `Sources for jar '${sourceResult.jar}' are not available`, [sourceResult.jar], ['The dependency does not have a sources jar']);
 	}
 	return returnError('CLASS_NOT_FOUND', `Class '${className}' not found in ${jar ? `jar '${jar}'` : 'any jar'}`, [sourceResult.entryPath], jar ? ['Check the fully-qualified class name'] : ['Check the fully-qualified class name', 'Use list_packages to browse available packages']);
+}
+
+/**
+ * Convert normalized LSP locations into NavigationResult[] by reading source files,
+ * extracting context snippets, and looking up jar provenance.
+ * Shared by find-definition, find-references, and find-implementations.
+ */
+export async function processNavigationLocations(
+	locations: ReturnType<typeof normalizeLocations>,
+	loadedProject: LoadedProject,
+	uriMapper: UriMapper,
+): Promise<NavigationResult[]> {
+	const results: NavigationResult[] = [];
+
+	for (const loc of locations) {
+		const mapping = uriMapper.fromFileUri(loc.uri);
+		if (!mapping) continue;
+
+		const filePath = loc.uri.replace('file://', '');
+		let source: string;
+		try {
+			source = await readFile(filePath, 'utf-8');
+		} catch {
+			continue;
+		}
+
+		const className = entryPathToClassName(mapping.entryPath);
+		const line = loc.range.start.line + 1;
+		const column = loc.range.start.character + 1;
+		const context = extractEnclosingContext(source, line);
+		const dep = loadedProject.dependencyJars.get(mapping.jar);
+
+		results.push({
+			jar: mapping.jar,
+			category: dep?.category ?? 'library',
+			provenanceChains: dep?.provenanceChains ?? [],
+			entryPath: mapping.entryPath,
+			className,
+			line,
+			column,
+			context,
+		});
+	}
+
+	return results;
 }
 
 /**

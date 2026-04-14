@@ -1,13 +1,10 @@
 import { z } from 'zod';
-import { readFile } from 'node:fs/promises';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { resolveSymbolPosition } from './resolve-symbol-position.js';
-import { createUriMapper, entryPathToClassName } from '../jdtls/uri-mapper.js';
-import { extractEnclosingContext } from '../jdtls/context-extractor.js';
+import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { logger } from '../logging/logger.js';
-import { handleSymbolPositionError, normalizeLocations, resolveProjectSafely, returnError, withLspDocument } from './tool-helpers.js';
-import type { NavigationResult } from '../jdtls/types.js';
+import { handleSymbolPositionError, normalizeLocations, processNavigationLocations, resolveProjectSafely, returnError, withLspDocument } from './tool-helpers.js';
 
 export function registerFindReferencesTool(server: McpServer): void {
 	server.registerTool(
@@ -66,42 +63,9 @@ export function registerFindReferencesTool(server: McpServer): void {
 					context: { includeDeclaration: true },
 				});
 
-				// Process reference results -- refResult is Location[] | null
+				// Process reference results
 				const locations = normalizeLocations(refResult);
-				const results: NavigationResult[] = [];
-
-				for (const loc of locations) {
-					const mapping = uriMapper.fromFileUri(loc.uri);
-					if (!mapping) continue;
-
-					// Read the source file from the extracted temp dir
-					const filePath = loc.uri.replace('file://', '');
-					let refSource: string;
-					try {
-						refSource = await readFile(filePath, 'utf-8');
-					} catch {
-						continue;
-					}
-
-					const refClassName = entryPathToClassName(mapping.entryPath);
-					const refLine = loc.range.start.line + 1; // Convert 0-based to 1-based
-					const refColumn = loc.range.start.character + 1;
-					const context = extractEnclosingContext(refSource, refLine);
-
-					// Look up dependency entry for provenance
-					const dep = loadedProject.dependencyJars.get(mapping.jar);
-
-					results.push({
-						jar: mapping.jar,
-						category: dep?.category ?? 'library',
-						provenanceChains: dep?.provenanceChains ?? [],
-						entryPath: mapping.entryPath,
-						className: refClassName,
-						line: refLine,
-						column: refColumn,
-						context,
-					});
-				}
+				const results = await processNavigationLocations(locations, loadedProject, uriMapper);
 
 				const uniqueFiles = new Set(results.map(r => r.className)).size;
 				const envelope = makeSuccess(
