@@ -51,23 +51,23 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| READ-01 | — | Pending |
-| READ-02 | — | Pending |
-| READ-03 | — | Pending |
-| READ-04 | — | Pending |
-| NAV-01 | — | Pending |
-| NAV-02 | — | Pending |
-| NAV-03 | — | Pending |
-| NAV-04 | — | Pending |
-| VERB-01 | — | Pending |
-| VERB-02 | — | Pending |
-| VERB-03 | — | Pending |
+| READ-01 | Phase 19 | Pending |
+| READ-02 | Phase 19 | Pending |
+| READ-03 | Phase 20 | Pending |
+| READ-04 | Phase 19 | Pending |
+| NAV-01 | Phase 21 | Pending |
+| NAV-02 | Phase 21 | Pending |
+| NAV-03 | Phase 21 | Pending |
+| NAV-04 | Phase 21 | Pending |
+| VERB-01 | Phase 22 | Pending |
+| VERB-02 | Phase 22 | Pending |
+| VERB-03 | Phase 22 | Pending |
 
 **Coverage:**
 - v1.3 requirements: 11 total
-- Mapped to phases: 0
-- Unmapped: 11 ⚠️
+- Mapped to phases: 11
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-14*
-*Last updated: 2026-04-14 after initial definition*
+*Last updated: 2026-04-14 after roadmap creation*

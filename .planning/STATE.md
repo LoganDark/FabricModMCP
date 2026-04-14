@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Context Management
-status: defining-requirements
+status: ready-to-plan
 stopped_at: null
 last_updated: "2026-04-14"
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -19,42 +19,38 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-14)
 
 **Core value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
-**Current focus:** Defining requirements for v1.3 Context Management
+**Current focus:** v1.3 Context Management — Phase 19 ready to plan
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 19 of 22 (Line-Range Reading)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-04-14 — Milestone v1.3 started
+Status: Ready to plan
+Last activity: 2026-04-14 — Roadmap created for v1.3
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
-**Velocity:**
+**Velocity (from v1.2):**
 
-- Total plans completed: 0 (v1.2)
-- Average duration: —
-- Total execution time: —
+- Total plans completed: 7
+- Average duration: ~2.7 min
+- Total execution time: ~19 min
 
-**By Phase:**
+**By Phase (v1.2):**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 15. Enable Method Search | 1 | 2min | 2min |
+| 16. Member Parser | 2 | 4min | 2min |
+| 17. Structured Member Output | 2 | 6min | 3min |
+| 18. Member Inspection | 2 | 7min | 3.5min |
 
 **Recent Trend:**
 
-- Last 5 plans: —
-- Trend: —
-
-*Updated after each plan completion*
-| Phase 15-enable-method-search P01 | 2min | 2 tasks | 5 files |
-| Phase 16-member-parser P01 | 2min | 2 tasks | 4 files |
-| Phase 16-member-parser P02 | 2min | 1 tasks | 2 files |
-| Phase 17-structured-member-output P01 | 2min | 2 tasks | 7 files |
-| Phase 17-structured-member-output P02 | 4min | 2 tasks | 5 files |
-| Phase 18 P02 | 2min | 1 tasks | 4 files |
-| Phase 18 P01 | 5min | 2 tasks | 10 files |
+- Last 5 plans: 2min, 4min, 2min, 5min, 2min
+- Trend: Stable
 
 ## Accumulated Context
 
@@ -63,36 +59,22 @@ Last activity: 2026-04-14 — Milestone v1.3 started
 See PROJECT.md Key Decisions table for full decision log.
 Recent decisions affecting current work:
 
-- [v1.2 roadmap]: 3 phases derived from 7 requirements — method search unlock, parser domain module, structured output wiring
-- [Phase 15-enable-method-search]: Removed probe entirely rather than replacing with safer query -- async notification sufficient
-- [Phase 15-enable-method-search]: Tool description directs users to list_members for field search
-- [Phase 16-member-parser]: java.lang types resolved via hardcoded set rather than resolvePackage callback
-- [Phase 16-member-parser]: Star import cache stores Promise to deduplicate concurrent resolution
-- [Phase 16-member-parser]: No-arg methods detected by absence of parens; generics stripped via depth-counting loop
-- [Phase 17-structured-member-output]: FQN uses # separator (Class#method(), Class#field:) matching Javadoc convention
-- [Phase 17-structured-member-output]: EnrichedClassSymbol has no memberFqn -- classes are containers, not members
-- [Phase 17-structured-member-output]: Multi-jar resolvePackage built inline in list-members (cached EntryIndex, O(1) after first call)
-- [Phase 17-structured-member-output]: enrichOne falls back to kind-based classification when detail is null (constructors/fields still get memberFqn)
-- [Phase 18]: extractContext uses 1-based line indexing with Math.max/Math.min clamping, context field omitted when not requested
-- [Phase 18]: Extracted transformSymbol to shared symbol-transform.ts rather than duplicating
-- [Phase 18]: Inner class FQNs use outer class name for file lookup, full className for FQN matching
-- [Phase 18]: findDecorationsStart only scans for Javadoc since JDT LS range already includes annotations
+- [v1.3 research]: Use startLine/lineCount for line-range params (not offset/limit which collide with pagination)
+- [v1.3 research]: All new params must be optional, backward compatible
+- [v1.3 research]: Verbosity audit phase comes last (needs controls from earlier phases)
+- [v1.3 research]: read_source line-range requires single jar; error with jar list when ambiguous
+- [v1.3 research]: No new dependencies needed
 
 ### Pending Todos
 
 None yet.
 
-### Roadmap Evolution
-
-- Phase 18 added: Member Inspection & Context Lines
-
 ### Blockers/Concerns
 
-- Readiness probe wildcard '*' must be changed BEFORE enabling method declarations (result explosion risk)
-- Detail string parsing needs real JDT LS samples from live Minecraft workspace for accurate test fixtures
+None.
 
 ## Session Continuity
 
-Last session: 2026-04-14T12:55:21.836Z
-Stopped at: Completed 18-01-PLAN.md
+Last session: 2026-04-14
+Stopped at: Roadmap created for v1.3 Context Management
 Resume file: None
