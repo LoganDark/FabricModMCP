@@ -57,7 +57,7 @@
 
 - [x] **Phase 19: Line-Range Reading** - read_source returns specific line ranges with metadata instead of full source files (completed 2026-04-14)
 - [x] **Phase 20: Member Context Lines** - read_member includes surrounding source context on demand (completed 2026-04-14)
-- [ ] **Phase 21: Navigation Pagination** - find_references, find_implementations, and find_definition accept pagination controls
+- [x] **Phase 21: Navigation Pagination** - find_references, find_implementations, and find_definition accept pagination controls (completed 2026-04-14)
 - [ ] **Phase 22: Verbosity Audit** - Measure and reduce response sizes across search and navigation tools
 
 ## Phase Details
@@ -104,7 +104,7 @@ Plans:
 
 Plans:
 - [x] 21-01-PLAN.md — Create shared pagination utility and add limit/offset PARAMS
-- [ ] 21-02-PLAN.md — Wire pagination into navigation tool handlers with integration tests
+- [x] 21-02-PLAN.md — Wire pagination into navigation tool handlers with integration tests
 
 ### Phase 22: Verbosity Audit
 **Goal**: Default response sizes are measured and worst offenders get opt-in compact modes
@@ -147,5 +147,5 @@ Phases execute in numeric order: 19 → 20 → 21 → 22
 | 18. Member Inspection & Context Lines | v1.2 | 2/2 | Complete | 2026-04-14 |
 | 19. Line-Range Reading | v1.3 | 2/2 | Complete    | 2026-04-14 |
 | 20. Member Context Lines | v1.3 | 2/2 | Complete    | 2026-04-14 |
-| 21. Navigation Pagination | v1.3 | 1/2 | In Progress|  |
+| 21. Navigation Pagination | v1.3 | 2/2 | Complete   | 2026-04-14 |
 | 22. Verbosity Audit | v1.3 | 0/? | Not started | - |
