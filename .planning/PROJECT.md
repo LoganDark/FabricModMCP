@@ -31,9 +31,11 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - ✓ search_symbols returns methods and constructors (not just types) via JDT LS includeSourceMethodDeclarations — v1.2 Phase 15
 - ✓ Structured member representations with ClassReference types for parameters and return types — v1.2 Phase 16
 - ✓ FQN scheme for methods and fields with enriched structured output in list_members and search_symbols — v1.2 Phase 17
+- ✓ read_member tool reads individual method/field source by FQN with Javadoc, annotations, and body — v1.2 Phase 18
+- ✓ locate_in_source optional context lines parameter extends matches to whole lines with surrounding context — v1.2 Phase 18
 
 ### Active
-- [ ] Method/field inspection parity with class-level tooling
+- (No active requirements — v1.2 features complete)
 
 ## Current Milestone: v1.2 Symbol Resolution
 
@@ -60,6 +62,7 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - **Resolved:** search_symbols now returns methods/constructors — `includeSourceMethodDeclarations` enabled, explosion-prone readiness probe removed (Phase 15)
 - **Built:** Member parser domain module — TypeReference (6 variants), MemberReference types, import resolver with multi-stage cascade, detail string parser for JDT LS signatures (Phase 16, 46 tests)
 - **Built:** Structured member output — buildMemberFqn, EnrichedSymbol types, enrichSymbols pipeline wired into list_members and search_symbols tools (Phase 17, 26 tests)
+- **Built:** Member inspection — read_member tool (FQN → source with Javadoc/annotations/body), locate_in_source context lines, shared symbol-transform extraction (Phase 18, 30 tests)
 - **Tech stack:** TypeScript 5.7+, Node.js 22 LTS, official MCP SDK 1.29.x, Zod 4, node-stream-zip, JDT LS via ts-lsp-client
 - **Architecture:** Layered domain → tool pattern. Domain modules handle logic; tool layer wires Zod schemas and MCP registration. Shared abstractions: ProjectStore, JarReader, EntryIndex, SourceAdapter, cascadeRegex, resolveSymbolPosition, dependency-resolver
 - **Ecosystem:** Fabric mod development uses Gradle with Fabric Loom. Loom's genSources decompiles Minecraft into a sources jar (~6,600 .java files) in `~/.gradle/caches/fabric-loom/minecraftMaven/`
@@ -109,4 +112,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-14 after Phase 17 completion*
+*Last updated: 2026-04-14 after Phase 18 completion*
