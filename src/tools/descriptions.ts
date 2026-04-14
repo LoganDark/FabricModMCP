@@ -19,8 +19,8 @@ Browse decompiled source, navigate dependencies, and use semantic Java analysis 
 ## Workflow
 
 1. Load a project with load_project (path to a Fabric mod's root directory)
-2. Browse: list_packages → list_classes → list_members → read_source
-3. Search: search_classes (by name pattern) or search_symbols (by any symbol name)
+2. Browse: list_packages → list_classes → list_members → read_member (single member) or read_source (full class)
+3. Search: search_classes (by name pattern) or search_symbols (by any symbol name) → read_member
 4. Navigate: find_definition, find_references, find_implementations, get_symbol_info, type_hierarchy
 
 ## Shared Concepts
