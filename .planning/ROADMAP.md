@@ -100,10 +100,11 @@ Plans:
   2. Agent can call find_implementations with limit and offset to receive a page of results, with total count and hasMore in the response
   3. Agent can call find_definition with limit and offset to receive a page of results, with total count and hasMore in the response
   4. Omitting limit and offset on any paginated tool returns all results (backward compatible)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 21-01: TBD
+- [ ] 21-01-PLAN.md — Create shared pagination utility and add limit/offset PARAMS
+- [ ] 21-02-PLAN.md — Wire pagination into navigation tool handlers with integration tests
 
 ### Phase 22: Verbosity Audit
 **Goal**: Default response sizes are measured and worst offenders get opt-in compact modes
@@ -114,7 +115,7 @@ Plans:
   2. Default verbosity is reduced where safe without breaking existing structuredContent shapes
   3. Tools identified as worst offenders accept a compact mode parameter that reduces per-result size
   4. Calling any modified tool without new parameters produces identical structuredContent to pre-audit behavior
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 22-01: TBD
@@ -146,5 +147,5 @@ Phases execute in numeric order: 19 → 20 → 21 → 22
 | 18. Member Inspection & Context Lines | v1.2 | 2/2 | Complete | 2026-04-14 |
 | 19. Line-Range Reading | v1.3 | 2/2 | Complete    | 2026-04-14 |
 | 20. Member Context Lines | v1.3 | 2/2 | Complete    | 2026-04-14 |
-| 21. Navigation Pagination | v1.3 | 0/? | Not started | - |
+| 21. Navigation Pagination | v1.3 | 0/2 | Not started | - |
 | 22. Verbosity Audit | v1.3 | 0/? | Not started | - |
