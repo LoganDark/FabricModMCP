@@ -2,19 +2,19 @@ import { describe, it, expect } from 'vitest';
 import { join } from 'node:path';
 import { mkdtemp, rmdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { loadProject } from '../../src/project/loader.js';
+import { loadFabricMod } from '../../src/project/loader.js';
 import { ProjectStore } from '../../src/state/project-store.js';
 import { DomainError } from '../../src/errors/domain-error.js';
 
 const FIXTURES_DIR = join(import.meta.dirname, '..', 'fixtures');
 const YARN_ERA_DIR = join(FIXTURES_DIR, 'yarn-era');
 
-describe('loadProject', () => {
+describe('loadFabricMod', () => {
 	it('throws PROJECT_NOT_FOUND for non-existent directory', async () => {
 		const fakePath = join(FIXTURES_DIR, 'does-not-exist');
-		await expect(loadProject(fakePath)).rejects.toThrow(DomainError);
+		await expect(loadFabricMod(fakePath)).rejects.toThrow(DomainError);
 		try {
-			await loadProject(fakePath);
+			await loadFabricMod(fakePath);
 		} catch (error) {
 			expect(error).toBeInstanceOf(DomainError);
 			expect((error as DomainError).code).toBe('PROJECT_NOT_FOUND');
@@ -25,9 +25,9 @@ describe('loadProject', () => {
 	it('throws GRADLE_PROPERTIES_NOT_FOUND for directory without gradle.properties', async () => {
 		const tempDir = await mkdtemp(join(tmpdir(), 'loader-test-'));
 		try {
-			await expect(loadProject(tempDir)).rejects.toThrow(DomainError);
+			await expect(loadFabricMod(tempDir)).rejects.toThrow(DomainError);
 			try {
-				await loadProject(tempDir);
+				await loadFabricMod(tempDir);
 			} catch (error) {
 				expect(error).toBeInstanceOf(DomainError);
 				expect((error as DomainError).code).toBe('GRADLE_PROPERTIES_NOT_FOUND');
@@ -39,11 +39,11 @@ describe('loadProject', () => {
 
 	it('loads yarn-era fixture project or throws SOURCES_JAR_NOT_FOUND', async () => {
 		// The sources jar may or may not exist depending on the machine.
-		// If it exists, we get a successful LoadedProject; if not, SOURCES_JAR_NOT_FOUND.
+		// If it exists, we get a successful FabricModChild; if not, SOURCES_JAR_NOT_FOUND.
 		try {
-			const project = await loadProject(YARN_ERA_DIR);
+			const project = await loadFabricMod(YARN_ERA_DIR);
 			// Happy path: sources jar exists on this machine
-			expect(project.name).toBe('yarn-era');
+			expect(project.name).toBe('testmod');
 			expect(project.rootPath).toMatch(/tests\/fixtures\/yarn-era$/);
 			expect(project.gradleConfig.mappingEra).toBe('mapped');
 			expect(project.gradleConfig.minecraftVersion).toBe('1.21.11');
@@ -67,7 +67,8 @@ describe('loadProject', () => {
 describe('ProjectStore', () => {
 	it('stores and retrieves projects by name', () => {
 		const store = new ProjectStore();
-		const project = {
+		const mod = {
+			kind: 'fabric-mod' as const,
 			name: 'test-mod',
 			rootPath: '/fake/path',
 			gradleConfig: {
@@ -91,6 +92,10 @@ describe('ProjectStore', () => {
 			},
 			dependencyJars: new Map(),
 			filterConfig: { mode: 'include-all' as const, patterns: [] },
+		};
+		const project = {
+			name: 'test-mod',
+			children: new Map([['test-mod', mod]]),
 		};
 
 		expect(store.has('test-mod')).toBe(false);

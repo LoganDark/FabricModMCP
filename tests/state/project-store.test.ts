@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ProjectStore } from '../../src/state/project-store.js';
-import type { LoadedProject } from '../../src/project/types.js';
+import type { Project, FabricModChild } from '../../src/project/types.js';
 import { DomainError } from '../../src/errors/domain-error.js';
 
-function makeMockProject(name: string): LoadedProject {
+function makeMockFabricMod(name: string): FabricModChild {
 	return {
+		kind: 'fabric-mod',
 		name,
 		rootPath: `/mock/${name}`,
 		gradleConfig: {
@@ -29,6 +30,14 @@ function makeMockProject(name: string): LoadedProject {
 		},
 		dependencyJars: new Map(),
 		filterConfig: { mode: 'include-all', patterns: [] },
+	};
+}
+
+function makeMockProject(name: string): Project {
+	const mod = makeMockFabricMod(name);
+	return {
+		name,
+		children: new Map([[name, mod]]),
 	};
 }
 
@@ -116,6 +125,12 @@ describe('ProjectStore', () => {
 				expect((e as DomainError).code).toBe('NO_PROJECTS_LOADED');
 			}
 		});
+
+		it('resolveProject with only default empty project returns it (single project fallback)', () => {
+			const defaultProject: Project = { name: 'default', children: new Map() };
+			store.set('default', defaultProject);
+			expect(store.resolveProject()).toBe(defaultProject);
+		});
 	});
 
 	describe('default', () => {
@@ -139,6 +154,25 @@ describe('ProjectStore', () => {
 			store.setDefault('a');
 			store.delete('b');
 			expect(store.getDefault()).toBe('a');
+		});
+	});
+
+	describe('default project protection', () => {
+		it('delete("default") throws DomainError with code CANNOT_DELETE_DEFAULT', () => {
+			const defaultProject: Project = { name: 'default', children: new Map() };
+			store.set('default', defaultProject);
+			expect(() => store.delete('default')).toThrow(DomainError);
+			try {
+				store.delete('default');
+			} catch (e) {
+				expect((e as DomainError).code).toBe('CANNOT_DELETE_DEFAULT');
+			}
+		});
+
+		it('delete("other-name") succeeds normally', () => {
+			store.set('other-name', makeMockProject('other-name'));
+			expect(store.delete('other-name')).toBe(true);
+			expect(store.has('other-name')).toBe(false);
 		});
 	});
 

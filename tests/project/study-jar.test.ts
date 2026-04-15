@@ -14,7 +14,7 @@ import {
 } from '../../src/project/study-jar.js';
 import { JarReader } from '../../src/project/jar-reader.js';
 import { DomainError } from '../../src/errors/domain-error.js';
-import type { LoadedProject, StudyJar } from '../../src/project/types.js';
+import type { Project, FabricModChild, StudyJar, StudyJarChild } from '../../src/project/types.js';
 
 function expectDomainError(fn: () => unknown, code: string): void {
 	try {
@@ -40,13 +40,42 @@ const testDir = join(tmpdir(), 'study-jar-test-' + Date.now());
 const testJarPath = join(testDir, 'test-lib-1.0-sources.jar');
 const testJarPath2 = join(testDir, 'second-lib.jar');
 
-function makeProject(overrides: Partial<LoadedProject> = {}): LoadedProject {
+function makeProject(overrides: Partial<Project> = {}): Project {
 	return {
 		name: 'test-project',
-		studyJars: new Map(),
-		dependencyJars: new Map(),
+		children: new Map(),
 		...overrides,
-	} as unknown as LoadedProject;
+	};
+}
+
+function makeFabricModChild(name: string, deps: Map<string, any> = new Map()): FabricModChild {
+	return {
+		kind: 'fabric-mod',
+		name,
+		rootPath: `/mock/${name}`,
+		gradleConfig: {
+			minecraftVersion: '1.21.11',
+			mappingEra: 'mapped',
+			yarnMappings: '1.21.11+build.4',
+			loaderVersion: '0.16.14',
+			dependencies: [],
+		},
+		sourcesJar: { path: `/mock/${name}/sources.jar`, exists: true },
+		fabricMod: {
+			schemaVersion: 1,
+			id: name,
+			version: '1.0.0',
+			name,
+			description: 'Mock',
+			authors: [],
+			license: 'MIT',
+			environment: '*',
+			mixins: [],
+			depends: {},
+		},
+		dependencyJars: deps,
+		filterConfig: { mode: 'include-all', patterns: [] },
+	};
 }
 
 async function createTestZip(outputPath: string): Promise<void> {
@@ -141,13 +170,14 @@ describe('validateStudyJarId', () => {
 	});
 
 	it('throws STUDY_JAR_ID_COLLISION when name matches an existing real dependency ID', () => {
+		const mod = makeFabricModChild('test-mod', new Map([
+			['foo', {
+				id: 'foo', group: 'com.example', artifact: 'foo', version: '1.0',
+				category: 'library', sourcesJarPath: '/some/path.jar', available: true, provenanceChains: [],
+			}],
+		]));
 		const project = makeProject({
-			dependencyJars: new Map([
-				['foo', {
-					id: 'foo', group: 'com.example', artifact: 'foo', version: '1.0',
-					category: 'library', sourcesJarPath: '/some/path.jar', available: true, provenanceChains: [],
-				}],
-			]),
+			children: new Map([['test-mod', mod]]),
 		});
 		expectDomainError(() => validateStudyJarId('foo', project), 'STUDY_JAR_ID_COLLISION');
 	});
@@ -182,12 +212,13 @@ describe('createStudyJar', () => {
 	});
 
 	it('throws STUDY_JAR_NAME_EXISTS for duplicate name', async () => {
-		const existingJar: StudyJar = {
+		const existingChild: StudyJarChild = {
+			kind: 'study-jar',
 			name: 'test-lib', jarPath: '/old/path.jar', mtime: 0, size: 0,
 			autoInclude: false, stats: { totalEntries: 0, packageCount: 0, classCount: 0 },
 		};
 		const project = makeProject({
-			studyJars: new Map([['test-lib', existingJar]]),
+			children: new Map([['test-lib', existingChild]]),
 		});
 		await expectAsyncDomainError(
 			() => createStudyJar(testJarPath, 'test-lib', project),

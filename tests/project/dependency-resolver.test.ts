@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getResolvedDependencies, getAllDependencies } from '../../src/project/dependency-resolver.js';
 import { CATEGORY_PRIORITY, sortByPriority, getDependenciesForTool } from '../../src/tools/tool-helpers.js';
-import type { DependencyEntry, LoadedProject, StudyJar, JarCategory } from '../../src/project/types.js';
+import type { DependencyEntry, Project, FabricModChild, ProjectChild, StudyJar, StudyJarChild, JarCategory } from '../../src/project/types.js';
 
 function makeDep(id: string, category: JarCategory = 'library'): DependencyEntry {
 	return {
@@ -30,14 +30,55 @@ function makeStudyJar(name: string, autoInclude: boolean): StudyJar {
 function makeProject(
 	deps: Map<string, DependencyEntry>,
 	studyJars: Map<string, StudyJar>,
-): LoadedProject {
-	return {
-		name: 'test-project',
+): Project {
+	const fabricMod: FabricModChild = {
+		kind: 'fabric-mod',
+		name: 'test-mod',
 		rootPath: '/fake/project',
+		gradleConfig: {
+			minecraftVersion: '1.21.11',
+			mappingEra: 'mapped' as const,
+			yarnMappings: '1.21.11+build.4',
+			loaderVersion: '0.16.14',
+			dependencies: [],
+		},
+		sourcesJar: { path: '/fake/sources.jar', exists: true },
+		fabricMod: {
+			schemaVersion: 1,
+			id: 'test-mod',
+			version: '1.0.0',
+			name: 'Test Mod',
+			description: '',
+			authors: [],
+			license: 'MIT',
+			environment: '*',
+			mixins: [],
+			depends: {},
+		},
 		dependencyJars: deps,
-		studyJars,
-		filterConfig: { mode: 'include-all' as const, patterns: [] },
-	} as unknown as LoadedProject;
+		filterConfig: { mode: 'include-all', patterns: [] },
+	};
+
+	const children = new Map<string, ProjectChild>();
+	children.set('test-mod', fabricMod);
+
+	for (const [name, sj] of studyJars) {
+		const child: StudyJarChild = {
+			kind: 'study-jar',
+			...sj,
+		};
+		children.set(name, child);
+	}
+
+	// Include filterConfig as a runtime property for getDependenciesForTool compat
+	// (tool-helpers still reads project.filterConfig directly until Plan 03 migration)
+	const project = {
+		name: 'test-project',
+		children,
+		filterConfig: fabricMod.filterConfig,
+	} as unknown as Project;
+
+	return project;
 }
 
 describe('getResolvedDependencies', () => {
@@ -50,11 +91,11 @@ describe('getResolvedDependencies', () => {
 		expect(result.get('minecraft')).toBeDefined();
 	});
 
-	it('returns a NEW Map (not same reference as project.dependencyJars)', () => {
+	it('returns a NEW Map (not same reference as fabric mod dependencyJars)', () => {
 		const deps = new Map([['minecraft', makeDep('minecraft', 'minecraft')]]);
 		const project = makeProject(deps, new Map());
 		const result = getResolvedDependencies(project);
-		expect(result).not.toBe(project.dependencyJars);
+		expect(result).not.toBe(deps);
 	});
 
 	it('includes autoInclude=true study jar with plain name ID', () => {
@@ -114,11 +155,11 @@ describe('getAllDependencies', () => {
 		expect(result.size).toBe(1);
 	});
 
-	it('returns a NEW Map (not same reference as project.dependencyJars)', () => {
+	it('returns a NEW Map (not same reference as fabric mod dependencyJars)', () => {
 		const deps = new Map([['minecraft', makeDep('minecraft', 'minecraft')]]);
 		const project = makeProject(deps, new Map());
 		const result = getAllDependencies(project);
-		expect(result).not.toBe(project.dependencyJars);
+		expect(result).not.toBe(deps);
 	});
 
 	it('includes ALL study jars regardless of autoInclude flag', () => {
@@ -242,8 +283,10 @@ describe('getDependenciesForTool', () => {
 			['some-lib', makeDep('some-lib', 'library')],
 		]);
 		const project = makeProject(deps, new Map());
-		// Override filterConfig to exclude some-lib
-		project.filterConfig = { mode: 'include-all', patterns: ['some-lib'] };
+		// Override filterConfig on the fabric mod child and the project compat property
+		const mod = project.children.get('test-mod') as FabricModChild;
+		mod.filterConfig = { mode: 'include-all', patterns: ['some-lib'] };
+		(project as any).filterConfig = mod.filterConfig;
 		const result = getDependenciesForTool(project);
 		expect(result.has('minecraft')).toBe(true);
 		expect(result.has('some-lib')).toBe(false);
