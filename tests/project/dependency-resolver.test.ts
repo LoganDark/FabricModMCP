@@ -139,6 +139,79 @@ describe('getResolvedDependencies', () => {
 		expect(entry.available).toBe(true);
 		expect(entry.sourcesJarPath).toBe('/fake/study/mylib.jar');
 	});
+
+	it('aggregates deps from multiple fabric mod children', () => {
+		const modA: FabricModChild = {
+			kind: 'fabric-mod',
+			name: 'mod-a',
+			rootPath: '/fake/mod-a',
+			gradleConfig: {
+				minecraftVersion: '1.21.11',
+				mappingEra: 'mapped' as const,
+				yarnMappings: '1.21.11+build.4',
+				loaderVersion: '0.16.14',
+				dependencies: [],
+			},
+			sourcesJar: { path: '/fake/sources-a.jar', exists: true },
+			fabricMod: {
+				schemaVersion: 1, id: 'mod-a', version: '1.0.0', name: 'Mod A',
+				description: '', authors: [], license: 'MIT', environment: '*', mixins: [], depends: {},
+			},
+			dependencyJars: new Map([
+				['mod-a/minecraft', makeDep('mod-a/minecraft', 'minecraft')],
+				['mod-a/com.example:lib', makeDep('mod-a/com.example:lib', 'library')],
+			]),
+			filterConfig: { mode: 'include-all', patterns: [] },
+		};
+
+		const modB: FabricModChild = {
+			kind: 'fabric-mod',
+			name: 'mod-b',
+			rootPath: '/fake/mod-b',
+			gradleConfig: {
+				minecraftVersion: '1.21.11',
+				mappingEra: 'mapped' as const,
+				yarnMappings: '1.21.11+build.4',
+				loaderVersion: '0.16.14',
+				dependencies: [],
+			},
+			sourcesJar: { path: '/fake/sources-b.jar', exists: true },
+			fabricMod: {
+				schemaVersion: 1, id: 'mod-b', version: '1.0.0', name: 'Mod B',
+				description: '', authors: [], license: 'MIT', environment: '*', mixins: [], depends: {},
+			},
+			dependencyJars: new Map([
+				['mod-b/minecraft', makeDep('mod-b/minecraft', 'minecraft')],
+				['mod-b/com.other:lib', makeDep('mod-b/com.other:lib', 'library')],
+			]),
+			filterConfig: { mode: 'include-all', patterns: [] },
+		};
+
+		const children = new Map<string, ProjectChild>();
+		children.set('mod-a', modA);
+		children.set('mod-b', modB);
+
+		const project: Project = { name: 'multi-project', children };
+		const result = getResolvedDependencies(project);
+
+		// Both mods' deps should be present
+		expect(result.has('mod-a/minecraft')).toBe(true);
+		expect(result.has('mod-b/minecraft')).toBe(true);
+		expect(result.has('mod-a/com.example:lib')).toBe(true);
+		expect(result.has('mod-b/com.other:lib')).toBe(true);
+		expect(result.size).toBe(4);
+	});
+
+	it('study jar entries have bare IDs (not namespaced)', () => {
+		const deps = new Map<string, DependencyEntry>();
+		const studyJars = new Map([['custom-jar', makeStudyJar('custom-jar', true)]]);
+		const project = makeProject(deps, studyJars);
+		const result = getResolvedDependencies(project);
+		const entry = result.get('custom-jar')!;
+		expect(entry.id).toBe('custom-jar');
+		// Should not contain a slash (not namespaced)
+		expect(entry.id.includes('/')).toBe(false);
+	});
 });
 
 describe('getAllDependencies', () => {
