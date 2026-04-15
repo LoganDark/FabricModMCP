@@ -6,8 +6,8 @@ import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { parseClassDeclaration } from '../browsing/class-parser.js';
 import { getOrBuildIndex } from '../browsing/entry-index-cache.js';
 import { logger } from '../logging/logger.js';
-import { getDependenciesForTool, resolveProjectSafely } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
+import { getDependenciesForTool, resolveProjectSafely, stripClassInfo } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
 import type { SourceAdapter } from '../browsing/source-adapter.js';
 import type { ClassInfo, InnerClassInfo } from '../browsing/types.js';
 
@@ -43,9 +43,10 @@ export function registerListClassesTool(server: McpServer): void {
 				jars: PARAMS.jars,
 				package: z.string().describe('Fully-qualified package name to list classes from (required)'),
 				depth: z.number().int().min(1).optional().describe('Include classes from sub-packages up to this depth (default: 1, this package only)'),
+				details: DETAIL_PARAMS.class,
 			},
 		},
-		async ({ project, jars, package: packageName, depth }) => {
+		async ({ project, jars, package: packageName, depth, details }) => {
 			logger.debug('list_classes called', { project, jars, package: packageName, depth });
 
 			const resolved = resolveProjectSafely(project);
@@ -129,8 +130,9 @@ export function registerListClassesTool(server: McpServer): void {
 
 			// Sort alphabetically
 			const classes = Array.from(mergedClasses.values()).sort((a, b) => a.name.localeCompare(b.name));
+			const stripped = classes.map(c => stripClassInfo(c, details));
 
-			const envelope = makeSuccess({ classes }, {
+			const envelope = makeSuccess({ classes: stripped }, {
 				provenance: {
 					tool: 'list_classes',
 					project: loadedProject.name,

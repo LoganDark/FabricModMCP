@@ -13,7 +13,7 @@ import type { JarCategory, DependencyEntry, LoadedProject } from '../project/typ
 import type { CascadeStep } from '../browsing/cascading-regex.js';
 import type { SymbolPositionResult } from './resolve-symbol-position.js';
 import type { NavigationResult } from '../jdtls/types.js';
-import type { LocateResult } from '../browsing/types.js';
+import type { LocateResult, EnrichedSymbol, ClassInfo } from '../browsing/types.js';
 import type { UriMapper } from '../jdtls/uri-mapper.js';
 import { entryPathToClassName } from '../jdtls/uri-mapper.js';
 import { extractEnclosingContext } from '../jdtls/context-extractor.js';
@@ -363,5 +363,57 @@ export function stripLocateResult(
 ): LocateResult {
 	if (details?.steps) return result;
 	const { steps, provenanceChains, ...essential } = result;
+	return essential;
+}
+
+/**
+ * Strip detail fields from an EnrichedSymbol for compact output.
+ * Recurses through children. When details.signatures is true, returns full data.
+ *
+ * Compact shape keeps: name, kind, memberFqn, deprecated, range (lines only), children.
+ * Full shape adds: detail, selectionRange, range characters, parameters, returnType, fieldType.
+ */
+export function stripEnrichedSymbol(
+	sym: EnrichedSymbol,
+	details?: { signatures?: boolean },
+): Record<string, unknown> {
+	const base: Record<string, unknown> = {
+		name: sym.name,
+		kind: sym.kind,
+		deprecated: sym.deprecated,
+		range: {
+			start: { line: sym.range.start.line },
+			end: { line: sym.range.end.line },
+		},
+		children: sym.children.map(c => stripEnrichedSymbol(c, details)),
+	};
+
+	if ('memberFqn' in sym) base.memberFqn = sym.memberFqn;
+
+	if (details?.signatures) {
+		base.detail = sym.detail;
+		base.selectionRange = sym.selectionRange;
+		base.range = sym.range; // full range with characters
+		if ('parameters' in sym) base.parameters = sym.parameters;
+		if ('returnType' in sym) base.returnType = sym.returnType;
+		if ('fieldType' in sym) base.fieldType = sym.fieldType;
+	}
+
+	return base;
+}
+
+/**
+ * Strip detail fields from a ClassInfo for compact output.
+ * When details.modifiers is true, returns the full ClassInfo unchanged.
+ *
+ * Compact shape keeps: name, fqn, kind, jars.
+ * Full shape adds: access, modifiers, innerClasses.
+ */
+export function stripClassInfo(
+	info: ClassInfo,
+	details?: { modifiers?: boolean },
+): ClassInfo {
+	if (details?.modifiers) return info;
+	const { access, modifiers, innerClasses, ...essential } = info;
 	return essential;
 }

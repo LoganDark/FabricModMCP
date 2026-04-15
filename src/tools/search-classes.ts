@@ -4,8 +4,8 @@ import { makeSuccess } from '../types/envelope.js';
 import { jarReader } from './shared-jar-reader.js';
 import { searchClasses } from '../browsing/search.js';
 import { logger } from '../logging/logger.js';
-import { resolveProjectSafely, getDependenciesForTool } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
+import { resolveProjectSafely, getDependenciesForTool, stripClassInfo } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
 
 export function registerSearchClassesTool(server: McpServer): void {
 	server.registerTool(
@@ -21,9 +21,10 @@ export function registerSearchClassesTool(server: McpServer): void {
 				offset: z.number().int().min(0).optional().describe('Pagination offset (default: 0)'),
 				limit: z.number().int().min(1).optional().describe('Maximum results to return (default: 250)'),
 				project: PARAMS.project,
+				details: DETAIL_PARAMS.class,
 			},
 		},
-		async ({ pattern, caseSensitive, kind, jars, offset, limit, project }) => {
+		async ({ pattern, caseSensitive, kind, jars, offset, limit, project, details }) => {
 			logger.debug('search_classes called', { project, pattern, caseSensitive, kind, jars, offset, limit });
 
 			const resolved = resolveProjectSafely(project);
@@ -38,7 +39,10 @@ export function registerSearchClassesTool(server: McpServer): void {
 				jarReader,
 			);
 
-			const envelope = makeSuccess(response, {
+			const strippedResults = response.results.map(c => stripClassInfo(c, details));
+			const strippedResponse = { ...response, results: strippedResults };
+
+			const envelope = makeSuccess(strippedResponse, {
 				provenance: {
 					tool: 'search_classes',
 					project: loadedProject.name,

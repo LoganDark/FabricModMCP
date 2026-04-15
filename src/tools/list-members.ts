@@ -2,8 +2,8 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { logger } from '../logging/logger.js';
-import { classNameToEntryPath, handleClassSourceError, resolveProjectSafely, returnError, withLspDocument, resolveClassSource, getDependenciesForTool } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
+import { classNameToEntryPath, handleClassSourceError, resolveProjectSafely, returnError, withLspDocument, resolveClassSource, getDependenciesForTool, stripEnrichedSymbol } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
 import type { TransformedSymbol } from '../browsing/types.js';
 import { enrichSymbols } from '../browsing/member-enrichment.js';
 import { getOrBuildIndex } from '../browsing/entry-index-cache.js';
@@ -21,9 +21,10 @@ export function registerListMembersTool(server: McpServer): void {
 				project: PARAMS.project,
 				jar: PARAMS.jar,
 				class: PARAMS.class,
+				details: DETAIL_PARAMS.member,
 			},
 		},
-		async ({ class: className, jar, project }) => {
+		async ({ class: className, jar, project, details }) => {
 			logger.debug('list_members called', { class: className, jar, project });
 
 			const resolved = resolveProjectSafely(project);
@@ -90,9 +91,10 @@ export function registerListMembersTool(server: McpServer): void {
 				// Enrich symbols with FQNs, parameters, return types, field types
 				const classFqn = entryPath.replace(/\.java$/, '').replaceAll('/', '.');
 				const enriched = await enrichSymbols(members, sourceText, classFqn, resolvePackage);
+				const stripped = enriched.map(s => stripEnrichedSymbol(s, details));
 
 				const envelope = makeSuccess(
-					{ jar: sourceJarId, class: className, members: enriched },
+					{ jar: sourceJarId, class: className, members: stripped },
 					{ provenance },
 				);
 
