@@ -12,7 +12,7 @@ Requirements for v1.4 Project Rearchitecture milestone. Each maps to roadmap pha
 - [x] **CONT-01**: Projects are pure named containers with only a name, children (fabric mods + study jars), filter config, and JDT LS session
 - [x] **CONT-02**: Fabric mods are named children loaded from a root directory, each owning its own Gradle config, sources jar, dependencies, and fabric.mod.json
 - [x] **CONT-03**: Study jars are named children at project level, not under any fabric mod
-- [ ] **CONT-04**: A project can hold multiple fabric mods simultaneously
+- [x] **CONT-04**: A project can hold multiple fabric mods simultaneously
 - [x] **CONT-05**: A default project named "default" is created at server startup
 - [x] **CONT-06**: Each child (fabric mod or study jar) is responsible for serving requests about its own contents — the project delegates, not aggregates
 
@@ -26,8 +26,8 @@ Requirements for v1.4 Project Rearchitecture milestone. Each maps to roadmap pha
 ### Tool Integration
 
 - [ ] **TOOL-01**: All existing jar-aware tools work with namespaced jar IDs
-- [ ] **TOOL-02**: `load_project` adds a fabric mod child to a project (defaults to "default" project)
-- [ ] **TOOL-03**: Tool results include namespaced jar IDs so the agent knows which child a result came from
+- [x] **TOOL-02**: `load_project` adds a fabric mod child to a project (defaults to "default" project)
+- [x] **TOOL-03**: Tool results include namespaced jar IDs so the agent knows which child a result came from
 
 ### JDT LS
 
@@ -75,7 +75,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CONT-01 | Phase 23 | Complete |
 | CONT-02 | Phase 23 | Complete |
 | CONT-03 | Phase 23 | Complete |
-| CONT-04 | Phase 25 | Pending |
+| CONT-04 | Phase 25 | Complete |
 | CONT-05 | Phase 23 | Complete |
 | CONT-06 | Phase 23 | Complete |
 | DEP-01 | Phase 24 | Complete |
@@ -83,8 +83,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEP-03 | Phase 24 | Complete |
 | DEP-04 | Phase 25 | Pending |
 | TOOL-01 | Phase 25 | Pending |
-| TOOL-02 | Phase 25 | Pending |
-| TOOL-03 | Phase 25 | Pending |
+| TOOL-02 | Phase 25 | Complete |
+| TOOL-03 | Phase 25 | Complete |
 | LSP-01 | Phase 26 | Pending |
 | LSP-02 | Phase 26 | Pending |
 

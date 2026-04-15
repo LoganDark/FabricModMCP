@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Project Rearchitecture
 status: unknown
-stopped_at: Completed 24-03-PLAN.md
-last_updated: "2026-04-15T18:22:00.823Z"
+stopped_at: Completed 25-01-PLAN.md
+last_updated: "2026-04-15T21:10:28.598Z"
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 9
+  completed_plans: 8
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-15)
 
 **Core value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
-**Current focus:** Phase 24 — dependency-namespacing
+**Current focus:** Phase 25 — child-management-tools
 
 ## Current Position
 
-Phase: 25
-Plan: Not started
+Phase: 25 (child-management-tools) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Plan: Not started
 | Phase 24 P01 | 7min | 2 tasks | 13 files |
 | Phase 24 P02 | 5min | 2 tasks | 9 files |
 | Phase 24 P03 | 13min | 2 tasks | 25 files |
+| Phase 25-01 P01 | 4min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,8 @@ See PROJECT.md Key Decisions table for full decision log.
 - [Phase 24]: autoIncludeIds parameter is optional -- existing callers keep working until Plan 03 wires them
 - [Phase 24]: resolve-symbol-position evolved to use getDependenciesForTool for scope consistency
 - [Phase 24]: get-project-metadata with scope returns child-specific dep inventory
+- [Phase 25]: load_project defaults to 'default' project instead of auto-generating from basename
+- [Phase 25]: Child auto-suffix uses -2, -3 pattern; JDT LS workspace sync deferred to Phase 26
 
 ### Pending Todos
 
@@ -87,6 +90,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-15T18:19:07.276Z
-Stopped at: Completed 24-03-PLAN.md
+Last session: 2026-04-15T21:10:28.596Z
+Stopped at: Completed 25-01-PLAN.md
 Resume file: None

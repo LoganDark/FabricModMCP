@@ -118,9 +118,9 @@ Plans:
   3. `refresh_dependencies` can target a specific fabric mod child rather than refreshing everything
   4. All jar-aware tools work correctly with namespaced jar IDs (e.g., `my-mod/minecraft`)
   5. Tool results include the namespaced jar ID so the agent knows which child produced each result
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
-- [ ] 25-01-PLAN.md — Evolve load_project to add children to existing projects with auto-suffix collision handling
+- [x] 25-01-PLAN.md — Evolve load_project to add children to existing projects with auto-suffix collision handling
 - [ ] 25-02-PLAN.md — Scope-aware refresh_dependencies and scoped unload jar cleanup
 
 ### Phase 26: JDT LS Workspace Unification
@@ -156,6 +156,6 @@ Phases execute in numeric order: 23 -> 24 -> 25 -> 26 -> 27
 | 19-22 | v1.3 | 9/9 | Complete | 2026-04-15 |
 | 23. Type Foundation | v1.4 | 4/4 | Complete    | 2026-04-15 |
 | 24. Dep Namespacing | v1.4 | 3/3 | Complete    | 2026-04-15 |
-| 25. Child Mgmt Tools | v1.4 | 0/2 | In progress | - |
+| 25. Child Mgmt Tools | v1.4 | 1/2 | In Progress|  |
 | 26. JDT LS Unification | v1.4 | 0/? | Not started | - |
 | 27. Migration Cleanup | v1.4 | 0/? | Not started | - |
