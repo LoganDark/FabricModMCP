@@ -443,4 +443,94 @@ describe('read_member', () => {
 			}
 		});
 	});
+
+	describe('provenance detail flag', () => {
+		test.skipIf(!toolModuleAvailable)('omits provenanceChains by default', async () => {
+			mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
+			mockDocumentSymbol.mockResolvedValue([
+				{
+					name: 'MinecraftClient',
+					kind: 5,
+					detail: '',
+					range: { start: { line: 0, character: 0 }, end: { line: 10, character: 1 } },
+					selectionRange: { start: { line: 0, character: 13 }, end: { line: 0, character: 28 } },
+					children: [
+						{
+							name: 'tick()',
+							kind: 6,
+							detail: 'void',
+							range: { start: { line: 5, character: 0 }, end: { line: 7, character: 1 } },
+							selectionRange: { start: { line: 5, character: 12 }, end: { line: 5, character: 16 } },
+						},
+					],
+				},
+			]);
+
+			const pair = await createTestPair();
+			try {
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+				projectStore.set('test', fake);
+
+				const result = await pair.client.callTool({
+					name: 'read_member',
+					arguments: {
+						project: 'test',
+						jar: 'minecraft',
+						memberFqn: 'net.minecraft.client.MinecraftClient#tick()',
+					},
+				});
+
+				const envelope = parseEnvelope(result);
+				expect(envelope.data.members[0].provenanceChains).toBeUndefined();
+			} finally {
+				await pair.cleanup();
+				projectStore.clear();
+			}
+		});
+
+		test.skipIf(!toolModuleAvailable)('includes provenanceChains when details: { provenance: true }', async () => {
+			mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
+			mockDocumentSymbol.mockResolvedValue([
+				{
+					name: 'MinecraftClient',
+					kind: 5,
+					detail: '',
+					range: { start: { line: 0, character: 0 }, end: { line: 10, character: 1 } },
+					selectionRange: { start: { line: 0, character: 13 }, end: { line: 0, character: 28 } },
+					children: [
+						{
+							name: 'tick()',
+							kind: 6,
+							detail: 'void',
+							range: { start: { line: 5, character: 0 }, end: { line: 7, character: 1 } },
+							selectionRange: { start: { line: 5, character: 12 }, end: { line: 5, character: 16 } },
+						},
+					],
+				},
+			]);
+
+			const pair = await createTestPair();
+			try {
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+				projectStore.set('test', fake);
+
+				const result = await pair.client.callTool({
+					name: 'read_member',
+					arguments: {
+						project: 'test',
+						jar: 'minecraft',
+						memberFqn: 'net.minecraft.client.MinecraftClient#tick()',
+						details: { provenance: true },
+					},
+				});
+
+				const envelope = parseEnvelope(result);
+				expect(envelope.data.members[0].provenanceChains).toBeDefined();
+				expect(Array.isArray(envelope.data.members[0].provenanceChains)).toBe(true);
+			} finally {
+				await pair.cleanup();
+				projectStore.clear();
+			}
+		});
+	});
 });

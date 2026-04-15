@@ -6,7 +6,7 @@ import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, handleClassSourceError, sortByPriority, resolveProjectSafely, returnError, resolveClassSource } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
+import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
 import { sliceLines } from '../browsing/line-slicer.js';
 import type { SourceResult } from '../browsing/types.js';
 
@@ -22,9 +22,10 @@ export function registerReadSourceTool(server: McpServer): void {
 				class: PARAMS.class,
 				startLine: PARAMS.startLine,
 				lineCount: PARAMS.lineCount,
+				details: DETAIL_PARAMS.source,
 			},
 		},
-		async ({ project, jar, class: className, startLine, lineCount }) => {
+		async ({ project, jar, class: className, startLine, lineCount, details }) => {
 			logger.debug('read_source called', { project, jar, class: className, startLine, lineCount });
 
 			const resolved = resolveProjectSafely(project);
@@ -56,7 +57,7 @@ export function registerReadSourceTool(server: McpServer): void {
 				const sources: SourceResult[] = [{
 					jar: dep.id,
 					category: dep.category,
-					provenanceChains: dep.provenanceChains,
+					...(details?.provenance ? { provenanceChains: dep.provenanceChains } : {}),
 					source: sliced.source,
 					startLine: sliced.startLine,
 					endLine: sliced.endLine,
@@ -96,7 +97,7 @@ export function registerReadSourceTool(server: McpServer): void {
 					sources.push({
 						jar: id,
 						category: dep.category,
-						provenanceChains: dep.provenanceChains,
+						...(details?.provenance ? { provenanceChains: dep.provenanceChains } : {}),
 						source: sliced.source,
 						startLine: sliced.startLine,
 						endLine: sliced.endLine,

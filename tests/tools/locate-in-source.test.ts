@@ -223,11 +223,39 @@ describe('locate_in_source tool', () => {
 		expect(envelope.data.results[0].steps).toBeUndefined();
 		expect(envelope.data.results[0].line).toBeGreaterThanOrEqual(1);
 
-		// Failure should be from fabric
+		// Failure should be from fabric — compact by default (steps and provenanceChains stripped)
 		const failureJar = envelope.data.failures[0].jar;
 		expect(failureJar).toBe('net.fabricmc.fabric-api:fabric-resource-loader-v0');
-		expect(envelope.data.failures[0].steps).toBeDefined();
+		expect(envelope.data.failures[0].steps).toBeUndefined();
+		expect(envelope.data.failures[0].provenanceChains).toBeUndefined();
 		expect(envelope.data.failures[0].failedStep).toBeGreaterThanOrEqual(1);
+	});
+
+	it('returns full failures with steps and provenanceChains when details: { steps: true }', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'locate_in_source',
+			arguments: {
+				project: 'test',
+				class: 'net.minecraft.client.MinecraftClient',
+				patterns: ['public class MinecraftClient[\\s\\S]*', 'private static MinecraftClient instance'],
+				details: { steps: true },
+			},
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		expect(envelope.data.failures.length).toBeGreaterThanOrEqual(1);
+
+		// With details.steps, failures include steps and provenanceChains
+		const failure = envelope.data.failures[0];
+		expect(failure.steps).toBeDefined();
+		expect(Array.isArray(failure.steps)).toBe(true);
+		expect(failure.provenanceChains).toBeDefined();
+		expect(Array.isArray(failure.provenanceChains)).toBe(true);
+		expect(failure.failedStep).toBeGreaterThanOrEqual(1);
 	});
 
 	it('returns JAR_NOT_FOUND for invalid jar ID', async () => {

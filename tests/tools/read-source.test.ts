@@ -221,7 +221,7 @@ describe('read_source tool', () => {
 		expect(envelope.error.code).toBeDefined();
 	});
 
-	it('sources include provenanceChains from dependency entry', async () => {
+	it('sources do not include provenanceChains by default (compact output)', async () => {
 		// Make fabric jar return the class too
 		mockReadEntry.mockImplementation(async (jarPath: string, entryPath: string) => {
 			if (entryPath === 'net/minecraft/client/MinecraftClient.java') {
@@ -241,8 +241,39 @@ describe('read_source tool', () => {
 		const envelope = parseEnvelope(result);
 		const fabricResult = envelope.data.sources.find((s: any) => s.jar === 'net.fabricmc.fabric-api:fabric-resource-loader-v0');
 		if (fabricResult) {
+			expect(fabricResult.provenanceChains).toBeUndefined();
+		}
+	});
+
+	it('sources include provenanceChains when details: { provenance: true }', async () => {
+		// Make fabric jar return the class too
+		mockReadEntry.mockImplementation(async (jarPath: string, entryPath: string) => {
+			if (entryPath === 'net/minecraft/client/MinecraftClient.java') {
+				return Buffer.from(MC_SOURCE_TEXT, 'utf-8');
+			}
+			throw new Error(`Entry not found: ${entryPath}`);
+		});
+
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: {
+				project: 'test',
+				class: 'net.minecraft.client.MinecraftClient',
+				details: { provenance: true },
+			},
+		});
+
+		const envelope = parseEnvelope(result);
+		const fabricResult = envelope.data.sources.find((s: any) => s.jar === 'net.fabricmc.fabric-api:fabric-resource-loader-v0');
+		if (fabricResult) {
 			expect(fabricResult.provenanceChains).toEqual([['net.fabricmc.fabric-api:fabric-api']]);
 		}
+		// Minecraft jar should have empty provenance chains
+		const mcResult = envelope.data.sources.find((s: any) => s.jar === 'minecraft');
+		expect(mcResult.provenanceChains).toEqual([]);
 	});
 
 	it('response includes provenance metadata', async () => {

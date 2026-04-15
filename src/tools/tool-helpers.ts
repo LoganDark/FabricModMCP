@@ -28,8 +28,8 @@ import { createSourceAdapter } from '../browsing/source-adapter.js';
 export interface LocateFailure {
 	jar: string;
 	category: JarCategory;
-	provenanceChains: string[][];
-	steps: CascadeStep[];
+	provenanceChains?: string[][];
+	steps?: CascadeStep[];
 	failedStep: number;
 	error?: string;
 }
@@ -216,8 +216,6 @@ export function handleSymbolPositionError(
 		const failure: LocateFailure = {
 			jar: posResult.jar,
 			category: posResult.category,
-			provenanceChains: posResult.provenanceChains,
-			steps: posResult.steps,
 			failedStep: posResult.failedStep,
 			error: posResult.error,
 		};
@@ -363,6 +361,19 @@ export function stripLocateResult(
 ): LocateResult {
 	if (details?.steps) return result;
 	const { steps, provenanceChains, ...essential } = result;
+	return essential;
+}
+
+/**
+ * Strip detail fields from a LocateFailure for compact output.
+ * When details.steps is true, returns the full failure unchanged.
+ */
+export function stripLocateFailure(
+	failure: LocateFailure,
+	details?: { steps?: boolean },
+): LocateFailure {
+	if (details?.steps) return failure;
+	const { steps, provenanceChains, ...essential } = failure;
 	return essential;
 }
 

@@ -87,7 +87,7 @@ export type EnrichedSymbol = EnrichedMethodSymbol | EnrichedFieldSymbol | Enrich
 export interface SourceResult {
 	jar: string;
 	category: JarCategory;
-	provenanceChains: string[][];
+	provenanceChains?: string[][];
 	source: string;
 	startLine: number;
 	endLine: number;
@@ -98,7 +98,7 @@ export interface SourceResult {
 export interface MemberResult {
 	jar: string;
 	category: JarCategory;
-	provenanceChains: string[][];
+	provenanceChains?: string[][];
 	memberFqn: string;
 	kind: string;
 	source: string;

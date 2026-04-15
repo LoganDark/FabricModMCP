@@ -4,7 +4,7 @@ import { makeSuccess } from '../types/envelope.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, handleClassSourceError, resolveProjectSafely, returnError, withLspDocument, resolveClassSource, getDependenciesForTool } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
+import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
 import type { MemberResult } from '../browsing/types.js';
 import { enrichSymbols } from '../browsing/member-enrichment.js';
 import { getOrBuildIndex } from '../browsing/entry-index-cache.js';
@@ -26,9 +26,10 @@ export function registerReadMemberTool(server: McpServer): void {
 				memberFqn: z.string().describe('Member FQN from list_members or search_symbols (e.g., net.minecraft.client.MinecraftClient#tick())'),
 				linesBefore: PARAMS.linesBefore,
 				linesAfter: PARAMS.linesAfter,
+				details: DETAIL_PARAMS.source,
 			},
 		},
-		async ({ project, jar, memberFqn, linesBefore, linesAfter }) => {
+		async ({ project, jar, memberFqn, linesBefore, linesAfter, details }) => {
 			logger.debug('read_member called', { project, jar, memberFqn });
 
 			// Parse and validate FQN
@@ -130,7 +131,7 @@ export function registerReadMemberTool(server: McpServer): void {
 				const results: MemberResult[] = extractions.map(ext => ({
 					jar: sourceJarId,
 					category: dep.category,
-					provenanceChains: dep.provenanceChains,
+					...(details?.provenance ? { provenanceChains: dep.provenanceChains } : {}),
 					memberFqn: ext.memberFqn,
 					kind: ext.kind,
 					source: ext.source,

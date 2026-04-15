@@ -118,6 +118,13 @@ export const DETAIL_PARAMS = {
 			'Include cascade regex step details and provenance chains'
 		),
 	}).optional().describe('Detail flags (all default to false = compact)'),
+
+	/** Source reading tools: read_source, read_member */
+	source: z.object({
+		provenance: z.boolean().optional().describe(
+			'Include dependency provenance chains per result'
+		),
+	}).optional().describe('Detail flags (all default to false = compact)'),
 } as const;
 
 // ---------------------------------------------------------------------------

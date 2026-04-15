@@ -7,7 +7,7 @@ import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { cascadeRegex } from '../browsing/cascading-regex.js';
 import { logger } from '../logging/logger.js';
-import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError, stripLocateResult } from './tool-helpers.js';
+import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError, stripLocateResult, stripLocateFailure } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
 import type { LocateFailure } from './tool-helpers.js';
 import type { LocateResult, LocateResultContext } from '../browsing/types.js';
@@ -114,7 +114,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 							failedStep: result.failedStep,
 							error: result.error,
 						};
-						const envelope = makeSuccess({ results: [], failures: [locateFailure] }, { provenance });
+						const envelope = makeSuccess({ results: [], failures: [stripLocateFailure(locateFailure, details)] }, { provenance });
 						return {
 							content: [{ type: 'text' as const, text: `Cascade failed at step ${result.failedStep + 1} in ${className} (${dep.id})` }],
 							structuredContent: envelope,
@@ -188,7 +188,8 @@ export function registerLocateInSourceTool(server: McpServer): void {
 			}
 
 			const strippedResults = results.map(r => stripLocateResult(r, details));
-			const envelope = makeSuccess({ results: strippedResults, failures }, { provenance });
+			const strippedFailures = failures.map(f => stripLocateFailure(f, details));
+			const envelope = makeSuccess({ results: strippedResults, failures: strippedFailures }, { provenance });
 			if (results.length > 0) {
 				const first = results[0];
 				return {
