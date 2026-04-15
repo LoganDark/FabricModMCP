@@ -42,11 +42,13 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - ✓ Default project created at startup — Validated in Phase 23
 - ✓ Dependencies namespaced by fabric mod name (e.g., `testmod/minecraft`) — Validated in Phase 24
 - ✓ Tools work across whole project or scoped to a single child via `scope` parameter — Validated in Phase 24
+- ✓ Multiple fabric mods per project with auto-suffix collision handling — Validated in Phase 25
+- ✓ `load_project` adds children to existing projects (defaults to default project) — Validated in Phase 25
+- ✓ Scoped `refresh_dependencies` targets specific children, unscoped refreshes all — Validated in Phase 25
 
 ### Active
 
 - [ ] Study jars live at project level, not under fabric mods
-- [ ] Multiple fabric mods per project
 - [ ] Investigate JDT LS in-memory file support (avoid tmpdir extraction)
 
 ### Out of Scope
@@ -110,6 +112,9 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 | Namespace dep IDs at creation (`modName/depId`) | Resolves ambiguity with multi-mod projects; bare IDs resolve via scope/defaultChild/sole-child inference | ✓ Good — clean API with backward compat for single-mod case |
 | Category-based source adapter dispatch | `dep.category === 'mod-source'` instead of `dep.id === 'src'` magic string | ✓ Good — works with any mod name |
 | Parameterized filter auto-include | `autoIncludeIds` set replaces hardcoded `'minecraft'`/`'src'` in jar-registry | ✓ Good — per-child filtering |
+| load_project adds to existing projects | Defaults to default project; creates new project if name doesn't exist | ✓ Good — natural multi-mod workflow |
+| Auto-suffix implicit child name collisions | `mymod-2` when fabric.mod.json id collides; explicit names error instead | ✓ Good — safe for implicit, strict for explicit |
+| Per-child jar handle lifecycle | `addProjectJar`/`removeProjectJar` instead of full `registerProject`/`closeProject` | ✓ Good — scoped refresh doesn't disrupt other children |
 | `#` separator for member FQNs | Javadoc convention (`Class#method()`), familiar to Java developers | ✓ Good — matches existing tooling ecosystem |
 | Multi-jar resolvePackage inline | createResolvePackage handles single EntryIndex; tools need all jars | ✓ Good — correct for multi-jar case |
 | Shared symbol-transform module | Extracted from list-members to avoid duplication with read_member | ✓ Good — DRY, both tools share transform logic |
@@ -136,4 +141,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-15 after Phase 24 completion*
+*Last updated: 2026-04-15 after Phase 25 completion*
