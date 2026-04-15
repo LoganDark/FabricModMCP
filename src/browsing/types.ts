@@ -26,8 +26,8 @@ export interface ClassInfo {
 	name: string;
 	fqn: string;
 	kind: string;
-	access: string;
-	modifiers: string[];
+	access?: string;
+	modifiers?: string[];
 	jars: Array<{ id: string; category: JarCategory }>;
 	innerClasses?: InnerClassInfo[];
 }
@@ -41,8 +41,8 @@ export interface LocateResultContext {
 export interface LocateResult {
 	jar: string;
 	category: JarCategory;
-	provenanceChains: string[][];
-	steps: CascadeStep[];
+	provenanceChains?: string[][];
+	steps?: CascadeStep[];
 	offset: number;
 	line: number;
 	column: number;

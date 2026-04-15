@@ -14,12 +14,12 @@ export interface ContextSnippet {
 export interface NavigationResult {
 	jar: string;                    // Jar ID (e.g., "minecraft", "fabric-api:fabric-networking-api-v1")
 	category: JarCategory;         // 'minecraft' | 'mod-source' | 'fabric-api' | 'library'
-	provenanceChains: string[][];   // Dependency provenance chains
-	entryPath: string;              // Java file path within jar (e.g., "net/minecraft/client/MinecraftClient.java")
+	provenanceChains?: string[][];  // Dependency provenance chains (optional for compact output)
+	entryPath?: string;             // Java file path within jar (optional for compact output)
 	className: string;              // Fully-qualified class name (e.g., "net.minecraft.client.MinecraftClient")
 	line: number;                   // 1-based line number of the target position
 	column: number;                 // 1-based column number of the target position
-	context: ContextSnippet;        // Enclosing semantic unit
+	context?: ContextSnippet;       // Enclosing semantic unit (optional for compact output)
 }
 
 export interface JdtLsSession {

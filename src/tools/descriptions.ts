@@ -87,6 +87,40 @@ export const PARAMS = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// Detail parameter schemas (opt-in verbose output per tool category)
+// ---------------------------------------------------------------------------
+
+export const DETAIL_PARAMS = {
+	/** Navigation tools: find_references, find_implementations, find_definition */
+	navigation: z.object({
+		lineContent: z.boolean().optional().describe(
+			'Include context snippets, entry paths, and provenance chains per result'
+		),
+	}).optional().describe('Detail flags (all default to false = compact)'),
+
+	/** Member listing tools: list_members */
+	member: z.object({
+		signatures: z.boolean().optional().describe(
+			'Include parameter types, return types, field types, and LSP detail strings'
+		),
+	}).optional().describe('Detail flags (all default to false = compact)'),
+
+	/** Class listing tools: list_classes, search_classes */
+	class: z.object({
+		modifiers: z.boolean().optional().describe(
+			'Include access level, modifiers, and inner class listings'
+		),
+	}).optional().describe('Detail flags (all default to false = compact)'),
+
+	/** Locate tool: locate_in_source */
+	locate: z.object({
+		steps: z.boolean().optional().describe(
+			'Include cascade regex step details and provenance chains'
+		),
+	}).optional().describe('Detail flags (all default to false = compact)'),
+} as const;
+
+// ---------------------------------------------------------------------------
 // Tool descriptions
 // ---------------------------------------------------------------------------
 

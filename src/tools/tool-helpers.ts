@@ -13,6 +13,7 @@ import type { JarCategory, DependencyEntry, LoadedProject } from '../project/typ
 import type { CascadeStep } from '../browsing/cascading-regex.js';
 import type { SymbolPositionResult } from './resolve-symbol-position.js';
 import type { NavigationResult } from '../jdtls/types.js';
+import type { LocateResult } from '../browsing/types.js';
 import type { UriMapper } from '../jdtls/uri-mapper.js';
 import { entryPathToClassName } from '../jdtls/uri-mapper.js';
 import { extractEnclosingContext } from '../jdtls/context-extractor.js';
@@ -335,4 +336,32 @@ export function getDependenciesForTool(
 		return filterDependenciesByJarPattern(getAllDependencies(project), jars);
 	}
 	return getFilteredDependencies(getResolvedDependencies(project), project.filterConfig);
+}
+
+/**
+ * Strip detail fields from a NavigationResult for compact output.
+ * When details.lineContent is true, returns the full result unchanged.
+ */
+export function stripNavigationResult(
+	result: NavigationResult,
+	details?: { lineContent?: boolean },
+): NavigationResult {
+	if (details?.lineContent) return result;
+	const { context, entryPath, provenanceChains, ...essential } = result;
+	return essential;
+}
+
+/**
+ * Strip detail fields from a LocateResult for compact output.
+ * When details.steps is true, returns the full result unchanged.
+ * Note: the existing `context` field on LocateResult is controlled by
+ * the separate `context` parameter and is NOT stripped here.
+ */
+export function stripLocateResult(
+	result: LocateResult,
+	details?: { steps?: boolean },
+): LocateResult {
+	if (details?.steps) return result;
+	const { steps, provenanceChains, ...essential } = result;
+	return essential;
 }
