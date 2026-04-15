@@ -120,7 +120,7 @@ Plans:
 Plans:
 - [x] 22-01-PLAN.md — Shared detail schemas, strip functions, wire compact-by-default into navigation and locate tools
 - [x] 22-02-PLAN.md — Wire compact-by-default into member/class tools, update all tests, produce audit report
-- [ ] 22-03-PLAN.md — Gap closure: add detail flag opt-in tests for navigation and locate tools
+- [x] 22-03-PLAN.md — Gap closure: add detail flag opt-in tests for navigation and locate tools
 
 ## Progress
 
@@ -150,4 +150,4 @@ Phases execute in numeric order: 19 → 20 → 21 → 22
 | 19. Line-Range Reading | v1.3 | 2/2 | Complete    | 2026-04-14 |
 | 20. Member Context Lines | v1.3 | 2/2 | Complete    | 2026-04-14 |
 | 21. Navigation Pagination | v1.3 | 2/2 | Complete    | 2026-04-14 |
-| 22. Verbosity Audit | v1.3 | 2/3 | In Progress   | — |
+| 22. Verbosity Audit | v1.3 | 3/3 | Complete   | 2026-04-15 |
