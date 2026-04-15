@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Project Rearchitecture
 status: unknown
-stopped_at: Completed 26-01-PLAN.md
-last_updated: "2026-04-15T23:05:33.332Z"
+stopped_at: Completed 26-02-PLAN.md
+last_updated: "2026-04-15T23:10:48.030Z"
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 15
-  completed_plans: 14
+  completed_plans: 15
 ---
 
 # Project State
@@ -57,6 +57,7 @@ Plan: 2 of 2
 | Phase 25.1 P02 | 5min | 2 tasks | 12 files |
 | Phase 25.1 P04 | 7min | 2 tasks | 30 files |
 | Phase 26 P01 | 5min | 2 tasks | 5 files |
+| Phase 26 P02 | 4min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,7 @@ See PROJECT.md Key Decisions table for full decision log.
 - [Phase 25.1]: getRootPathForScope returns undefined instead of throwing -- createSourceAdapter guards with DomainError
 - [Phase 26]: Mod-source deps extract under fabricMod.name dir, not dep.id dir -- keeps mod source at clean path
 - [Phase 26]: Dual-key jarIdToDirName: both dep.id and fabricMod.name point to same mod-source dir
+- [Phase 26]: oldModForUnsync spread pattern preserves old dep list for workspace cleanup before syncing new deps
 
 ### Roadmap Evolution
 
@@ -110,6 +112,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-15T23:05:33.330Z
-Stopped at: Completed 26-01-PLAN.md
+Last session: 2026-04-15T23:10:48.029Z
+Stopped at: Completed 26-02-PLAN.md
 Resume file: None

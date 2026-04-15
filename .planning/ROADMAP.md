@@ -71,7 +71,7 @@
 - [x] **Phase 23: Type Foundation and ProjectStore** - New container types, compatibility layer, default project at startup (completed 2026-04-15)
 - [x] **Phase 24: Dependency Namespacing** - Per-child dependency resolution with mod-name prefixes and scope parameter (completed 2026-04-15)
 - [x] **Phase 25: Child Management Tools** - Multi-mod support, load/add/refresh tools, namespaced jar IDs in results (completed 2026-04-15)
-- [ ] **Phase 26: JDT LS Workspace Unification** - Single workspace covering all children with cross-mod navigation
+- [x] **Phase 26: JDT LS Workspace Unification** - Single workspace covering all children with cross-mod navigation (completed 2026-04-15)
 - [ ] **Phase 27: Migration Cleanup** - Remove compatibility shims, finalize test factories, verify clean codebase
 
 ## Phase Details
@@ -144,11 +144,11 @@ Plans:
   1. One JDT LS workspace per project covers all fabric mods' and study jars' sources
   2. find_definition from one fabric mod's source correctly navigates into another fabric mod's dependencies
   3. Extraction directories use namespace-aware naming (e.g., `my-mod__minecraft`) to avoid collisions
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 26-01-PLAN.md — Fabric mod workspace sync functions and JDT LS session initialization helper
-- [ ] 26-02-PLAN.md — Wire JDT LS lifecycle into create_project, add_fabric_mod, and refresh tools
+- [x] 26-02-PLAN.md — Wire JDT LS lifecycle into create_project, add_fabric_mod, and refresh tools
 
 ### Phase 27: Migration Cleanup
 **Goal**: The codebase is fully migrated to the new container model with no legacy compatibility shims remaining
@@ -175,5 +175,5 @@ Phases execute in numeric order: 23 -> 24 -> 25 -> 25.1 -> 26 -> 27
 | 24. Dep Namespacing | v1.4 | 3/3 | Complete    | 2026-04-15 |
 | 25. Child Mgmt Tools | v1.4 | 2/2 | Complete    | 2026-04-15 |
 | 25.1. Tool Rework | v1.4 | 4/4 | Complete    | 2026-04-15 |
-| 26. JDT LS Unification | v1.4 | 1/2 | In Progress|  |
+| 26. JDT LS Unification | v1.4 | 2/2 | Complete   | 2026-04-15 |
 | 27. Migration Cleanup | v1.4 | 0/? | Not started | - |

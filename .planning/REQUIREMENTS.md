@@ -32,7 +32,7 @@ Requirements for v1.4 Project Rearchitecture milestone. Each maps to roadmap pha
 ### JDT LS
 
 - [x] **LSP-01**: One JDT LS workspace per project covers all children's sources
-- [ ] **LSP-02**: Cross-mod navigation works (find-definition from one mod's source into another mod's dependencies)
+- [x] **LSP-02**: Cross-mod navigation works (find-definition from one mod's source into another mod's dependencies)
 
 ## Future Requirements
 
@@ -86,7 +86,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TOOL-02 | Phase 25 | Complete |
 | TOOL-03 | Phase 25 | Complete |
 | LSP-01 | Phase 26 | Complete |
-| LSP-02 | Phase 26 | Pending |
+| LSP-02 | Phase 26 | Complete |
 
 **Coverage:**
 - v1.4 requirements: 15 total
