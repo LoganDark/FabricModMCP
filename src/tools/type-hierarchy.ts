@@ -28,11 +28,12 @@ export function registerTypeHierarchyTool(server: McpServer): void {
 			inputSchema: {
 				project: PARAMS.project,
 				jar: PARAMS.jar,
+				scope: PARAMS.scope,
 				class: PARAMS.class,
 				depth: z.number().int().min(0).max(10).default(1).optional().describe('Maximum depth for subtype traversal (default: 1, direct subtypes only)'),
 			},
 		},
-		async ({ class: className, jar, project, depth }) => {
+		async ({ class: className, jar, scope, project, depth }) => {
 			logger.debug('type_hierarchy called', { class: className, jar, project, depth });
 
 			const resolved = resolveProjectSafely(project);
@@ -62,7 +63,7 @@ export function registerTypeHierarchyTool(server: McpServer): void {
 			const uriMapper = createUriMapper(jdtls.tempDir, jdtls.jarIdToDirName);
 
 			// Resolve class source from jars
-			const sourceResult = await resolveClassSource(loadedProject, className, jar);
+			const sourceResult = await resolveClassSource(loadedProject, className, jar, scope);
 			if (!sourceResult.success) return handleClassSourceError(sourceResult, className, loadedProject.name, jar);
 			const { sourceJarId, sourceText, entryPath } = sourceResult;
 

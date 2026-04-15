@@ -42,19 +42,20 @@ export function registerListClassesTool(server: McpServer): void {
 			inputSchema: {
 				project: PARAMS.project,
 				jars: PARAMS.jars,
+				scope: PARAMS.scope,
 				package: z.string().describe('Fully-qualified package name to list classes from (required)'),
 				depth: z.number().int().min(1).optional().describe('Include classes from sub-packages up to this depth (default: 1, this package only)'),
 				details: DETAIL_PARAMS.class,
 			},
 		},
-		async ({ project, jars, package: packageName, depth, details }) => {
+		async ({ project, jars, scope, package: packageName, depth, details }) => {
 			logger.debug('list_classes called', { project, jars, package: packageName, depth });
 
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
 
-			const filtered = getDependenciesForTool(loadedProject, jars);
+			const filtered = getDependenciesForTool(loadedProject, jars, scope);
 
 			// Build merged class listings across all matching jars
 			const mergedClasses = new Map<string, ClassInfo>();

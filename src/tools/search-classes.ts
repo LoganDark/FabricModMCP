@@ -17,6 +17,7 @@ export function registerSearchClassesTool(server: McpServer): void {
 			inputSchema: {
 				project: PARAMS.project,
 				jars: PARAMS.jars,
+				scope: PARAMS.scope,
 				pattern: z.string().describe('Glob pattern to match against fully-qualified class names. * matches one segment, ** crosses package boundaries.'),
 				caseSensitive: z.boolean().optional().describe('Case-sensitive matching (default: false)'),
 				kind: z.array(z.string()).optional().describe('Filter by class type: "class", "interface", "enum", "record", "@interface"'),
@@ -25,14 +26,14 @@ export function registerSearchClassesTool(server: McpServer): void {
 				details: DETAIL_PARAMS.class,
 			},
 		},
-		async ({ pattern, caseSensitive, kind, jars, offset, limit, project, details }) => {
+		async ({ pattern, caseSensitive, kind, jars, scope, offset, limit, project, details }) => {
 			logger.debug('search_classes called', { project, pattern, caseSensitive, kind, jars, offset, limit });
 
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
 
-			const resolvedDeps = getDependenciesForTool(loadedProject, jars);
+			const resolvedDeps = getDependenciesForTool(loadedProject, jars, scope);
 			const response = await searchClasses(
 				{ pattern, caseSensitive, kind, offset, limit },
 				resolvedDeps,

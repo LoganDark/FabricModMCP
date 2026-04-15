@@ -27,13 +27,14 @@ export function registerSearchSymbolsTool(server: McpServer): void {
 			description: TOOL_DESCRIPTIONS.search_symbols,
 			inputSchema: {
 				project: PARAMS.project,
+				scope: PARAMS.scope,
 				query: z.string().describe('Symbol name pattern to search for'),
 				kind: z.enum(['class', 'method', 'field', 'interface', 'enum', 'constructor', 'constant', 'property']).optional().describe('Filter results by symbol kind'),
 				limit: z.number().int().min(1).max(200).default(50).optional().describe('Maximum results per page (default: 50)'),
 				offset: z.number().int().min(0).default(0).optional().describe('Pagination offset (default: 0)'),
 			},
 		},
-		async ({ query, kind, limit, offset, project }) => {
+		async ({ query, kind, limit, offset, project, scope }) => {
 			logger.debug('search_symbols called', { query, kind, limit, offset, project });
 
 			const effectiveLimit = limit ?? 50;

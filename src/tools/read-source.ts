@@ -1,13 +1,13 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
-import { getAllDependencies, getResolvedDependencies } from '../project/dependency-resolver.js';
-import { getFilteredDependencies } from '../project/jar-registry.js';
+import { getAllDependencies } from '../project/dependency-resolver.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { logger } from '../logging/logger.js';
-import { classNameToEntryPath, handleClassSourceError, sortByPriority, resolveProjectSafely, returnError, resolveClassSource } from './tool-helpers.js';
+import { classNameToEntryPath, handleClassSourceError, sortByPriority, resolveProjectSafely, returnError, resolveClassSource, getDependenciesForTool } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
-import { getRootPath, getFilterConfig } from '../project/compat.js';
+import { getRootPath } from '../project/compat.js';
+import { resolveJarId } from '../project/namespace-resolver.js';
 import { sliceLines } from '../browsing/line-slicer.js';
 import type { SourceResult } from '../browsing/types.js';
 
@@ -20,13 +20,14 @@ export function registerReadSourceTool(server: McpServer): void {
 			inputSchema: {
 				project: PARAMS.project,
 				jar: PARAMS.jar,
+				scope: PARAMS.scope,
 				class: PARAMS.class,
 				startLine: PARAMS.startLine,
 				lineCount: PARAMS.lineCount,
 				details: DETAIL_PARAMS.source,
 			},
 		},
-		async ({ project, jar, class: className, startLine, lineCount, details }) => {
+		async ({ project, jar, scope, class: className, startLine, lineCount, details }) => {
 			logger.debug('read_source called', { project, jar, class: className, startLine, lineCount });
 
 			const resolved = resolveProjectSafely(project);
@@ -49,10 +50,10 @@ export function registerReadSourceTool(server: McpServer): void {
 
 			// If specific jar is requested
 			if (jar !== undefined) {
-				const sourceResult = await resolveClassSource(loadedProject, className, jar);
+				const sourceResult = await resolveClassSource(loadedProject, className, jar, scope);
 				if (!sourceResult.success) return handleClassSourceError(sourceResult, className, loadedProject.name, jar);
 
-				const dep = getAllDependencies(loadedProject).get(jar)!;
+				const dep = getAllDependencies(loadedProject).get(sourceResult.sourceJarId)!;
 				const sliced = sliceLines(sourceResult.sourceText, startLine, lineCount);
 
 				const sources: SourceResult[] = [{
@@ -81,8 +82,11 @@ export function registerReadSourceTool(server: McpServer): void {
 			}
 
 			// Search all jars in priority order
-			const filtered = getFilteredDependencies(getResolvedDependencies(loadedProject), getFilterConfig(loadedProject));
+			const filtered = getDependenciesForTool(loadedProject, undefined, scope);
 			const sorted = sortByPriority(Array.from(filtered.entries()));
+			const rootPath = scope
+				? (() => { const c = loadedProject.children.get(scope); return c?.kind === 'fabric-mod' ? c.rootPath : getRootPath(loadedProject); })()
+				: getRootPath(loadedProject);
 
 			const sources: SourceResult[] = [];
 
@@ -90,7 +94,7 @@ export function registerReadSourceTool(server: McpServer): void {
 				if (!dep.available) continue;
 
 				try {
-					const adapter = createSourceAdapter(jarReader, dep, getRootPath(loadedProject));
+					const adapter = createSourceAdapter(jarReader, dep, rootPath);
 					const buffer = await adapter.readEntry(entryPath);
 					const source = buffer.toString('utf-8');
 					const sliced = sliceLines(source);

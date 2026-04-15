@@ -49,11 +49,12 @@ export function registerGetSymbolInfoTool(server: McpServer): void {
 			inputSchema: {
 				project: PARAMS.project,
 				jar: PARAMS.jar,
+				scope: PARAMS.scope,
 				class: PARAMS.class,
 				patterns: PARAMS.patterns,
 			},
 		},
-		async ({ project, jar, class: className, patterns }) => {
+		async ({ project, jar, scope, class: className, patterns }) => {
 			logger.debug('get_symbol_info called', { project, jar, class: className, patterns });
 
 			const resolved = resolveProjectSafely(project);
@@ -79,7 +80,7 @@ export function registerGetSymbolInfoTool(server: McpServer): void {
 			};
 
 			// Resolve symbol position using shared helper
-			const posResult = await resolveSymbolPosition(loadedProject, className, patterns, jar);
+			const posResult = await resolveSymbolPosition(loadedProject, className, patterns, jar, scope);
 
 			if (!posResult.success) return handleSymbolPositionError(posResult, loadedProject.name, provenance);
 

@@ -6,6 +6,7 @@ import { logger } from '../logging/logger.js';
 import { getAllDependencies } from '../project/dependency-resolver.js';
 import { resolveProjectSafely, returnError } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
+import { resolveJarId } from '../project/namespace-resolver.js';
 
 export function registerReadJarEntryTool(server: McpServer): void {
 	server.registerTool(
@@ -15,19 +16,21 @@ export function registerReadJarEntryTool(server: McpServer): void {
 			description: TOOL_DESCRIPTIONS.read_jar_entry,
 			inputSchema: {
 				project: PARAMS.project,
+				scope: PARAMS.scope,
 				jar: z.string().describe('Jar identifier (e.g., "minecraft", "com.google.code.gson:gson")'),
 				path: z.string().describe('File path within the jar (e.g., "net/minecraft/client/MinecraftClient.java")'),
 			},
 		},
-		async ({ project, jar, path }) => {
+		async ({ project, scope, jar, path }) => {
 			logger.debug('read_jar_entry called', { project, jar, path });
 
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
 
+			const resolvedJar = resolveJarId(loadedProject, jar, scope);
 			const allDeps = getAllDependencies(loadedProject);
-			const entry = allDeps.get(jar);
+			const entry = allDeps.get(resolvedJar);
 			if (!entry) {
 				const available = Array.from(allDeps.keys()).slice(0, 20);
 				return returnError(

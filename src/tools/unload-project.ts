@@ -4,8 +4,8 @@ import { makeSuccess } from '../types/envelope.js';
 import { projectStore } from '../state/project-store.js';
 import { jarReader } from './shared-jar-reader.js';
 import { logger } from '../logging/logger.js';
-import { resolveProjectSafely } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS } from './descriptions.js';
+import { resolveProjectSafely, returnError } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import { shutdownJdtLs } from '../jdtls/client.js';
 import { cleanupTempDir } from '../jdtls/workspace.js';
 
@@ -17,15 +17,44 @@ export function registerUnloadProjectTool(server: McpServer): void {
 			description: TOOL_DESCRIPTIONS.unload_project,
 			inputSchema: {
 				project: z.string().describe('Name of the project to unload'),
+				scope: PARAMS.scope,
 			},
 		},
-		async ({ project }) => {
-			logger.debug('unload_project called', { project });
+		async ({ project, scope }) => {
+			logger.debug('unload_project called', { project, scope });
 
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
 
+			// Scoped unload: remove just the specified child
+			if (scope) {
+				const child = loadedProject.children.get(scope);
+				if (!child) {
+					return returnError(
+						'CHILD_NOT_FOUND',
+						`Child '${scope}' not found in project '${loadedProject.name}'`,
+						[scope],
+						['Check available children with get_project_metadata'],
+					);
+				}
+
+				loadedProject.children.delete(scope);
+				logger.info(`Removed child '${scope}' from project '${loadedProject.name}'`);
+
+				const envelope = makeSuccess({
+					name: loadedProject.name,
+					child: scope,
+					message: `Child '${scope}' removed from project`,
+				});
+
+				return {
+					content: [{ type: 'text' as const, text: `Removed child '${scope}' from project '${loadedProject.name}'` }],
+					structuredContent: envelope,
+				};
+			}
+
+			// Full project unload
 			// Shutdown JDT LS if active
 			if (loadedProject.jdtls?.available && loadedProject.jdtls.client && loadedProject.jdtls.process) {
 				try {

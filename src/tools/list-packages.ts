@@ -19,18 +19,19 @@ export function registerListPackagesTool(server: McpServer): void {
 			inputSchema: {
 				project: PARAMS.project,
 				jars: PARAMS.jars,
+				scope: PARAMS.scope,
 				package: z.string().optional().describe('Parent package to list children of (default: top-level packages)'),
 				depth: z.number().int().min(1).optional().describe('How many levels deep to list (default: 1)'),
 			},
 		},
-		async ({ project, jars, package: packageName, depth }) => {
+		async ({ project, jars, scope, package: packageName, depth }) => {
 			logger.debug('list_packages called', { project, jars, package: packageName, depth });
 
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
 
-			const filtered = getDependenciesForTool(loadedProject, jars);
+			const filtered = getDependenciesForTool(loadedProject, jars, scope);
 
 			// Build merged package listings across all matching jars
 			const mergedPackages = new Map<string, PackageEntry>();

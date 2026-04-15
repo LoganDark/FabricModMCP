@@ -24,13 +24,14 @@ export function registerReadMemberTool(server: McpServer): void {
 			inputSchema: {
 				project: PARAMS.project,
 				jar: PARAMS.jar,
+				scope: PARAMS.scope,
 				memberFqn: z.string().describe('Member FQN from list_members or search_symbols (e.g., net.minecraft.client.MinecraftClient#tick())'),
 				linesBefore: PARAMS.linesBefore,
 				linesAfter: PARAMS.linesAfter,
 				details: DETAIL_PARAMS.source,
 			},
 		},
-		async ({ project, jar, memberFqn, linesBefore, linesAfter, details }) => {
+		async ({ project, jar, scope, memberFqn, linesBefore, linesAfter, details }) => {
 			logger.debug('read_member called', { project, jar, memberFqn });
 
 			// Parse and validate FQN
@@ -75,7 +76,7 @@ export function registerReadMemberTool(server: McpServer): void {
 				: parsed.className;
 
 			// Resolve class source from jars
-			const sourceResult = await resolveClassSource(loadedProject, outerClassName, jar);
+			const sourceResult = await resolveClassSource(loadedProject, outerClassName, jar, scope);
 			if (!sourceResult.success) return handleClassSourceError(sourceResult, outerClassName, loadedProject.name, jar);
 			const { sourceJarId, sourceText, entryPath } = sourceResult;
 
@@ -92,7 +93,7 @@ export function registerReadMemberTool(server: McpServer): void {
 				const members = transformSymbolResponse(symbolResult);
 
 				// Build resolvePackage for enrichment
-				const allDeps = getDependenciesForTool(loadedProject);
+				const allDeps = getDependenciesForTool(loadedProject, undefined, scope);
 				const resolvePackage = async (packageName: string): Promise<string[]> => {
 					const classNames = new Set<string>();
 					for (const [id, dep] of allDeps) {

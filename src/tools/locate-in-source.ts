@@ -1,15 +1,15 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { makeSuccess } from '../types/envelope.js';
-import { getAllDependencies, getResolvedDependencies } from '../project/dependency-resolver.js';
-import { getFilteredDependencies } from '../project/jar-registry.js';
+import { getAllDependencies } from '../project/dependency-resolver.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { cascadeRegex } from '../browsing/cascading-regex.js';
 import { logger } from '../logging/logger.js';
-import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError, stripLocateResult, stripLocateFailure } from './tool-helpers.js';
+import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError, stripLocateResult, stripLocateFailure, getDependenciesForTool } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
-import { getRootPath, getFilterConfig } from '../project/compat.js';
+import { getRootPath } from '../project/compat.js';
+import { resolveJarId } from '../project/namespace-resolver.js';
 import type { LocateFailure } from './tool-helpers.js';
 import type { LocateResult, LocateResultContext } from '../browsing/types.js';
 
@@ -36,6 +36,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 			inputSchema: {
 				project: PARAMS.project,
 				jar: PARAMS.jar,
+				scope: PARAMS.scope,
 				class: PARAMS.class,
 				patterns: PARAMS.patterns,
 				context: z.object({
@@ -45,7 +46,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 				details: DETAIL_PARAMS.locate,
 			},
 		},
-		async ({ project, jar, class: className, patterns, context, details }) => {
+		async ({ project, jar, scope, class: className, patterns, context, details }) => {
 			logger.debug('locate_in_source called', { project, jar, class: className, patterns });
 
 			const resolved = resolveProjectSafely(project);
@@ -60,9 +61,14 @@ export function registerLocateInSourceTool(server: McpServer): void {
 				class: className,
 			};
 
+			const rootPath = scope
+				? (() => { const c = loadedProject.children.get(scope); return c?.kind === 'fabric-mod' ? c.rootPath : getRootPath(loadedProject); })()
+				: getRootPath(loadedProject);
+
 			// Specific jar mode
 			if (jar !== undefined) {
-				const dep = getAllDependencies(loadedProject).get(jar);
+				const resolvedJar = resolveJarId(loadedProject, jar, scope);
+				const dep = getAllDependencies(loadedProject).get(resolvedJar);
 				if (!dep) {
 					return returnError(
 						'JAR_NOT_FOUND',
@@ -82,7 +88,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 				}
 
 				try {
-					const adapter = createSourceAdapter(jarReader, dep, getRootPath(loadedProject));
+					const adapter = createSourceAdapter(jarReader, dep, rootPath);
 					const buffer = await adapter.readEntry(entryPath);
 					const source = buffer.toString('utf-8');
 					const result = cascadeRegex(source, patterns);
@@ -132,7 +138,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 			}
 
 			// All-jars mode: search all jars in priority order
-			const filtered = getFilteredDependencies(getResolvedDependencies(loadedProject), getFilterConfig(loadedProject));
+			const filtered = getDependenciesForTool(loadedProject, undefined, scope);
 			const sorted = sortByPriority(Array.from(filtered.entries()));
 
 			const results: LocateResult[] = [];
@@ -143,7 +149,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 
 				let source: string;
 				try {
-					const adapter = createSourceAdapter(jarReader, dep, getRootPath(loadedProject));
+					const adapter = createSourceAdapter(jarReader, dep, rootPath);
 					const buffer = await adapter.readEntry(entryPath);
 					source = buffer.toString('utf-8');
 				} catch {

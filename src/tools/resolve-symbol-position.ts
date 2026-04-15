@@ -8,14 +8,14 @@
 
 import type { JarCategory, LoadedProject } from '../project/types.js';
 import type { CascadeStep, CascadeSuccess } from '../browsing/cascading-regex.js';
-import { getAllDependencies, getResolvedDependencies } from '../project/dependency-resolver.js';
-import { getFilteredDependencies } from '../project/jar-registry.js';
-import { getRootPath, getFilterConfig } from '../project/compat.js';
+import { getAllDependencies } from '../project/dependency-resolver.js';
+import { getRootPath } from '../project/compat.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { cascadeRegex } from '../browsing/cascading-regex.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
-import { classNameToEntryPath, sortByPriority } from './tool-helpers.js';
+import { classNameToEntryPath, sortByPriority, getDependenciesForTool } from './tool-helpers.js';
+import { resolveJarId } from '../project/namespace-resolver.js';
 
 export interface SymbolPositionSuccess {
 	success: true;
@@ -65,26 +65,31 @@ export async function resolveSymbolPosition(
 	className: string,
 	patterns: string[],
 	jar?: string,
+	scope?: string,
 ): Promise<SymbolPositionResult> {
 	const jdtls = loadedProject.jdtls!;
 	const uriMapper = createUriMapper(jdtls.tempDir, jdtls.jarIdToDirName);
 
 	const entryPath = classNameToEntryPath(className);
+	const rootPath = scope
+		? (() => { const c = loadedProject.children.get(scope); return c?.kind === 'fabric-mod' ? c.rootPath : getRootPath(loadedProject); })()
+		: getRootPath(loadedProject);
 
 	if (jar !== undefined) {
-		// Specific jar mode
-		const dep = getAllDependencies(loadedProject).get(jar);
+		// Specific jar mode — resolve bare IDs via namespace resolver
+		const resolvedJar = resolveJarId(loadedProject, jar, scope);
+		const dep = getAllDependencies(loadedProject).get(resolvedJar);
 		if (!dep) {
-			return { success: false, kind: 'jar-not-found', jar };
+			return { success: false, kind: 'jar-not-found', jar: resolvedJar };
 		}
 
 		if (!dep.available) {
-			return { success: false, kind: 'jar-not-available', jar };
+			return { success: false, kind: 'jar-not-available', jar: resolvedJar };
 		}
 
 		let sourceText: string;
 		try {
-			const adapter = createSourceAdapter(jarReader, dep, getRootPath(loadedProject));
+			const adapter = createSourceAdapter(jarReader, dep, rootPath);
 			const buffer = await adapter.readEntry(entryPath);
 			sourceText = buffer.toString('utf-8');
 		} catch {
@@ -105,24 +110,24 @@ export async function resolveSymbolPosition(
 			};
 		}
 
-		const fileUri = uriMapper.toFileUri(jar, entryPath);
+		const fileUri = uriMapper.toFileUri(resolvedJar, entryPath);
 		return {
 			success: true,
-			sourceJarId: jar,
+			sourceJarId: resolvedJar,
 			sourceText,
 			cascadeResult: rawCascade,
 			fileUri,
 			entryPath,
 		};
 	} else {
-		// All-jars mode: read from all jars in parallel, return highest-priority match
-		const filtered = getFilteredDependencies(getResolvedDependencies(loadedProject), getFilterConfig(loadedProject));
+		// All-jars mode: use scope-aware getDependenciesForTool
+		const filtered = getDependenciesForTool(loadedProject, undefined, scope);
 		const sorted = sortByPriority(Array.from(filtered.entries()));
 
 		const attempts = await Promise.all(sorted.map(async ([id, dep]) => {
 			if (!dep.available) return null;
 			try {
-				const adapter = createSourceAdapter(jarReader, dep, getRootPath(loadedProject));
+				const adapter = createSourceAdapter(jarReader, dep, rootPath);
 				const buffer = await adapter.readEntry(entryPath);
 				const text = buffer.toString('utf-8');
 				const result = cascadeRegex(text, patterns);

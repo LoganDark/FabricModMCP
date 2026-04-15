@@ -21,11 +21,12 @@ export function registerListMembersTool(server: McpServer): void {
 			inputSchema: {
 				project: PARAMS.project,
 				jar: PARAMS.jar,
+				scope: PARAMS.scope,
 				class: PARAMS.class,
 				details: DETAIL_PARAMS.member,
 			},
 		},
-		async ({ class: className, jar, project, details }) => {
+		async ({ class: className, jar, scope, project, details }) => {
 			logger.debug('list_members called', { class: className, jar, project });
 
 			const resolved = resolveProjectSafely(project);
@@ -54,7 +55,7 @@ export function registerListMembersTool(server: McpServer): void {
 			const uriMapper = createUriMapper(jdtls.tempDir, jdtls.jarIdToDirName);
 
 			// Resolve class source from jars
-			const sourceResult = await resolveClassSource(loadedProject, className, jar);
+			const sourceResult = await resolveClassSource(loadedProject, className, jar, scope);
 			if (!sourceResult.success) return handleClassSourceError(sourceResult, className, loadedProject.name, jar);
 			const { sourceJarId, sourceText, entryPath } = sourceResult;
 
@@ -71,7 +72,7 @@ export function registerListMembersTool(server: McpServer): void {
 				const members = transformSymbolResponse(symbolResult);
 
 				// Build resolvePackage that searches all loaded jar indices
-				const allDeps = getDependenciesForTool(loadedProject);
+				const allDeps = getDependenciesForTool(loadedProject, undefined, scope);
 				const resolvePackage = async (packageName: string): Promise<string[]> => {
 					const classNames = new Set<string>();
 					for (const [id, dep] of allDeps) {
