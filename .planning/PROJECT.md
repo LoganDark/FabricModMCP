@@ -48,6 +48,9 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - ✓ Clean tool separation: project lifecycle, member lifecycle, info/refresh, and browsing tools — Validated in Phase 25.1
 - ✓ `activeProject`/`activeChild` naming (renamed from `defaultProject`/`defaultChild`) — Validated in Phase 25.1
 - ✓ All compat shims removed, tools use native Project/FabricModChild/StudyJarChild types — Validated in Phase 25.1
+- ✓ One JDT LS workspace per project covers all children's sources — Validated in Phase 26
+- ✓ Cross-mod navigation works (find-definition from one mod's source into another mod's dependencies) — Validated in Phase 26
+- ✓ Namespace-aware extraction directories for JDT LS workspace (e.g., `mymod--minecraft`) — Validated in Phase 26
 
 ### Active
 
@@ -82,7 +85,7 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - **Shipped:** v1.1 Study Jars on 2026-04-14 — 6,030 LOC TypeScript, 25 MCP tools, 423 tests (+96 tests, +4 tools)
 - **Shipped:** v1.2 Symbol Resolution on 2026-04-14 — 6,863 LOC TypeScript, 22 MCP tools, 526 tests (+103 tests, +1 tool)
 - **Shipped:** v1.3 Context Management on 2026-04-15 — 7,281 LOC TypeScript, 25 MCP tools, 592 tests (+66 tests)
-- **v1.4 in progress:** Phase 25.1 complete — 28 MCP tools (reworked from 25), 642 tests, compat layer removed
+- **v1.4 in progress:** Phase 26 complete — 28 MCP tools, 664 tests, JDT LS workspace unification done
 - **Tech stack:** TypeScript 5.7+, Node.js 22 LTS, official MCP SDK 1.29.x, Zod 4, node-stream-zip, JDT LS via ts-lsp-client
 - **Architecture:** Layered domain → tool pattern. Domain modules handle logic; tool layer wires Zod schemas and MCP registration. Shared abstractions: ProjectStore, JarReader, EntryIndex, SourceAdapter, cascadeRegex, resolveSymbolPosition, dependency-resolver, member-enrichment, member-extractor, symbol-transform
 - **Ecosystem:** Fabric mod development uses Gradle with Fabric Loom. Loom's genSources decompiles Minecraft into a sources jar (~6,600 .java files) in `~/.gradle/caches/fabric-loom/minecraftMaven/`
@@ -145,4 +148,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-15 after Phase 25.1 completion*
+*Last updated: 2026-04-15 after Phase 26 completion*
