@@ -131,7 +131,8 @@ describe('locate_in_source tool', () => {
 		expect(envelope.data.results).toHaveLength(1);
 		expect(envelope.data.results[0].jar).toBe('minecraft');
 		expect(envelope.data.results[0].category).toBe('minecraft');
-		expect(envelope.data.results[0].steps).toBeDefined();
+		// Compact by default: steps and provenanceChains are stripped
+		expect(envelope.data.results[0].steps).toBeUndefined();
 		expect(envelope.data.results[0].offset).toBeGreaterThanOrEqual(0);
 		expect(envelope.data.results[0].line).toBeGreaterThanOrEqual(1);
 		expect(envelope.data.results[0].column).toBeGreaterThanOrEqual(1);
@@ -195,7 +196,8 @@ describe('locate_in_source tool', () => {
 		// Success should be from minecraft
 		const successJar = envelope.data.results[0].jar;
 		expect(successJar).toBe('minecraft');
-		expect(envelope.data.results[0].steps).toBeDefined();
+		// Compact by default: steps and provenanceChains are stripped
+		expect(envelope.data.results[0].steps).toBeUndefined();
 		expect(envelope.data.results[0].line).toBeGreaterThanOrEqual(1);
 
 		// Failure should be from fabric

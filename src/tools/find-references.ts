@@ -4,8 +4,8 @@ import { applyPagination } from './pagination.js';
 import { resolveSymbolPosition } from './resolve-symbol-position.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { logger } from '../logging/logger.js';
-import { handleSymbolPositionError, normalizeLocations, processNavigationLocations, resolveProjectSafely, returnError, withLspDocument } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
+import { handleSymbolPositionError, normalizeLocations, processNavigationLocations, resolveProjectSafely, returnError, stripNavigationResult, withLspDocument } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
 
 export function registerFindReferencesTool(server: McpServer): void {
 	server.registerTool(
@@ -20,9 +20,10 @@ export function registerFindReferencesTool(server: McpServer): void {
 				patterns: PARAMS.patterns,
 				limit: PARAMS.limit,
 				offset: PARAMS.offset,
+				details: DETAIL_PARAMS.navigation,
 			},
 		},
-		async ({ project, jar, class: className, patterns, limit, offset }) => {
+		async ({ project, jar, class: className, patterns, limit, offset, details }) => {
 			logger.debug('find_references called', { project, jar, class: className, patterns });
 
 			const resolved = resolveProjectSafely(project);
@@ -70,11 +71,13 @@ export function registerFindReferencesTool(server: McpServer): void {
 				const locations = normalizeLocations(refResult);
 				const allResults = await processNavigationLocations(locations, loadedProject, uriMapper);
 				const paginated = applyPagination(allResults, { limit, offset });
+				const stripped = paginated.results.map(r => stripNavigationResult(r, details));
 
 				const uniqueFiles = new Set(paginated.results.map(r => r.className)).size;
 				const envelope = makeSuccess(
 					{
 						...paginated,
+						results: stripped,
 						sourcePosition: {
 							jar: sourceJarId,
 							class: className,

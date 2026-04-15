@@ -124,10 +124,10 @@ describe('find_definition', () => {
 			expect(envelope.data).toBeDefined();
 			expect(envelope.data.results).toHaveLength(1);
 			expect(envelope.data.results[0].jar).toBe('minecraft');
-			expect(envelope.data.results[0].entryPath).toBe('net/minecraft/client/MinecraftClient.java');
+			// Compact by default: entryPath, context, provenanceChains are stripped
+			expect(envelope.data.results[0].entryPath).toBeUndefined();
 			expect(envelope.data.results[0].line).toBe(6); // 1-based
-			expect(envelope.data.results[0].context).toBeDefined();
-			expect(envelope.data.results[0].context.kind).toBeDefined();
+			expect(envelope.data.results[0].context).toBeUndefined();
 
 			// Verify didOpen/didClose were called
 			expect(mockDidOpen).toHaveBeenCalledOnce();

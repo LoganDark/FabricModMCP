@@ -136,10 +136,10 @@ describe('find_implementations', () => {
 			expect(envelope.success).toBe(true);
 			expect(envelope.data.results).toHaveLength(1);
 			expect(envelope.data.results[0].jar).toBe('minecraft');
-			expect(envelope.data.results[0].entryPath).toBe('net/minecraft/client/render/GameRenderer.java');
+			// Compact by default: entryPath, context, provenanceChains are stripped
+			expect(envelope.data.results[0].entryPath).toBeUndefined();
 			expect(envelope.data.results[0].line).toBe(4); // 1-based
-			expect(envelope.data.results[0].context).toBeDefined();
-			expect(envelope.data.results[0].context.kind).toBeDefined();
+			expect(envelope.data.results[0].context).toBeUndefined();
 			expect(envelope.data.sourcePosition).toBeDefined();
 
 			expect(mockDidOpen).toHaveBeenCalledOnce();

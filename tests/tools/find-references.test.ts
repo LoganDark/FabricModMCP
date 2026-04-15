@@ -171,7 +171,9 @@ describe('find_references', () => {
 			expect(envelope.success).toBe(true);
 			expect(envelope.data.results).toHaveLength(2);
 			expect(envelope.data.results[0].jar).toBe('minecraft');
-			expect(envelope.data.results[0].context).toBeDefined();
+			// Compact by default: context, entryPath, provenanceChains are stripped
+			expect(envelope.data.results[0].context).toBeUndefined();
+			expect(envelope.data.results[0].entryPath).toBeUndefined();
 			expect(envelope.data.results[1].jar).toBe('minecraft');
 			expect(mockDidOpen).toHaveBeenCalledOnce();
 			expect(mockDidClose).toHaveBeenCalledOnce();

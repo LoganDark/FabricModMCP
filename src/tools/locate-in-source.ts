@@ -7,8 +7,8 @@ import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { cascadeRegex } from '../browsing/cascading-regex.js';
 import { logger } from '../logging/logger.js';
-import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError } from './tool-helpers.js';
-import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
+import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError, stripLocateResult } from './tool-helpers.js';
+import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
 import type { LocateFailure } from './tool-helpers.js';
 import type { LocateResult, LocateResultContext } from '../browsing/types.js';
 
@@ -41,9 +41,10 @@ export function registerLocateInSourceTool(server: McpServer): void {
 					linesBefore: z.number().int().min(0).describe('Number of lines to include before the match'),
 					linesAfter: z.number().int().min(0).describe('Number of lines to include after the match'),
 				}).optional().describe('When provided, extends match to whole line boundaries and includes surrounding lines. Even {linesBefore: 0, linesAfter: 0} extends to the full line.'),
+				details: DETAIL_PARAMS.locate,
 			},
 		},
-		async ({ project, jar, class: className, patterns, context }) => {
+		async ({ project, jar, class: className, patterns, context, details }) => {
 			logger.debug('locate_in_source called', { project, jar, class: className, patterns });
 
 			const resolved = resolveProjectSafely(project);
@@ -98,7 +99,8 @@ export function registerLocateInSourceTool(server: McpServer): void {
 						if (context !== undefined) {
 							locateResult.context = extractContext(source, result.line, context.linesBefore, context.linesAfter);
 						}
-						const envelope = makeSuccess({ results: [locateResult], failures: [] }, { provenance });
+						const stripped = stripLocateResult(locateResult, details);
+						const envelope = makeSuccess({ results: [stripped], failures: [] }, { provenance });
 						return {
 							content: [{ type: 'text' as const, text: `Located in ${className} (${dep.id}) at line ${result.line}, col ${result.column}` }],
 							structuredContent: envelope,
@@ -185,7 +187,8 @@ export function registerLocateInSourceTool(server: McpServer): void {
 				);
 			}
 
-			const envelope = makeSuccess({ results, failures }, { provenance });
+			const strippedResults = results.map(r => stripLocateResult(r, details));
+			const envelope = makeSuccess({ results: strippedResults, failures }, { provenance });
 			if (results.length > 0) {
 				const first = results[0];
 				return {
