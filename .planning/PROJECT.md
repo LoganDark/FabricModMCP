@@ -51,11 +51,11 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - ✓ One JDT LS workspace per project covers all children's sources — Validated in Phase 26
 - ✓ Cross-mod navigation works (find-definition from one mod's source into another mod's dependencies) — Validated in Phase 26
 - ✓ Namespace-aware extraction directories for JDT LS workspace (e.g., `mymod--minecraft`) — Validated in Phase 26
+- ✓ Default project gets JDT LS session at startup when available — v1.4
 
 ### Active
 
-- [ ] Study jars live at project level, not under fabric mods
-- [ ] Investigate JDT LS in-memory file support (avoid tmpdir extraction)
+(None — planning next milestone)
 
 ### Out of Scope
 
@@ -65,19 +65,13 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - Supporting non-Fabric toolchains (Forge, NeoForge, Quilt) — Fabric + Loom only for now
 - Version comparison across MC versions — useful for unmapped sources, deferred
 - FQN-based tool input for find_references/find_definition (NAV-01, NAV-02) — scheme defined, acceptance deferred
+- JDT LS in-memory file support — rejected, JDT LS requires real files on disk (Issue #1815)
+- Study jars live at project level, not under fabric mods — already implemented in v1.4, moved from Active
 
-## Current Milestone: v1.4 Project Rearchitecture
+## Current State
 
-**Goal:** Restructure projects from monolithic Fabric-only containers into composable named containers that hold any mix of fabric mods and study jars, with namespaced dependency resolution and flexible scoping.
-
-**Target features:**
-- Projects as pure named containers (no root dir)
-- Fabric mods and study jars as named children under a project
-- Dependency namespacing by fabric mod name (e.g., `my-mod/minecraft`)
-- Tool scoping: project-wide or single-child
-- Multiple fabric mods per project
-- Default project on startup
-- Research JDT LS in-memory file support
+**Latest shipped:** v1.4 Project Rearchitecture (2026-04-15)
+**Next milestone:** TBD — run `/gsd:new-milestone` to plan
 
 ## Context
 
@@ -85,12 +79,12 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - **Shipped:** v1.1 Study Jars on 2026-04-14 — 6,030 LOC TypeScript, 25 MCP tools, 423 tests (+96 tests, +4 tools)
 - **Shipped:** v1.2 Symbol Resolution on 2026-04-14 — 6,863 LOC TypeScript, 22 MCP tools, 526 tests (+103 tests, +1 tool)
 - **Shipped:** v1.3 Context Management on 2026-04-15 — 7,281 LOC TypeScript, 25 MCP tools, 592 tests (+66 tests)
-- **v1.4 in progress:** Phase 26 complete — 28 MCP tools, 664 tests, JDT LS workspace unification done
+- **Shipped:** v1.4 Project Rearchitecture on 2026-04-15 — 8,250 LOC TypeScript, 28 MCP tools, 665 tests (+73 tests, +3 tools)
 - **Tech stack:** TypeScript 5.7+, Node.js 22 LTS, official MCP SDK 1.29.x, Zod 4, node-stream-zip, JDT LS via ts-lsp-client
 - **Architecture:** Layered domain → tool pattern. Domain modules handle logic; tool layer wires Zod schemas and MCP registration. Shared abstractions: ProjectStore, JarReader, EntryIndex, SourceAdapter, cascadeRegex, resolveSymbolPosition, dependency-resolver, member-enrichment, member-extractor, symbol-transform
 - **Ecosystem:** Fabric mod development uses Gradle with Fabric Loom. Loom's genSources decompiles Minecraft into a sources jar (~6,600 .java files) in `~/.gradle/caches/fabric-loom/minecraftMaven/`
 - **JDT LS integration:** Eclipse JDT Language Server provides semantic analysis. Workspace extraction on project load, eager initialization with graceful degradation when Java 21 or JDT LS unavailable. Study jars incrementally synced to workspace.
-- **Known tech debt:** 20 pre-existing TypeScript `tsc --noEmit` errors (ToolError/ToolSuccess index signature vs MCP SDK structuredContent). Runtime and tests unaffected. createResolvePackage exported but unused in production (single-EntryIndex API vs multi-jar need).
+- **Known tech debt:** 20 pre-existing TypeScript `tsc --noEmit` errors (ToolError/ToolSuccess index signature vs MCP SDK structuredContent). Runtime and tests unaffected.
 
 ## Constraints
 
@@ -129,6 +123,10 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 | Category-based DETAIL_PARAMS | navigation/member/class/locate/source categories, not per-tool schemas | ✓ Good — scales cleanly, consistent API |
 | Compact-by-default with opt-in richness | Agents get small responses unless they ask for more | ✓ Good — 66.5% size reduction measured |
 | Strip functions via destructuring rest | Clean field removal without explicit delete | ✓ Good — type-safe, readable |
+| Clean tool separation (lifecycle/info/browsing) | 5 lifecycle + 6 info/refresh + 17 browsing tools; clear responsibilities | ✓ Good — easy to find the right tool |
+| `activeProject`/`activeChild` naming | "active" is clearer than "default" for user-set selection | ✓ Good — no ambiguity with the "default" project name |
+| One JDT LS workspace per project | All children's sources in one workspace enables cross-mod navigation | ✓ Good — find-definition works across mod boundaries |
+| Default project gets JDT LS at startup | Semantic nav works immediately without explicit create_project | ✓ Good — better first-use experience |
 
 ## Evolution
 
@@ -148,4 +146,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-15 after Phase 26 completion*
+*Last updated: 2026-04-15 after v1.4 milestone*

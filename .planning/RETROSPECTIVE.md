@@ -162,14 +162,60 @@
 - Phase 22 was the most expensive (3 plans, 18min) due to cross-cutting changes across many tool files
 - 2 quick tasks added ~10min for study prefix removal and innerClasses flag split
 
+## Milestone: v1.4 — Project Rearchitecture
+
+**Shipped:** 2026-04-15
+**Phases:** 6 | **Plans:** 15 | **Tasks:** 31
+
+### What Was Built
+- Composable project containers: Project/FabricModChild/StudyJarChild discriminated union hierarchy
+- Namespaced dependency resolution with mod-name prefixes and scope parameter on all jar-aware tools
+- Multi-mod support with auto-suffix collision handling and per-child jar lifecycle
+- 28-tool taxonomy: 5 lifecycle, 6 info/refresh, 17 browsing — zero compatibility shims
+- Unified JDT LS workspace per project with cross-mod semantic navigation
+- Default project with JDT LS session at startup
+- 73 new tests (592 -> 665), +969 net LOC
+
+### What Worked
+- Incremental migration via compat layer (Phase 23) then native rework (Phase 25.1) kept tests green throughout
+- Phase 25.1 insert was the right call — doing compat removal as a separate focused phase was cleaner than mixing it into Phase 25
+- Per-child jar handle lifecycle (addProjectJar/removeProjectJar) avoided disruptive full-project rebuilds during scoped refresh
+- Namespace resolution module was high-leverage — bare ID backward compat "just worked" for single-mod case
+- oldModForUnsync spread pattern in refresh tools preserved old dep list for clean workspace unsync before resync
+
+### What Was Inefficient
+- Phase 27 (Migration Cleanup) was planned but Phase 25.1 absorbed all its work — Phase 27 was redundant
+- Compat layer was built in Phase 23 then removed in Phase 25.1 — ~400 lines of temporary code that existed for 3 phases
+- Nyquist validation files created for all phases but none completed (wave_0_complete: false across the board)
+- Three requirement texts (CONT-01, DEP-04, TOOL-02) referenced old tool names after Phase 25.1 renames — stale docs
+
+### Patterns Established
+- `activeProject`/`activeChild` for user-selected defaults (not "default" which collides with the project name)
+- Category-based source adapter dispatch (`dep.category === 'mod-source'`) replacing magic string checks
+- `getRootPathForScope` helper in tool-helpers for direct child access without compat
+- jarIdToDirName mapping (`/` -> `--`) for namespace-safe directory names in JDT LS workspace
+- initJdtLsSession encapsulating detect-Java + find-JDT-LS + start + graceful-degradation
+
+### Key Lessons
+- Inserted phases (25.1) can absorb planned-but-not-yet-started phases (27) — check for overlap before planning
+- Breaking clients is fine when all clients are LLMs — aggressive rework beats backward compat in this context
+- One JDT LS workspace per project is architecturally simpler and more capable than per-child workspaces
+- The default project should have full capabilities from the start — lazy init creates confusing UX gaps
+
+### Cost Observations
+- 6 phases, 15 plans executed in a single day
+- Phase 25.1 was the most expensive (4 plans, 22min) due to cross-cutting tool rework across 30+ files
+- Phase 27 cost zero execution time (retroactively complete)
+- Integration checker (sonnet) validated all 5 E2E flows and 15 requirement wirings
+
 ## Cross-Milestone Trends
 
-| Metric | v1.0 | v1.1 | v1.2 | v1.3 |
-|--------|------|------|------|------|
-| Phases | 10 | 4 | 4 | 4 |
-| Plans | 22 | 8 | 7 | 9 |
-| Tasks | 41 | ~66 | 12 | 17 |
-| LOC | 5,336 | 6,030 | 6,863 | 7,281 |
-| Tests | 327 | 423 | 526 | 592 |
-| Timeline | 2 days | 1 day | 1 day | 1 day |
-| Requirements | 46/46 | 10/10 | 7/7 | 11/11 |
+| Metric | v1.0 | v1.1 | v1.2 | v1.3 | v1.4 |
+|--------|------|------|------|------|------|
+| Phases | 10 | 4 | 4 | 4 | 6 |
+| Plans | 22 | 8 | 7 | 9 | 15 |
+| Tasks | 41 | ~66 | 12 | 17 | 31 |
+| LOC | 5,336 | 6,030 | 6,863 | 7,281 | 8,250 |
+| Tests | 327 | 423 | 526 | 592 | 665 |
+| Timeline | 2 days | 1 day | 1 day | 1 day | 1 day |
+| Requirements | 46/46 | 10/10 | 7/7 | 11/11 | 15/15 |

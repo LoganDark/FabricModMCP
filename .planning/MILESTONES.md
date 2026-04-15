@@ -1,5 +1,23 @@
 # Milestones
 
+## v1.4 Project Rearchitecture (Shipped: 2026-04-15)
+
+**Phases completed:** 6 phases, 15 plans, 31 tasks
+**Stats:** 8,250 LOC TypeScript, 28 MCP tools, 665 tests (+73)
+
+**Delivered:** Projects restructured from monolithic Fabric-only containers into composable named containers holding any mix of fabric mods and study jars, with namespaced dependency resolution, flexible scoping, and unified JDT LS semantic navigation.
+
+**Key accomplishments:**
+
+- Composable project containers with discriminated union type hierarchy (Project/FabricModChild/StudyJarChild)
+- Namespaced dependency resolution — all dep IDs prefixed by mod name, scope parameter on all jar-aware tools
+- Multi-mod support with auto-suffix collision handling and per-child jar lifecycle
+- Clean 28-tool taxonomy: 5 lifecycle, 6 info/refresh, 17 browsing — zero compatibility shims
+- Unified JDT LS workspace per project with cross-mod semantic navigation
+- Default project with JDT LS session at startup
+
+---
+
 ## v1.3 Context Management (Shipped: 2026-04-15)
 
 **Phases completed:** 4 phases, 9 plans, 17 tasks
