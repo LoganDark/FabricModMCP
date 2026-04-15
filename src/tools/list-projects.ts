@@ -4,6 +4,7 @@ import { getResolvedDependencies } from '../project/dependency-resolver.js';
 import { projectStore } from '../state/project-store.js';
 import { logger } from '../logging/logger.js';
 import { TOOL_DESCRIPTIONS } from './descriptions.js';
+import { getRootPath, getGradleConfig } from '../project/compat.js';
 
 export function registerListProjectsTool(server: McpServer): void {
 	server.registerTool(
@@ -17,14 +18,17 @@ export function registerListProjectsTool(server: McpServer): void {
 			logger.debug('list_projects called');
 
 			const defaultName = projectStore.getDefault();
-			const projects = projectStore.list().map((p) => ({
-				name: p.name,
-				rootPath: p.rootPath,
-				minecraftVersion: p.gradleConfig.minecraftVersion,
-				mappingEra: p.gradleConfig.mappingEra,
-				dependencyCount: getResolvedDependencies(p).size,
-				isDefault: p.name === defaultName,
-			}));
+			const projects = projectStore.list().map((p) => {
+				const gc = getGradleConfig(p);
+				return {
+					name: p.name,
+					rootPath: getRootPath(p),
+					minecraftVersion: gc.minecraftVersion,
+					mappingEra: gc.mappingEra,
+					dependencyCount: getResolvedDependencies(p).size,
+					isDefault: p.name === defaultName,
+				};
+			});
 
 			const envelope = makeSuccess({
 				projects,

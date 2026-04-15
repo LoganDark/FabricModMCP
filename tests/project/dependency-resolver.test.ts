@@ -70,15 +70,10 @@ function makeProject(
 		children.set(name, child);
 	}
 
-	// Include filterConfig as a runtime property for getDependenciesForTool compat
-	// (tool-helpers still reads project.filterConfig directly until Plan 03 migration)
-	const project = {
+	return {
 		name: 'test-project',
 		children,
-		filterConfig: fabricMod.filterConfig,
-	} as unknown as Project;
-
-	return project;
+	};
 }
 
 describe('getResolvedDependencies', () => {

@@ -7,9 +7,10 @@ import { getAllDependencies } from '../project/dependency-resolver.js';
 import { resolveProjectSafely } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import type { LoadedProject } from '../project/types.js';
+import { getGradleConfig, getFabricMod } from '../project/compat.js';
 
 function buildProjectInfo(project: LoadedProject) {
-	const gc = project.gradleConfig;
+	const gc = getGradleConfig(project);
 	return {
 		minecraftVersion: gc.minecraftVersion,
 		mappingEra: gc.mappingEra,
@@ -20,7 +21,7 @@ function buildProjectInfo(project: LoadedProject) {
 }
 
 function buildModInfo(project: LoadedProject) {
-	const mod = project.fabricMod as Record<string, unknown>;
+	const mod = getFabricMod(project) as Record<string, unknown>;
 	const {
 		schemaVersion,
 		id,
@@ -131,7 +132,7 @@ export function registerGetProjectMetadataTool(server: McpServer): void {
 			});
 
 			const sections = [
-				data.projectInfo ? `MC ${loadedProject.gradleConfig.minecraftVersion}` : null,
+				data.projectInfo ? `MC ${(data.projectInfo as any).minecraftVersion}` : null,
 				data.modInfo ? `mod: ${(data.modInfo as any).id ?? 'unknown'}` : null,
 				data.jarInventory ? `${(data.jarInventory as any[]).length} jars` : null,
 			].filter(Boolean);

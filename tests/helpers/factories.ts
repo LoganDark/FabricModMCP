@@ -1,26 +1,15 @@
 import type { TestPair } from './client.js';
-import type { LoadedProject, DependencyEntry } from '../../src/project/types.js';
+import type { Project, FabricModChild, DependencyEntry } from '../../src/project/types.js';
 import type { JdtLsSession } from '../../src/jdtls/types.js';
 
 export function parseEnvelope(result: Awaited<ReturnType<TestPair['client']['callTool']>>): any {
 	return (result as any).structuredContent;
 }
 
-export function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedProject {
-	const deps = new Map<string, DependencyEntry>();
-	deps.set('minecraft', {
-		id: 'minecraft',
-		group: 'net.minecraft',
-		artifact: 'minecraft-merged',
-		version: '1.21.11',
-		category: 'minecraft',
-		sourcesJarPath: '/fake/minecraft-sources.jar',
-		available: true,
-		provenanceChains: [],
-	});
-
+export function makeFakeFabricMod(overrides: Partial<FabricModChild> = {}): FabricModChild {
 	return {
-		name: 'test',
+		kind: 'fabric-mod',
+		name: 'testmod',
 		rootPath: '/fake/path',
 		gradleConfig: {
 			minecraftVersion: '1.21.11',
@@ -43,9 +32,26 @@ export function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedP
 			mixins: [],
 			depends: {},
 		},
-		dependencyJars: deps,
+		dependencyJars: new Map<string, DependencyEntry>([['minecraft', {
+			id: 'minecraft',
+			group: 'net.minecraft',
+			artifact: 'minecraft-merged',
+			version: '1.21.11',
+			category: 'minecraft' as const,
+			sourcesJarPath: '/fake/minecraft-sources.jar',
+			available: true,
+			provenanceChains: [],
+		}]]),
 		filterConfig: { mode: 'include-all', patterns: [] },
-		studyJars: new Map(),
+		...overrides,
+	};
+}
+
+export function makeFakeProject(overrides: Partial<Project> = {}): Project {
+	const mod = makeFakeFabricMod();
+	return {
+		name: 'test',
+		children: new Map([[mod.name, mod]]),
 		...overrides,
 	};
 }

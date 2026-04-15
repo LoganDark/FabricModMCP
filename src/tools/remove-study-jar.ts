@@ -28,7 +28,8 @@ export function registerRemoveStudyJarTool(server: McpServer): void {
 
 			// Pre-validate all names exist before any mutation
 			for (const name of names) {
-				if (!loadedProject.studyJars.has(name)) {
+				const child = loadedProject.children.get(name);
+				if (!child || child.kind !== 'study-jar') {
 					return returnError(
 						'STUDY_JAR_NOT_FOUND',
 						`Study jar '${name}' not found on project '${loadedProject.name}'`,
@@ -40,16 +41,23 @@ export function registerRemoveStudyJarTool(server: McpServer): void {
 
 			// Apply removals
 			for (const name of names) {
-				const studyJar = loadedProject.studyJars.get(name)!;
+				const child = loadedProject.children.get(name)!;
+				if (child.kind !== 'study-jar') continue;
 				await unsyncStudyJarFromWorkspace(name, loadedProject.jdtls);
-				await jarReader.removeProjectJar(loadedProject.name, studyJar.jarPath);
-				evictEntryIndex(studyJar.jarPath);
-				loadedProject.studyJars.delete(name);
+				await jarReader.removeProjectJar(loadedProject.name, child.jarPath);
+				evictEntryIndex(child.jarPath);
+				loadedProject.children.delete(name);
+			}
+
+			// Count remaining study jars
+			let remainingStudyJars = 0;
+			for (const child of loadedProject.children.values()) {
+				if (child.kind === 'study-jar') remainingStudyJars++;
 			}
 
 			const envelope = makeSuccess({
 				removed: names,
-				remaining: loadedProject.studyJars.size,
+				remaining: remainingStudyJars,
 			});
 
 			return {

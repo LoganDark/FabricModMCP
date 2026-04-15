@@ -8,6 +8,7 @@ import { jarReader } from './shared-jar-reader.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
+import { getSoleFabricMod, getStudyJars } from '../project/compat.js';
 
 export function registerRefreshDependenciesTool(server: McpServer): void {
 	server.registerTool(
@@ -29,13 +30,15 @@ export function registerRefreshDependenciesTool(server: McpServer): void {
 			// Close old jar handles before re-discovering
 			await jarReader.closeProject(loadedProject.name);
 
+			const mod = getSoleFabricMod(loadedProject);
+
 			const result = await discoverDependencies(
-				loadedProject.gradleConfig,
-				loadedProject.sourcesJar.path,
-				loadedProject.rootPath,
+				mod.gradleConfig,
+				mod.sourcesJar.path,
+				mod.rootPath,
 			);
 
-			loadedProject.dependencyJars = result.dependencies;
+			mod.dependencyJars = result.dependencies;
 
 			// Auto-unload study jars whose name now collides with a real dependency
 			const unloadedNames = await autoUnloadConflictingStudyJars(
@@ -52,15 +55,14 @@ export function registerRefreshDependenciesTool(server: McpServer): void {
 			jarReader.registerProject(loadedProject.name, jarPaths);
 
 			// Re-register study jar paths that survived the refresh
-			if (loadedProject.studyJars) {
-				for (const studyJar of loadedProject.studyJars.values()) {
-					jarReader.addProjectJar(loadedProject.name, studyJar.jarPath);
-				}
+			const studyJars = getStudyJars(loadedProject);
+			for (const studyJar of studyJars.values()) {
+				jarReader.addProjectJar(loadedProject.name, studyJar.jarPath);
+			}
 
-				// Trigger staleness checks on study jars
-				for (const studyJar of loadedProject.studyJars.values()) {
-					await checkAndReopenIfStale(studyJar, jarReader);
-				}
+			// Trigger staleness checks on study jars
+			for (const studyJar of studyJars.values()) {
+				await checkAndReopenIfStale(studyJar, jarReader);
 			}
 
 			// Clear entry index cache for dependency jars only

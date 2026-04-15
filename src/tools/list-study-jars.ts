@@ -4,6 +4,7 @@ import { resolveProjectSafely } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import { logger } from '../logging/logger.js';
 import { isWorkspaceSynced } from '../jdtls/workspace-sync.js';
+import { getStudyJars } from '../project/compat.js';
 
 export function registerListStudyJarsTool(server: McpServer): void {
 	server.registerTool(
@@ -22,7 +23,7 @@ export function registerListStudyJarsTool(server: McpServer): void {
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
 
-			const jars = Array.from(loadedProject.studyJars.values()).map(jar => ({
+			const jars = Array.from(getStudyJars(loadedProject).values()).map(jar => ({
 				name: jar.name,
 				path: jar.jarPath,
 				autoInclude: jar.autoInclude,

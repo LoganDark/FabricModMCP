@@ -2,10 +2,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
 import { parseEnvelope, makeFakeProject as makeFakeProjectBase } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
-import type { LoadedProject } from '../../src/project/types.js';
+import type { Project } from '../../src/project/types.js';
 
-function makeFakeProject(name: string): LoadedProject {
-	return makeFakeProjectBase({ name, rootPath: `/fake/${name}`, dependencyJars: new Map() });
+function makeFakeProject(name: string): Project {
+	return makeFakeProjectBase({ name });
 }
 
 describe('unload_project tool', () => {

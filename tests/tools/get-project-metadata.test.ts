@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
-import { parseEnvelope, makeFakeProject as makeFakeProjectBase } from '../helpers/factories.js';
+import { parseEnvelope, makeFakeFabricMod } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
-import type { LoadedProject, DependencyEntry } from '../../src/project/types.js';
+import type { Project, FabricModChild, DependencyEntry } from '../../src/project/types.js';
 
 vi.mock('../../src/project/loader.js', () => ({
-	loadProject: vi.fn(),
+	loadFabricMod: vi.fn(),
 }));
 
 vi.mock('node:fs/promises', async (importOriginal) => {
@@ -16,7 +16,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 	};
 });
 
-function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedProject {
+function makeFakeProject(modOverrides: Partial<FabricModChild> = {}): Project {
 	const deps = new Map<string, DependencyEntry>();
 	deps.set('minecraft', {
 		id: 'minecraft',
@@ -58,7 +58,7 @@ function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedProject 
 		available: false,
 		provenanceChains: [],
 	});
-	return makeFakeProjectBase({
+	const mod = makeFakeFabricMod({
 		fabricMod: {
 			schemaVersion: 1,
 			id: 'testmod',
@@ -72,8 +72,12 @@ function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedProject 
 			depends: { fabricloader: '>=0.16.0', minecraft: '~1.21.11' },
 		},
 		dependencyJars: deps,
-		...overrides,
+		...modOverrides,
 	});
+	return {
+		name: 'test',
+		children: new Map([[mod.name, mod]]),
+	};
 }
 
 describe('get_project_metadata tool', () => {
@@ -159,7 +163,7 @@ describe('get_project_metadata tool', () => {
 				mixins: [],
 				depends: {},
 				customKey: 'custom-value',
-			} as any,
+			} as any as FabricModChild['fabricMod'],
 		});
 		projectStore.set('test', fake);
 

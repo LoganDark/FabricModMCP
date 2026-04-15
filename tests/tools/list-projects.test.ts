@@ -1,14 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
-import { parseEnvelope, makeFakeProject as makeFakeProjectBase } from '../helpers/factories.js';
+import { parseEnvelope, makeFakeFabricMod } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
-import type { DependencyEntry } from '../../src/project/types.js';
-import type { LoadedProject } from '../../src/project/types.js';
+import type { DependencyEntry, Project } from '../../src/project/types.js';
 
-function makeFakeProject(name: string, mcVersion: string = '1.21.11'): LoadedProject {
-	return makeFakeProjectBase({
-		name,
-		rootPath: `/fake/${name}`,
+function makeFakeProject(name: string, mcVersion: string = '1.21.11'): Project {
+	const mod = makeFakeFabricMod({
 		gradleConfig: {
 			minecraftVersion: mcVersion,
 			mappingEra: 'mapped',
@@ -18,9 +15,13 @@ function makeFakeProject(name: string, mcVersion: string = '1.21.11'): LoadedPro
 			dependencies: [],
 		},
 		dependencyJars: new Map<string, DependencyEntry>([
-			['minecraft', { id: 'minecraft', group: 'net.minecraft', artifact: 'minecraft', version: mcVersion, category: 'minecraft' as const, sourcesJarPath: '/fake/mc.jar', available: true }],
+			['minecraft', { id: 'minecraft', group: 'net.minecraft', artifact: 'minecraft', version: mcVersion, category: 'minecraft' as const, sourcesJarPath: '/fake/mc.jar', available: true, provenanceChains: [] }],
 		]),
 	});
+	return {
+		name,
+		children: new Map([[mod.name, mod]]),
+	};
 }
 
 describe('list_projects tool', () => {

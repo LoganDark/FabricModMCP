@@ -10,6 +10,7 @@
 import { readFile } from 'node:fs/promises';
 import picomatch from 'picomatch';
 import type { JarCategory, DependencyEntry, LoadedProject } from '../project/types.js';
+import { getRootPath, getFilterConfig } from '../project/compat.js';
 import type { CascadeStep } from '../browsing/cascading-regex.js';
 import type { SymbolPositionResult } from './resolve-symbol-position.js';
 import type { NavigationResult } from '../jdtls/types.js';
@@ -155,7 +156,7 @@ export async function resolveClassSource(
 			return { success: false, kind: 'jar-not-available', jar };
 		}
 		try {
-			const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
+			const adapter = createSourceAdapter(jarReader, dep, getRootPath(loadedProject));
 			const buffer = await adapter.readEntry(entryPath);
 			return { success: true, sourceJarId: jar, sourceText: buffer.toString('utf-8'), entryPath };
 		} catch {
@@ -164,13 +165,13 @@ export async function resolveClassSource(
 	}
 
 	// All-jars mode: read from all jars in parallel, return highest-priority match
-	const filtered = getFilteredDependencies(getResolvedDependencies(loadedProject), loadedProject.filterConfig);
+	const filtered = getFilteredDependencies(getResolvedDependencies(loadedProject), getFilterConfig(loadedProject));
 	const sorted = sortByPriority(Array.from(filtered.entries()));
 
 	const attempts = await Promise.all(sorted.map(async ([id, dep]) => {
 		if (!dep.available) return null;
 		try {
-			const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
+			const adapter = createSourceAdapter(jarReader, dep, getRootPath(loadedProject));
 			const buffer = await adapter.readEntry(entryPath);
 			return { id, text: buffer.toString('utf-8') };
 		} catch {
@@ -333,7 +334,7 @@ export function getDependenciesForTool(
 	if (jars && jars.length > 0) {
 		return filterDependenciesByJarPattern(getAllDependencies(project), jars);
 	}
-	return getFilteredDependencies(getResolvedDependencies(project), project.filterConfig);
+	return getFilteredDependencies(getResolvedDependencies(project), getFilterConfig(project));
 }
 
 /**

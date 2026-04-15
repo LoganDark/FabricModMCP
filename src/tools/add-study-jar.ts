@@ -30,7 +30,7 @@ export function registerAddStudyJarTool(server: McpServer): void {
 
 			try {
 				const studyJar = await createStudyJar(path, name, loadedProject);
-				loadedProject.studyJars.set(studyJar.name, studyJar);
+				loadedProject.children.set(studyJar.name, { kind: 'study-jar', ...studyJar });
 				jarReader.addProjectJar(loadedProject.name, studyJar.jarPath);
 
 				// Sync to JDT LS workspace for semantic navigation

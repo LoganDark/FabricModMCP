@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
-import { parseEnvelope, makeFakeProject } from '../helpers/factories.js';
+import { parseEnvelope, makeFakeFabricMod } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
 
 vi.mock('../../src/project/loader.js', () => ({
-	loadProject: vi.fn(),
+	loadFabricMod: vi.fn(),
 }));
 
 describe('load_project tool', () => {
@@ -21,9 +21,9 @@ describe('load_project tool', () => {
 	});
 
 	it('loads project and returns name, MC version', async () => {
-		const { loadProject } = await import('../../src/project/loader.js');
-		const fake = makeFakeProject({ rootPath: '/home/user/my-mod' });
-		vi.mocked(loadProject).mockResolvedValue(fake);
+		const { loadFabricMod } = await import('../../src/project/loader.js');
+		const fakeMod = makeFakeFabricMod({ rootPath: '/home/user/my-mod' });
+		vi.mocked(loadFabricMod).mockResolvedValue(fakeMod);
 
 		const result = await pair.client.callTool({
 			name: 'load_project',
@@ -37,9 +37,9 @@ describe('load_project tool', () => {
 	});
 
 	it('uses custom name when provided', async () => {
-		const { loadProject } = await import('../../src/project/loader.js');
-		const fake = makeFakeProject({ rootPath: '/home/user/my-mod' });
-		vi.mocked(loadProject).mockResolvedValue(fake);
+		const { loadFabricMod } = await import('../../src/project/loader.js');
+		const fakeMod = makeFakeFabricMod({ rootPath: '/home/user/my-mod' });
+		vi.mocked(loadFabricMod).mockResolvedValue(fakeMod);
 
 		const result = await pair.client.callTool({
 			name: 'load_project',
@@ -53,9 +53,9 @@ describe('load_project tool', () => {
 	});
 
 	it('auto-generates name from basename', async () => {
-		const { loadProject } = await import('../../src/project/loader.js');
-		const fake = makeFakeProject({ rootPath: '/home/user/my-mod' });
-		vi.mocked(loadProject).mockResolvedValue(fake);
+		const { loadFabricMod } = await import('../../src/project/loader.js');
+		const fakeMod = makeFakeFabricMod({ rootPath: '/home/user/my-mod' });
+		vi.mocked(loadFabricMod).mockResolvedValue(fakeMod);
 
 		const result = await pair.client.callTool({
 			name: 'load_project',
@@ -68,10 +68,10 @@ describe('load_project tool', () => {
 	});
 
 	it('collision with explicit name returns error', async () => {
-		const { loadProject } = await import('../../src/project/loader.js');
-		const fake1 = makeFakeProject({ rootPath: '/home/user/mod-a' });
-		const fake2 = makeFakeProject({ rootPath: '/home/user/mod-b' });
-		vi.mocked(loadProject).mockResolvedValueOnce(fake1).mockResolvedValueOnce(fake2);
+		const { loadFabricMod } = await import('../../src/project/loader.js');
+		const fakeMod1 = makeFakeFabricMod({ rootPath: '/home/user/mod-a' });
+		const fakeMod2 = makeFakeFabricMod({ rootPath: '/home/user/mod-b' });
+		vi.mocked(loadFabricMod).mockResolvedValueOnce(fakeMod1).mockResolvedValueOnce(fakeMod2);
 
 		await pair.client.callTool({
 			name: 'load_project',

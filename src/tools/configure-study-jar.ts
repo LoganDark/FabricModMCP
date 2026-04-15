@@ -26,7 +26,8 @@ export function registerConfigureStudyJarTool(server: McpServer): void {
 
 			// Pre-validate all names exist before any mutation
 			for (const name of names) {
-				if (!loadedProject.studyJars.has(name)) {
+				const child = loadedProject.children.get(name);
+				if (!child || child.kind !== 'study-jar') {
 					return returnError(
 						'STUDY_JAR_NOT_FOUND',
 						`Study jar '${name}' not found on project '${loadedProject.name}'`,
@@ -38,11 +39,12 @@ export function registerConfigureStudyJarTool(server: McpServer): void {
 
 			// Apply configuration
 			const updated = names.map(name => {
-				const studyJar = loadedProject.studyJars.get(name)!;
+				const child = loadedProject.children.get(name)!;
+				if (child.kind !== 'study-jar') throw new Error('unreachable');
 				if (autoInclude !== undefined) {
-					studyJar.autoInclude = autoInclude;
+					child.autoInclude = autoInclude;
 				}
-				return { name, autoInclude: studyJar.autoInclude };
+				return { name, autoInclude: child.autoInclude };
 			});
 
 			const envelope = makeSuccess({ updated });
