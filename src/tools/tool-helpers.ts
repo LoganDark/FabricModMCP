@@ -10,7 +10,9 @@
 import { readFile } from 'node:fs/promises';
 import picomatch from 'picomatch';
 import type { JarCategory, DependencyEntry, LoadedProject } from '../project/types.js';
-import { getRootPath, getFilterConfig } from '../project/compat.js';
+import { getRootPath } from '../project/compat.js';
+import { resolveJarId, resolveJarIds, getAutoIncludeIds } from '../project/namespace-resolver.js';
+import { studyJarToDependencyEntry } from '../project/study-jar.js';
 import type { CascadeStep } from '../browsing/cascading-regex.js';
 import type { SymbolPositionResult } from './resolve-symbol-position.js';
 import type { NavigationResult } from '../jdtls/types.js';
@@ -139,6 +141,7 @@ export async function resolveClassSource(
 	loadedProject: LoadedProject,
 	className: string,
 	jar?: string,
+	scope?: string,
 ): Promise<
 	| { success: true; sourceJarId: string; sourceText: string; entryPath: string }
 	| { success: false; kind: 'jar-not-found'; jar: string }
@@ -146,32 +149,36 @@ export async function resolveClassSource(
 	| { success: false; kind: 'class-not-found'; entryPath: string; jar?: string }
 > {
 	const entryPath = classNameToEntryPath(className);
+	const rootPath = scope
+		? (() => { const c = loadedProject.children.get(scope); return c?.kind === 'fabric-mod' ? c.rootPath : getRootPath(loadedProject); })()
+		: getRootPath(loadedProject);
 
 	if (jar !== undefined) {
-		const dep = getAllDependencies(loadedProject).get(jar);
+		const resolvedJar = resolveJarId(loadedProject, jar, scope);
+		const dep = getAllDependencies(loadedProject).get(resolvedJar);
 		if (!dep) {
-			return { success: false, kind: 'jar-not-found', jar };
+			return { success: false, kind: 'jar-not-found', jar: resolvedJar };
 		}
 		if (!dep.available) {
-			return { success: false, kind: 'jar-not-available', jar };
+			return { success: false, kind: 'jar-not-available', jar: resolvedJar };
 		}
 		try {
-			const adapter = createSourceAdapter(jarReader, dep, getRootPath(loadedProject));
+			const adapter = createSourceAdapter(jarReader, dep, rootPath);
 			const buffer = await adapter.readEntry(entryPath);
-			return { success: true, sourceJarId: jar, sourceText: buffer.toString('utf-8'), entryPath };
+			return { success: true, sourceJarId: resolvedJar, sourceText: buffer.toString('utf-8'), entryPath };
 		} catch {
-			return { success: false, kind: 'class-not-found', entryPath, jar };
+			return { success: false, kind: 'class-not-found', entryPath, jar: resolvedJar };
 		}
 	}
 
-	// All-jars mode: read from all jars in parallel, return highest-priority match
-	const filtered = getFilteredDependencies(getResolvedDependencies(loadedProject), getFilterConfig(loadedProject));
+	// All-jars mode: use getDependenciesForTool for scope-aware filtering
+	const filtered = getDependenciesForTool(loadedProject, undefined, scope);
 	const sorted = sortByPriority(Array.from(filtered.entries()));
 
 	const attempts = await Promise.all(sorted.map(async ([id, dep]) => {
 		if (!dep.available) return null;
 		try {
-			const adapter = createSourceAdapter(jarReader, dep, getRootPath(loadedProject));
+			const adapter = createSourceAdapter(jarReader, dep, rootPath);
 			const buffer = await adapter.readEntry(entryPath);
 			return { id, text: buffer.toString('utf-8') };
 		} catch {
@@ -324,17 +331,62 @@ export function filterDependenciesByJarPattern(
 
 /**
  * Resolve dependencies for a tool invocation.
- * With jars param: strict whitelist from getAllDependencies (includes all study jars).
- * Without jars param: getFilteredDependencies(getResolvedDependencies(project), filterConfig).
+ * With jars param: resolve bare IDs via namespace resolver, then filter from getAllDependencies.
+ * Without jars param: scope-aware filtered dependencies with autoIncludeIds.
  */
 export function getDependenciesForTool(
 	project: LoadedProject,
 	jars?: string[],
+	scope?: string,
 ): Map<string, DependencyEntry> {
 	if (jars && jars.length > 0) {
-		return filterDependenciesByJarPattern(getAllDependencies(project), jars);
+		const resolvedJars = resolveJarIds(project, jars, scope);
+		return filterDependenciesByJarPattern(getAllDependencies(project), resolvedJars);
 	}
-	return getFilteredDependencies(getResolvedDependencies(project), getFilterConfig(project));
+
+	// Compute auto-include IDs from fabric mod children (scoped or all)
+	const autoIncludeIds = new Set<string>();
+	if (scope) {
+		const child = project.children.get(scope);
+		if (child?.kind === 'fabric-mod') {
+			for (const id of getAutoIncludeIds(child)) autoIncludeIds.add(id);
+		}
+	} else {
+		for (const child of project.children.values()) {
+			if (child.kind === 'fabric-mod') {
+				for (const id of getAutoIncludeIds(child)) autoIncludeIds.add(id);
+			}
+		}
+	}
+
+	// Scope filtering: if scoped, only include that child's deps + autoInclude study jars
+	let deps: Map<string, DependencyEntry>;
+	if (scope) {
+		deps = new Map<string, DependencyEntry>();
+		const child = project.children.get(scope);
+		if (child?.kind === 'fabric-mod') {
+			for (const [id, dep] of child.dependencyJars) {
+				deps.set(id, dep);
+			}
+		}
+		// Add autoInclude study jars
+		for (const c of project.children.values()) {
+			if (c.kind === 'study-jar' && c.autoInclude) {
+				const entry = studyJarToDependencyEntry(c);
+				deps.set(entry.id, entry);
+			}
+		}
+	} else {
+		deps = getResolvedDependencies(project);
+	}
+
+	// Apply filter from the scoped child or sole fabric mod
+	const filterChild = scope
+		? project.children.get(scope)
+		: (() => { for (const c of project.children.values()) { if (c.kind === 'fabric-mod') return c; } return undefined; })();
+	const filter = filterChild?.kind === 'fabric-mod' ? filterChild.filterConfig : { mode: 'include-all' as const, patterns: [] };
+
+	return getFilteredDependencies(deps, filter, autoIncludeIds);
 }
 
 /**

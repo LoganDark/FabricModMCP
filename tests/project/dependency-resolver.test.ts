@@ -284,8 +284,8 @@ describe('sortByPriority with study', () => {
 describe('getDependenciesForTool', () => {
 	it('with jars param returns strict whitelist from getAllDependencies', () => {
 		const deps = new Map([
-			['minecraft', makeDep('minecraft', 'minecraft')],
-			['some-lib', makeDep('some-lib', 'library')],
+			['test-mod/minecraft', makeDep('test-mod/minecraft', 'minecraft')],
+			['test-mod/some-lib', makeDep('test-mod/some-lib', 'library')],
 		]);
 		const studyJars = new Map([
 			['mylib', makeStudyJar('mylib', false)],
@@ -296,25 +296,26 @@ describe('getDependenciesForTool', () => {
 		expect(result.has('mylib')).toBe(true);
 	});
 
-	it('with jars=[mylib, minecraft] returns study jars + minecraft', () => {
+	it('with jars=[mylib, minecraft] resolves bare minecraft to namespaced', () => {
 		const deps = new Map([
-			['minecraft', makeDep('minecraft', 'minecraft')],
-			['some-lib', makeDep('some-lib', 'library')],
+			['test-mod/minecraft', makeDep('test-mod/minecraft', 'minecraft')],
+			['test-mod/some-lib', makeDep('test-mod/some-lib', 'library')],
 		]);
 		const studyJars = new Map([
 			['mylib', makeStudyJar('mylib', false)],
 		]);
 		const project = makeProject(deps, studyJars);
+		// Bare 'minecraft' resolves to 'test-mod/minecraft' via namespace resolver
 		const result = getDependenciesForTool(project, ['mylib', 'minecraft']);
 		expect(result.size).toBe(2);
 		expect(result.has('mylib')).toBe(true);
-		expect(result.has('minecraft')).toBe(true);
-		expect(result.has('some-lib')).toBe(false);
+		expect(result.has('test-mod/minecraft')).toBe(true);
+		expect(result.has('test-mod/some-lib')).toBe(false);
 	});
 
 	it('with jars=[mylib] returns only that one study jar', () => {
 		const deps = new Map([
-			['minecraft', makeDep('minecraft', 'minecraft')],
+			['test-mod/minecraft', makeDep('test-mod/minecraft', 'minecraft')],
 		]);
 		const studyJars = new Map([
 			['mylib', makeStudyJar('mylib', false)],
@@ -326,10 +327,21 @@ describe('getDependenciesForTool', () => {
 		expect(result.has('mylib')).toBe(true);
 	});
 
-	it('without jars param returns getFilteredDependencies(getResolvedDependencies(project), filterConfig)', () => {
+	it('with scope param scopes filtered deps to that child', () => {
 		const deps = new Map([
-			['minecraft', makeDep('minecraft', 'minecraft')],
-			['some-lib', makeDep('some-lib', 'library')],
+			['test-mod/minecraft', makeDep('test-mod/minecraft', 'minecraft')],
+			['test-mod/some-lib', makeDep('test-mod/some-lib', 'library')],
+		]);
+		const project = makeProject(deps, new Map());
+		const result = getDependenciesForTool(project, undefined, 'test-mod');
+		expect(result.has('test-mod/minecraft')).toBe(true);
+		expect(result.has('test-mod/some-lib')).toBe(true);
+	});
+
+	it('without jars param returns filtered deps with autoInclude study jars', () => {
+		const deps = new Map([
+			['test-mod/minecraft', makeDep('test-mod/minecraft', 'minecraft')],
+			['test-mod/some-lib', makeDep('test-mod/some-lib', 'library')],
 		]);
 		const studyJars = new Map([
 			['included', makeStudyJar('included', true)],
@@ -337,9 +349,9 @@ describe('getDependenciesForTool', () => {
 		]);
 		const project = makeProject(deps, studyJars);
 		const result = getDependenciesForTool(project);
-		// Should include minecraft, some-lib, and autoInclude=true study jar
-		expect(result.has('minecraft')).toBe(true);
-		expect(result.has('some-lib')).toBe(true);
+		// Should include namespaced deps and autoInclude=true study jar
+		expect(result.has('test-mod/minecraft')).toBe(true);
+		expect(result.has('test-mod/some-lib')).toBe(true);
 		expect(result.has('included')).toBe(true);
 		// autoInclude=false excluded
 		expect(result.has('excluded')).toBe(false);
@@ -347,16 +359,15 @@ describe('getDependenciesForTool', () => {
 
 	it('without jars param respects filterConfig exclusion patterns', () => {
 		const deps = new Map([
-			['minecraft', makeDep('minecraft', 'minecraft')],
-			['some-lib', makeDep('some-lib', 'library')],
+			['test-mod/minecraft', makeDep('test-mod/minecraft', 'minecraft')],
+			['test-mod/some-lib', makeDep('test-mod/some-lib', 'library')],
 		]);
 		const project = makeProject(deps, new Map());
-		// Override filterConfig on the fabric mod child and the project compat property
 		const mod = project.children.get('test-mod') as FabricModChild;
-		mod.filterConfig = { mode: 'include-all', patterns: ['some-lib'] };
-		(project as any).filterConfig = mod.filterConfig;
+		mod.filterConfig = { mode: 'include-all', patterns: ['test-mod/some-lib'] };
 		const result = getDependenciesForTool(project);
-		expect(result.has('minecraft')).toBe(true);
-		expect(result.has('some-lib')).toBe(false);
+		// minecraft is auto-included, some-lib is excluded by pattern
+		expect(result.has('test-mod/minecraft')).toBe(true);
+		expect(result.has('test-mod/some-lib')).toBe(false);
 	});
 });

@@ -29,10 +29,15 @@ Browse decompiled source, navigate dependencies, and use semantic Java analysis 
 
 **Class names** use fully-qualified dot notation: \`net.minecraft.client.MinecraftClient\`, \`net.minecraft.world.World\`.
 
-**Jar IDs** identify source jars. Special IDs: \`"minecraft"\` (merged Minecraft sources), \`"src"\` (the mod's own source). \
-Dependencies use Maven coordinates: \`"net.fabricmc.fabric-api:fabric-resource-loader-v0"\`. \
-Study jars use their given name (or auto-derived from filename). \
+**Jar IDs** are namespaced by child name. A fabric mod's dependencies use "modName/depId" format \
+(e.g., "my-mod/minecraft", "my-mod/net.fabricmc.fabric-api:fabric-resource-loader-v0"). \
+A fabric mod's own source uses just the mod name (e.g., "my-mod"). \
+Study jars use their given name (bare, no prefix). \
 Use get_project_metadata with include_jar_inventory to see all available jars.
+
+**scope parameter**: Most tools accept an optional \`scope\` to target a specific child (fabric mod). \
+When scoped, bare jar IDs like "minecraft" resolve within that child's namespace. \
+When omitted, bare IDs resolve automatically if only one child exists, or error if ambiguous.
 
 **Cascading regex patterns**: Several tools locate a symbol position using an array of regex patterns that narrow progressively. \
 The first pattern searches the entire source file; each subsequent pattern searches only within the previous match. \
@@ -91,6 +96,9 @@ export const PARAMS = {
 	/** Optional number of results to skip (0-based). Default: 0. */
 	offset: z.number().int().min(0).optional()
 		.describe('Number of results to skip (0-based). Default: 0.'),
+	/** Optional child name to scope to. */
+	scope: z.string().optional()
+		.describe('Child name to scope to (e.g., fabric mod name). Bare jar IDs resolve within this child\'s namespace.'),
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -165,7 +173,7 @@ export const TOOL_DESCRIPTIONS = {
 	// -- Configuration -------------------------------------------------------
 
 	configure_filters:
-		'Filter which dependency jars appear in browsing and search results. In include-all mode (default), glob patterns define jars to EXCLUDE. In exclude-all mode, patterns define jars to INCLUDE. The "minecraft" and "src" jars are always included. Patterns match jar IDs (e.g., "net.fabricmc.*" to match all Fabric API modules).',
+		'Filter which dependency jars appear in browsing and search results. In include-all mode (default), glob patterns define jars to EXCLUDE. In exclude-all mode, patterns define jars to INCLUDE. Each child\'s own source and minecraft dependency are always included in its filtered results. Patterns match jar IDs (e.g., "net.fabricmc.*" to match all Fabric API modules).',
 
 	refresh_dependencies:
 		'Re-scan for dependency source jars in the Gradle cache. Use after running ./gradlew downloadSources or changing build.gradle dependencies. Does not re-parse the Gradle config — use unload_project + load_project for that. Automatically unloads any study jars whose names now conflict with real dependencies.',

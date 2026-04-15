@@ -47,8 +47,8 @@ public class SimpleRegistry {
 
 function makeFakeProject(modOverrides: Partial<FabricModChild> = {}): Project {
 	const deps = new Map<string, DependencyEntry>();
-	deps.set('minecraft', {
-		id: 'minecraft',
+	deps.set('testmod/minecraft', {
+		id: 'testmod/minecraft',
 		group: 'net.minecraft',
 		artifact: 'minecraft-merged',
 		version: '1.21.11',
@@ -57,8 +57,8 @@ function makeFakeProject(modOverrides: Partial<FabricModChild> = {}): Project {
 		available: true,
 		provenanceChains: [],
 	});
-	deps.set('src', {
-		id: 'src',
+	deps.set('testmod', {
+		id: 'testmod',
 		group: 'testmod',
 		artifact: 'testmod',
 		version: '1.0.0',
@@ -174,7 +174,7 @@ describe('search_classes tool', () => {
 				pattern: '*',
 				caseSensitive: true,
 				kind: ['class'],
-				jars: ['minecraft'],
+				jars: ['testmod/minecraft'],
 				offset: 0,
 				limit: 10,
 			},

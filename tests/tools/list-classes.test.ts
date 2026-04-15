@@ -28,8 +28,8 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 
 function makeFakeProject(modOverrides: Partial<FabricModChild> = {}): Project {
 	const deps = new Map<string, DependencyEntry>();
-	deps.set('minecraft', {
-		id: 'minecraft',
+	deps.set('testmod/minecraft', {
+		id: 'testmod/minecraft',
 		group: 'net.minecraft',
 		artifact: 'minecraft-merged',
 		version: '1.21.11',
@@ -38,8 +38,8 @@ function makeFakeProject(modOverrides: Partial<FabricModChild> = {}): Project {
 		available: true,
 		provenanceChains: [],
 	});
-	deps.set('src', {
-		id: 'src',
+	deps.set('testmod', {
+		id: 'testmod',
 		group: 'testmod',
 		artifact: 'testmod',
 		version: '1.0.0',
@@ -129,7 +129,7 @@ describe('list_classes tool', () => {
 		expect(mc.modifiers).toBeUndefined();
 		expect(mc.innerClasses).toBeUndefined();
 		expect(mc.kind).toBe('class');
-		expect(mc.jars).toEqual([{ id: 'minecraft', category: 'minecraft' }]);
+		expect(mc.jars).toEqual([{ id: 'testmod/minecraft', category: 'minecraft' }]);
 	});
 
 	it('inner classes are nested in parent with innerClasses detail flag', async () => {
@@ -220,7 +220,7 @@ describe('list_classes tool', () => {
 		const envelope = parseEnvelope(result);
 		const id = envelope.data.classes.find((c: any) => c.name === 'Identifier');
 		expect(id).toBeDefined();
-		expect(id.jars).toEqual([{ id: 'minecraft', category: 'minecraft' }]);
+		expect(id.jars).toEqual([{ id: 'testmod/minecraft', category: 'minecraft' }]);
 		expect(id.modifiers).toContain('final');
 	});
 
@@ -230,7 +230,7 @@ describe('list_classes tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'list_classes',
-			arguments: { project: 'test', package: 'net.minecraft.client', jars: ['minecraft'] },
+			arguments: { project: 'test', package: 'net.minecraft.client', jars: ['testmod/minecraft'] },
 		});
 
 		const envelope = parseEnvelope(result);

@@ -29,8 +29,8 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 
 function makeFakeProject(modOverrides: Partial<FabricModChild> = {}): Project {
 	const deps = new Map<string, DependencyEntry>();
-	deps.set('minecraft', {
-		id: 'minecraft',
+	deps.set('testmod/minecraft', {
+		id: 'testmod/minecraft',
 		group: 'net.minecraft',
 		artifact: 'minecraft-merged',
 		version: '1.21.11',
@@ -39,8 +39,8 @@ function makeFakeProject(modOverrides: Partial<FabricModChild> = {}): Project {
 		available: true,
 		provenanceChains: [],
 	});
-	deps.set('src', {
-		id: 'src',
+	deps.set('testmod', {
+		id: 'testmod',
 		group: 'testmod',
 		artifact: 'testmod',
 		version: '1.0.0',
@@ -49,8 +49,8 @@ function makeFakeProject(modOverrides: Partial<FabricModChild> = {}): Project {
 		available: true,
 		provenanceChains: [],
 	});
-	deps.set('net.fabricmc.fabric-api:fabric-resource-loader-v0', {
-		id: 'net.fabricmc.fabric-api:fabric-resource-loader-v0',
+	deps.set('testmod/net.fabricmc.fabric-api:fabric-resource-loader-v0', {
+		id: 'testmod/net.fabricmc.fabric-api:fabric-resource-loader-v0',
 		group: 'net.fabricmc.fabric-api',
 		artifact: 'fabric-resource-loader-v0',
 		version: '1.2.3',
@@ -147,7 +147,7 @@ describe('list_packages tool', () => {
 		const clientPkg = envelope.data.packages.find((p: any) => p.name === 'net.minecraft.client');
 		expect(clientPkg).toBeDefined();
 		expect(clientPkg.classCount).toBe(1); // MinecraftClient (inner class not counted)
-		expect(clientPkg.jars).toContain('minecraft');
+		expect(clientPkg.jars).toContain('testmod/minecraft');
 	});
 
 	it('filters jars when jars parameter provided', async () => {
@@ -156,7 +156,7 @@ describe('list_packages tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'list_packages',
-			arguments: { project: 'test', jars: ['minecraft'] },
+			arguments: { project: 'test', jars: ['testmod/minecraft'] },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -164,7 +164,7 @@ describe('list_packages tool', () => {
 		// Should only have packages from minecraft jar
 		const allJars = envelope.data.packages.flatMap((p: any) => p.jars);
 		const uniqueJars = [...new Set(allJars)];
-		expect(uniqueJars).toEqual(['minecraft']);
+		expect(uniqueJars).toEqual(['testmod/minecraft']);
 	});
 
 	it('supports jars glob pattern matching', async () => {
@@ -173,7 +173,7 @@ describe('list_packages tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'list_packages',
-			arguments: { project: 'test', jars: ['net.fabricmc*'] },
+			arguments: { project: 'test', jars: ['testmod/net.fabricmc*'] },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -212,8 +212,8 @@ describe('list_packages tool', () => {
 		const netPkg = envelope.data.packages.find((p: any) => p.name === 'net');
 		expect(netPkg).toBeDefined();
 		// 'net' package should have jars from both minecraft and fabric
-		expect(netPkg.jars).toContain('minecraft');
-		expect(netPkg.jars).toContain('net.fabricmc.fabric-api:fabric-resource-loader-v0');
+		expect(netPkg.jars).toContain('testmod/minecraft');
+		expect(netPkg.jars).toContain('testmod/net.fabricmc.fabric-api:fabric-resource-loader-v0');
 	});
 
 	it('response includes provenance metadata', async () => {

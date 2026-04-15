@@ -18,8 +18,8 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 
 function makeFakeProject(modOverrides: Partial<FabricModChild> = {}): Project {
 	const deps = new Map<string, DependencyEntry>();
-	deps.set('minecraft', {
-		id: 'minecraft',
+	deps.set('testmod/minecraft', {
+		id: 'testmod/minecraft',
 		group: 'net.minecraft',
 		artifact: 'minecraft-merged',
 		version: '1.21.11',
@@ -28,8 +28,8 @@ function makeFakeProject(modOverrides: Partial<FabricModChild> = {}): Project {
 		available: true,
 		provenanceChains: [],
 	});
-	deps.set('src', {
-		id: 'src',
+	deps.set('testmod', {
+		id: 'testmod',
 		group: 'testmod',
 		artifact: 'testmod',
 		version: '1.0.0',
@@ -38,8 +38,8 @@ function makeFakeProject(modOverrides: Partial<FabricModChild> = {}): Project {
 		available: true,
 		provenanceChains: [],
 	});
-	deps.set('net.fabricmc.fabric-api:fabric-resource-loader-v0', {
-		id: 'net.fabricmc.fabric-api:fabric-resource-loader-v0',
+	deps.set('testmod/net.fabricmc.fabric-api:fabric-resource-loader-v0', {
+		id: 'testmod/net.fabricmc.fabric-api:fabric-resource-loader-v0',
 		group: 'net.fabricmc.fabric-api',
 		artifact: 'fabric-resource-loader-v0',
 		version: '1.2.3',
@@ -48,8 +48,8 @@ function makeFakeProject(modOverrides: Partial<FabricModChild> = {}): Project {
 		available: true,
 		provenanceChains: [['net.fabricmc.fabric-api:fabric-api']],
 	});
-	deps.set('com.example:unavailable-lib', {
-		id: 'com.example:unavailable-lib',
+	deps.set('testmod/com.example:unavailable-lib', {
+		id: 'testmod/com.example:unavailable-lib',
 		group: 'com.example',
 		artifact: 'unavailable-lib',
 		version: '0.1.0',
@@ -213,7 +213,7 @@ describe('get_project_metadata tool', () => {
 		});
 
 		const envelope = parseEnvelope(result);
-		const mc = envelope.data.jarInventory.find((e: any) => e.id === 'minecraft');
+		const mc = envelope.data.jarInventory.find((e: any) => e.id === 'testmod/minecraft');
 		expect(mc).toBeDefined();
 		expect(mc.category).toBe('minecraft');
 		expect(mc.group).toBe('net.minecraft');
@@ -234,7 +234,7 @@ describe('get_project_metadata tool', () => {
 		});
 
 		const envelope = parseEnvelope(result);
-		const mc = envelope.data.jarInventory.find((e: any) => e.id === 'minecraft');
+		const mc = envelope.data.jarInventory.find((e: any) => e.id === 'testmod/minecraft');
 		expect(mc.sourcesJarPath).toBe('/fake/minecraft-sources.jar');
 	});
 
@@ -248,7 +248,7 @@ describe('get_project_metadata tool', () => {
 		});
 
 		const envelope = parseEnvelope(result);
-		const mc = envelope.data.jarInventory.find((e: any) => e.id === 'minecraft');
+		const mc = envelope.data.jarInventory.find((e: any) => e.id === 'testmod/minecraft');
 		expect(mc.sourcesJarPath).toBeUndefined();
 	});
 
@@ -262,7 +262,7 @@ describe('get_project_metadata tool', () => {
 		});
 
 		const envelope = parseEnvelope(result);
-		const unavail = envelope.data.jarInventory.find((e: any) => e.id === 'com.example:unavailable-lib');
+		const unavail = envelope.data.jarInventory.find((e: any) => e.id === 'testmod/com.example:unavailable-lib');
 		expect(unavail).toBeDefined();
 		expect(unavail.sizeBytes).toBeNull();
 		expect(unavail.available).toBe(false);
