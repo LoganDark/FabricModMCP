@@ -1,20 +1,38 @@
 import { describe, it, expect } from 'vitest';
-import { resolve } from 'node:path';
 import { parseCli } from '../../src/cli/args.js';
 
 describe('parseCli', () => {
-	it('multiple --project flags returns array', () => {
-		const args = parseCli(['--project', '/path/a', '--project', '/path/b']);
-		expect(args.projects).toEqual([resolve('/path/a'), resolve('/path/b')]);
-	});
-
-	it('zero --project flags returns empty array', () => {
+	it('returns default logLevel info', () => {
 		const args = parseCli([]);
-		expect(args.projects).toEqual([]);
+		expect(args.logLevel).toEqual('info');
 	});
 
-	it('single --project returns single-element array', () => {
-		const args = parseCli(['--project', '/path/a']);
-		expect(args.projects).toEqual([resolve('/path/a')]);
+	it('--verbose flag sets logLevel to debug', () => {
+		const args = parseCli(['--verbose']);
+		expect(args.logLevel).toEqual('debug');
+	});
+
+	it('-v short flag sets logLevel to debug', () => {
+		const args = parseCli(['-v']);
+		expect(args.logLevel).toEqual('debug');
+	});
+
+	it('--log-level sets logLevel', () => {
+		const args = parseCli(['--log-level', 'warn']);
+		expect(args.logLevel).toEqual('warn');
+	});
+
+	it('--verbose overrides --log-level', () => {
+		const args = parseCli(['--log-level', 'warn', '--verbose']);
+		expect(args.logLevel).toEqual('debug');
+	});
+
+	it('invalid --log-level falls back to default', () => {
+		const args = parseCli(['--log-level', 'invalid']);
+		expect(args.logLevel).toEqual('info');
+	});
+
+	it('unknown flag --project throws', () => {
+		expect(() => parseCli(['--project', '/path'])).toThrow();
 	});
 });
