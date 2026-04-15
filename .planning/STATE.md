@@ -87,8 +87,14 @@ None yet.
 
 None.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260415-81t | Remove study: prefix from study jar IDs | 2026-04-15 | c46f7c2 | [260415-81t-remove-study-prefix-from-study-jar-ids](./quick/260415-81t-remove-study-prefix-from-study-jar-ids/) |
+
 ## Session Continuity
 
-Last session: 2026-04-15T09:56:01.659Z
-Stopped at: Completed 22-03-PLAN.md
+Last session: 2026-04-15T12:55:00.000Z
+Stopped at: Completed quick task 260415-81t
 Resume file: None
