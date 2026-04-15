@@ -4,7 +4,7 @@ import { readFile, rm, mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { JarReader } from '../../src/project/jar-reader.js';
-import type { StudyJar, StudyJarStats } from '../../src/project/types.js';
+import type { StudyJar, StudyJarStats, FabricModChild, DependencyEntry, GradleConfig, FabricModJson, ResolvedJar, FilterConfig } from '../../src/project/types.js';
 import type { JdtLsSession } from '../../src/jdtls/types.js';
 import type { JSONRPCEndpoint } from 'ts-lsp-client';
 import {
@@ -13,6 +13,8 @@ import {
 	isWorkspaceSynced,
 	syncStudyJarToWorkspace,
 	unsyncStudyJarFromWorkspace,
+	syncFabricModToWorkspace,
+	unsyncFabricModFromWorkspace,
 } from '../../src/jdtls/workspace-sync.js';
 
 function createMockJarReader(entries: Map<string, Map<string, Buffer>>): JarReader {
@@ -321,6 +323,329 @@ describe('isWorkspaceSynced', () => {
 
 			expect(result.synced).toBe(false);
 			expect(jdtls.jarIdToDirName.has('myjar')).toBe(false);
+		});
+	});
+
+	function createMockFabricMod(overrides?: {
+		name?: string;
+		rootPath?: string;
+		deps?: Map<string, DependencyEntry>;
+		sourcesJarExists?: boolean;
+	}): FabricModChild {
+		const name = overrides?.name ?? 'testmod';
+		const deps = overrides?.deps ?? new Map<string, DependencyEntry>([
+			[`${name}/minecraft`, {
+				id: `${name}/minecraft`,
+				group: 'com.mojang',
+				artifact: 'minecraft',
+				version: '1.21.11',
+				category: 'minecraft',
+				sourcesJarPath: '/fake/minecraft-sources.jar',
+				available: true,
+				provenanceChains: [],
+			}],
+			[`${name}/${name}`, {
+				id: `${name}/${name}`,
+				group: 'com.example',
+				artifact: name,
+				version: '1.0.0',
+				category: 'mod-source',
+				sourcesJarPath: null,
+				available: true,
+				provenanceChains: [],
+			}],
+		]);
+
+		return {
+			kind: 'fabric-mod',
+			name,
+			rootPath: overrides?.rootPath ?? '/fake/mod-root',
+			gradleConfig: {
+				minecraftVersion: '1.21.11',
+				mappingEra: 'unmapped',
+				dependencies: [],
+			} as GradleConfig,
+			sourcesJar: {
+				path: '/fake/sources.jar',
+				exists: overrides?.sourcesJarExists ?? true,
+			} as ResolvedJar,
+			fabricMod: {
+				schemaVersion: 1,
+				id: name,
+				version: '1.0.0',
+				name,
+				description: 'Test mod',
+				authors: [],
+				license: 'MIT',
+				environment: '*',
+				mixins: [],
+				depends: {},
+			} as FabricModJson,
+			dependencyJars: deps,
+			filterConfig: {
+				mode: 'include-all',
+				patterns: [],
+			} as FilterConfig,
+		};
+	}
+
+	describe('syncFabricModToWorkspace', () => {
+		it('returns synced=false with warning when jdtls is undefined', async () => {
+			const mod = createMockFabricMod();
+			const jarReader = createMockJarReader(new Map());
+
+			const result = await syncFabricModToWorkspace(mod, undefined, jarReader);
+			expect(result.synced).toBe(false);
+			expect(result.warning).toContain('JDT LS unavailable');
+		});
+
+		it('returns synced=false with warning when jdtls.available is false', async () => {
+			const mod = createMockFabricMod();
+			const jarReader = createMockJarReader(new Map());
+			const jdtls = createMockJdtLsSession('/tmp/test', { available: false });
+
+			const result = await syncFabricModToWorkspace(mod, jdtls, jarReader);
+			expect(result.synced).toBe(false);
+			expect(result.warning).toContain('JDT LS unavailable');
+		});
+
+		it('extracts each dependency into namespaced dirs and updates jarIdToDirName', async () => {
+			const tempDir = await mkdtemp(join(tmpdir(), 'test-ws-sync-'));
+			tempDirs.push(tempDir);
+
+			const mcEntries = new Map<string, Buffer>();
+			mcEntries.set('net/minecraft/Client.java', Buffer.from('public class Client {}'));
+
+			const jarReader = createMockJarReader(new Map([
+				['/fake/minecraft-sources.jar', mcEntries],
+			]));
+
+			// Create a mod with only the minecraft dep (no mod-source, to test jar deps)
+			const deps = new Map<string, DependencyEntry>([
+				['testmod/minecraft', {
+					id: 'testmod/minecraft',
+					group: 'com.mojang',
+					artifact: 'minecraft',
+					version: '1.21.11',
+					category: 'minecraft',
+					sourcesJarPath: '/fake/minecraft-sources.jar',
+					available: true,
+					provenanceChains: [],
+				}],
+			]);
+
+			const mod = createMockFabricMod({ deps, sourcesJarExists: false });
+			const endpoint = createMockEndpoint();
+			const jdtls = createMockJdtLsSession(tempDir, { endpoint });
+
+			const result = await syncFabricModToWorkspace(mod, jdtls, jarReader);
+
+			expect(result.synced).toBe(true);
+
+			// Check extraction happened under namespaced dir
+			expect(existsSync(join(tempDir, 'testmod--minecraft', 'net', 'minecraft', 'Client.java'))).toBe(true);
+
+			// Check jarIdToDirName updated
+			expect(jdtls.jarIdToDirName.get('testmod/minecraft')).toBe('testmod--minecraft');
+		});
+
+		it('extracts mod own source under fabricMod.name and updates jarIdToDirName', async () => {
+			const tempDir = await mkdtemp(join(tmpdir(), 'test-ws-sync-'));
+			tempDirs.push(tempDir);
+
+			// Create mod source directory structure on disk
+			const modSrcDir = join(tempDir, 'mod-root', 'src', 'main', 'java');
+			await mkdir(join(modSrcDir, 'com', 'example'), { recursive: true });
+			await writeFile(join(modSrcDir, 'com', 'example', 'MyMod.java'), 'public class MyMod {}');
+
+			const deps = new Map<string, DependencyEntry>([
+				['testmod/testmod', {
+					id: 'testmod/testmod',
+					group: 'com.example',
+					artifact: 'testmod',
+					version: '1.0.0',
+					category: 'mod-source',
+					sourcesJarPath: null,
+					available: true,
+					provenanceChains: [],
+				}],
+			]);
+
+			const jarReader = createMockJarReader(new Map());
+			const mod = createMockFabricMod({ deps, rootPath: join(tempDir, 'mod-root') });
+			const endpoint = createMockEndpoint();
+			const jdtls = createMockJdtLsSession(tempDir, { endpoint });
+
+			const result = await syncFabricModToWorkspace(mod, jdtls, jarReader);
+
+			expect(result.synced).toBe(true);
+
+			// Mod source extracted under fabricMod.name
+			expect(existsSync(join(tempDir, 'testmod', 'com', 'example', 'MyMod.java'))).toBe(true);
+
+			// jarIdToDirName updated for mod source using fabricMod.name
+			expect(jdtls.jarIdToDirName.get('testmod')).toBe('testmod');
+		});
+
+		it('regenerates .classpath with all dirs and notifies JDT LS endpoint', async () => {
+			const tempDir = await mkdtemp(join(tmpdir(), 'test-ws-sync-'));
+			tempDirs.push(tempDir);
+
+			const mcEntries = new Map<string, Buffer>();
+			mcEntries.set('net/minecraft/Client.java', Buffer.from('public class Client {}'));
+
+			const jarReader = createMockJarReader(new Map([
+				['/fake/minecraft-sources.jar', mcEntries],
+			]));
+
+			const deps = new Map<string, DependencyEntry>([
+				['testmod/minecraft', {
+					id: 'testmod/minecraft',
+					group: 'com.mojang',
+					artifact: 'minecraft',
+					version: '1.21.11',
+					category: 'minecraft',
+					sourcesJarPath: '/fake/minecraft-sources.jar',
+					available: true,
+					provenanceChains: [],
+				}],
+			]);
+
+			const mod = createMockFabricMod({ deps, sourcesJarExists: false });
+			const endpoint = createMockEndpoint();
+			const jdtls = createMockJdtLsSession(tempDir, { endpoint });
+			// Pre-existing entry from a study jar
+			jdtls.jarIdToDirName.set('my-study', 'my-study');
+
+			const result = await syncFabricModToWorkspace(mod, jdtls, jarReader);
+
+			expect(result.synced).toBe(true);
+
+			// .classpath should contain both old and new dirs
+			const { realpathSync } = await import('node:fs');
+			const resolvedTempDir = realpathSync(tempDir);
+			const classpathContent = await readFile(join(resolvedTempDir, '.classpath'), 'utf-8');
+			expect(classpathContent).toContain('testmod--minecraft');
+			expect(classpathContent).toContain('my-study');
+
+			// Endpoint notified
+			expect(endpoint.notify).toHaveBeenCalledWith(
+				'workspace/didChangeWatchedFiles',
+				expect.objectContaining({
+					changes: expect.arrayContaining([
+						expect.objectContaining({ type: 2 }),
+					]),
+				}),
+			);
+		});
+
+		it('rolls back jarIdToDirName entries on extraction failure', async () => {
+			const tempDir = await mkdtemp(join(tmpdir(), 'test-ws-sync-'));
+			tempDirs.push(tempDir);
+
+			const failReader = {
+				listEntries: async () => { throw new Error('extraction failed'); },
+				readEntry: async () => Buffer.alloc(0),
+			} as unknown as JarReader;
+
+			const mod = createMockFabricMod();
+			const endpoint = createMockEndpoint();
+			const jdtls = createMockJdtLsSession(tempDir, { endpoint });
+
+			const result = await syncFabricModToWorkspace(mod, jdtls, failReader);
+
+			expect(result.synced).toBe(false);
+			expect(result.warning).toBeDefined();
+			// All entries for this mod should be rolled back
+			expect(jdtls.jarIdToDirName.has('testmod/minecraft')).toBe(false);
+			expect(jdtls.jarIdToDirName.has('testmod')).toBe(false);
+		});
+	});
+
+	describe('unsyncFabricModFromWorkspace', () => {
+		it('returns synced=false when jdtls is undefined', async () => {
+			const mod = createMockFabricMod();
+			const result = await unsyncFabricModFromWorkspace(mod, undefined);
+			expect(result.synced).toBe(false);
+		});
+
+		it('returns synced=false when jdtls.available is false', async () => {
+			const mod = createMockFabricMod();
+			const jdtls = createMockJdtLsSession('/tmp/test', { available: false });
+			const result = await unsyncFabricModFromWorkspace(mod, jdtls);
+			expect(result.synced).toBe(false);
+		});
+
+		it('deletes extracted dirs, removes from jarIdToDirName, regenerates .classpath, notifies', async () => {
+			const tempDir = await mkdtemp(join(tmpdir(), 'test-ws-sync-'));
+			tempDirs.push(tempDir);
+
+			// Set up extracted dirs
+			const mcDir = join(tempDir, 'testmod--minecraft');
+			await mkdir(mcDir, { recursive: true });
+			await writeFile(join(mcDir, 'Client.java'), 'class Client {}');
+			const modDir = join(tempDir, 'testmod');
+			await mkdir(modDir, { recursive: true });
+			await writeFile(join(modDir, 'MyMod.java'), 'class MyMod {}');
+
+			const endpoint = createMockEndpoint();
+			const jdtls = createMockJdtLsSession(tempDir, { endpoint });
+			jdtls.jarIdToDirName.set('testmod/minecraft', 'testmod--minecraft');
+			jdtls.jarIdToDirName.set('testmod', 'testmod');
+			jdtls.jarIdToDirName.set('other-study', 'other-study'); // should survive
+
+			const mod = createMockFabricMod();
+			const result = await unsyncFabricModFromWorkspace(mod, jdtls);
+
+			expect(result.synced).toBe(true);
+
+			// Dirs deleted
+			expect(existsSync(mcDir)).toBe(false);
+			expect(existsSync(modDir)).toBe(false);
+
+			// Map cleaned for mod's entries only
+			expect(jdtls.jarIdToDirName.has('testmod/minecraft')).toBe(false);
+			expect(jdtls.jarIdToDirName.has('testmod')).toBe(false);
+			expect(jdtls.jarIdToDirName.has('other-study')).toBe(true);
+
+			// .classpath regenerated
+			const { realpathSync } = await import('node:fs');
+			const resolvedTempDir = realpathSync(tempDir);
+			const classpathContent = await readFile(join(resolvedTempDir, '.classpath'), 'utf-8');
+			expect(classpathContent).not.toContain('testmod--minecraft');
+			expect(classpathContent).not.toContain('"testmod"');
+			expect(classpathContent).toContain('other-study');
+
+			// Endpoint notified
+			expect(endpoint.notify).toHaveBeenCalledWith(
+				'workspace/didChangeWatchedFiles',
+				expect.objectContaining({
+					changes: expect.arrayContaining([
+						expect.objectContaining({ type: 2 }),
+					]),
+				}),
+			);
+		});
+
+		it('still cleans up jarIdToDirName entries even when rm fails', async () => {
+			const tempDir = await mkdtemp(join(tmpdir(), 'test-ws-sync-'));
+			tempDirs.push(tempDir);
+
+			const endpoint = {
+				notify: vi.fn().mockImplementation(() => { throw new Error('notify failed'); }),
+				send: vi.fn().mockResolvedValue([]),
+			} as unknown as JSONRPCEndpoint;
+
+			const jdtls = createMockJdtLsSession(tempDir, { endpoint });
+			jdtls.jarIdToDirName.set('testmod/minecraft', 'testmod--minecraft');
+			jdtls.jarIdToDirName.set('testmod', 'testmod');
+
+			const mod = createMockFabricMod();
+			const result = await unsyncFabricModFromWorkspace(mod, jdtls);
+
+			expect(result.synced).toBe(false);
+			expect(jdtls.jarIdToDirName.has('testmod/minecraft')).toBe(false);
+			expect(jdtls.jarIdToDirName.has('testmod')).toBe(false);
 		});
 	});
 });

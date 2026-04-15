@@ -10,10 +10,10 @@ import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { jarIdToDirName } from './uri-mapper.js';
-import { createJarAdapter } from '../browsing/source-adapter.js';
+import { createJarAdapter, createSourceAdapter } from '../browsing/source-adapter.js';
 import { generateClasspathFile } from './workspace.js';
 import type { JarReader } from '../project/jar-reader.js';
-import type { StudyJar } from '../project/types.js';
+import type { StudyJar, FabricModChild } from '../project/types.js';
 import type { JdtLsSession } from './types.js';
 
 /**
@@ -144,6 +144,118 @@ export async function unsyncStudyJarFromWorkspace(
 		return { synced: true };
 	} catch {
 		jdtls.jarIdToDirName.delete(studyJarName);
+		return { synced: false };
+	}
+}
+
+/**
+ * Sync a fabric mod's dependencies and own source to the JDT LS workspace.
+ *
+ * Extracts each available dependency's .java files into namespaced directories
+ * (e.g., "mymod--minecraft") and the mod's own source under its name.
+ * Updates .classpath and notifies JDT LS for asynchronous re-indexing.
+ */
+export async function syncFabricModToWorkspace(
+	fabricMod: FabricModChild,
+	jdtls: JdtLsSession | undefined,
+	jarReader: JarReader,
+): Promise<{ synced: boolean; warning?: string }> {
+	if (!jdtls?.available || !jdtls.endpoint) {
+		return { synced: false, warning: 'Note: JDT LS unavailable -- semantic navigation disabled' };
+	}
+
+	const addedKeys: string[] = [];
+
+	try {
+		for (const [depId, dep] of fabricMod.dependencyJars) {
+			if (!dep.available) continue;
+
+			const adapter = createSourceAdapter(jarReader, dep, fabricMod.rootPath);
+
+			// Mod-source deps extract under fabricMod.name; other deps under their jar ID
+			const isModSource = dep.category === 'mod-source';
+			const dirName = isModSource ? jarIdToDirName(fabricMod.name) : jarIdToDirName(dep.id);
+			const depDir = join(jdtls.tempDir, dirName);
+
+			const entries = await adapter.listJavaEntries();
+			for (const entryPath of entries) {
+				const targetPath = join(depDir, entryPath);
+				await mkdir(dirname(targetPath), { recursive: true });
+				const content = await adapter.readEntry(entryPath);
+				await writeFile(targetPath, content);
+			}
+
+			jdtls.jarIdToDirName.set(depId, dirName);
+			addedKeys.push(depId);
+
+			// Also add the mod name as a key pointing to the same dir for mod-source
+			if (isModSource) {
+				jdtls.jarIdToDirName.set(fabricMod.name, dirName);
+				addedKeys.push(fabricMod.name);
+			}
+		}
+
+		const allDirs = Array.from(jdtls.jarIdToDirName.values());
+		const classpathXml = generateClasspathFile(allDirs);
+		const resolvedTempDir = realpathSync(jdtls.tempDir);
+		await writeFile(join(resolvedTempDir, '.classpath'), classpathXml);
+
+		jdtls.endpoint.notify('workspace/didChangeWatchedFiles', {
+			changes: [{ uri: 'file://' + resolvedTempDir + '/.classpath', type: 2 }],
+		});
+
+		return { synced: true };
+	} catch (err) {
+		for (const key of addedKeys) {
+			jdtls.jarIdToDirName.delete(key);
+		}
+		return {
+			synced: false,
+			warning: 'Workspace sync failed: ' + (err instanceof Error ? err.message : String(err)),
+		};
+	}
+}
+
+/**
+ * Remove a fabric mod's extracted directories from the JDT LS workspace.
+ *
+ * Deletes all directories for the mod's dependencies and own source,
+ * removes entries from jarIdToDirName, regenerates .classpath, and notifies JDT LS.
+ */
+export async function unsyncFabricModFromWorkspace(
+	fabricMod: FabricModChild,
+	jdtls: JdtLsSession | undefined,
+): Promise<{ synced: boolean }> {
+	if (!jdtls?.available || !jdtls.endpoint) {
+		return { synced: false };
+	}
+
+	// Collect all keys to remove
+	const keysToRemove = Array.from(fabricMod.dependencyJars.keys());
+	keysToRemove.push(fabricMod.name);
+
+	try {
+		for (const depId of keysToRemove) {
+			const dirName = jarIdToDirName(depId);
+			await rm(join(jdtls.tempDir, dirName), { recursive: true, force: true });
+			jdtls.jarIdToDirName.delete(depId);
+		}
+
+		const allDirs = Array.from(jdtls.jarIdToDirName.values());
+		const classpathXml = generateClasspathFile(allDirs);
+		const resolvedTempDir = realpathSync(jdtls.tempDir);
+		await writeFile(join(resolvedTempDir, '.classpath'), classpathXml);
+
+		jdtls.endpoint.notify('workspace/didChangeWatchedFiles', {
+			changes: [{ uri: 'file://' + resolvedTempDir + '/.classpath', type: 2 }],
+		});
+
+		return { synced: true };
+	} catch {
+		// Still clean up map entries even on failure
+		for (const depId of keysToRemove) {
+			jdtls.jarIdToDirName.delete(depId);
+		}
 		return { synced: false };
 	}
 }
