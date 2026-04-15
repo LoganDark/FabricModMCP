@@ -143,7 +143,7 @@ describe.skipIf(!toolModuleAvailable)('read_member', () => {
 				name: 'read_member',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					memberFqn: 'net.minecraft.client.DoesNotExist#tick()',
 				},
 			});
@@ -188,7 +188,7 @@ describe.skipIf(!toolModuleAvailable)('read_member', () => {
 				name: 'read_member',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					memberFqn: 'net.minecraft.client.MinecraftClient#tick()',
 				},
 			});
@@ -203,7 +203,7 @@ describe.skipIf(!toolModuleAvailable)('read_member', () => {
 			expect(member.source).toContain('/**');
 			expect(member.source).toContain('Called every tick.');
 			expect(member.source).toContain('public void tick()');
-			expect(member.jar).toBe('minecraft');
+			expect(member.jar).toBe('testmod/minecraft');
 		} finally {
 			await pair.cleanup();
 			projectStore.clear();
@@ -241,7 +241,7 @@ describe.skipIf(!toolModuleAvailable)('read_member', () => {
 				name: 'read_member',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					memberFqn: 'net.minecraft.client.MinecraftClient#count:',
 				},
 			});
@@ -290,7 +290,7 @@ describe.skipIf(!toolModuleAvailable)('read_member', () => {
 				name: 'read_member',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					memberFqn: 'net.minecraft.client.MinecraftClient#nonexistent()',
 				},
 			});
@@ -338,7 +338,7 @@ describe.skipIf(!toolModuleAvailable)('read_member', () => {
 					name: 'read_member',
 					arguments: {
 						project: 'test',
-						jar: 'minecraft',
+						jar: 'testmod/minecraft',
 						memberFqn: 'net.minecraft.client.MinecraftClient#tick()',
 					},
 				});
@@ -365,7 +365,7 @@ describe.skipIf(!toolModuleAvailable)('read_member', () => {
 					name: 'read_member',
 					arguments: {
 						project: 'test',
-						jar: 'minecraft',
+						jar: 'testmod/minecraft',
 						memberFqn: 'net.minecraft.client.MinecraftClient#tick()',
 						linesBefore: 3,
 					},
@@ -394,7 +394,7 @@ describe.skipIf(!toolModuleAvailable)('read_member', () => {
 					name: 'read_member',
 					arguments: {
 						project: 'test',
-						jar: 'minecraft',
+						jar: 'testmod/minecraft',
 						memberFqn: 'net.minecraft.client.MinecraftClient#tick()',
 						linesAfter: 3,
 					},
@@ -423,7 +423,7 @@ describe.skipIf(!toolModuleAvailable)('read_member', () => {
 					name: 'read_member',
 					arguments: {
 						project: 'test',
-						jar: 'minecraft',
+						jar: 'testmod/minecraft',
 						memberFqn: 'net.minecraft.client.MinecraftClient#tick()',
 						linesBefore: 3,
 						linesAfter: 3,
@@ -475,7 +475,7 @@ describe.skipIf(!toolModuleAvailable)('read_member', () => {
 					name: 'read_member',
 					arguments: {
 						project: 'test',
-						jar: 'minecraft',
+						jar: 'testmod/minecraft',
 						memberFqn: 'net.minecraft.client.MinecraftClient#tick()',
 					},
 				});
@@ -518,7 +518,7 @@ describe.skipIf(!toolModuleAvailable)('read_member', () => {
 					name: 'read_member',
 					arguments: {
 						project: 'test',
-						jar: 'minecraft',
+						jar: 'testmod/minecraft',
 						memberFqn: 'net.minecraft.client.MinecraftClient#tick()',
 						details: { provenance: true },
 					},

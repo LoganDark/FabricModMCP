@@ -139,7 +139,7 @@ describe.skipIf(!toolModuleAvailable)('search_symbols', () => {
 			expect(first.name).toBe('MinecraftClient');
 			expect(first.kind).toBe('class');
 			expect(first.containerName).toBe('net.minecraft.client');
-			expect(first.location.jar).toBe('minecraft');
+			expect(first.location.jar).toBe('testmod/minecraft');
 			expect(first.location.line).toBe(3); // 0-based 2 + 1
 			expect(first.location.column).toBe(14); // 0-based 13 + 1
 

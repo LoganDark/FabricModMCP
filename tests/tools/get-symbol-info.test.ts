@@ -81,7 +81,7 @@ describe.skipIf(!toolModuleAvailable)('get_symbol_info', () => {
 				name: 'get_symbol_info',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['public class MinecraftClient'],
 				},
@@ -113,7 +113,7 @@ describe.skipIf(!toolModuleAvailable)('get_symbol_info', () => {
 				name: 'get_symbol_info',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['public void run\\('],
 				},
@@ -124,7 +124,7 @@ describe.skipIf(!toolModuleAvailable)('get_symbol_info', () => {
 			expect(envelope.data.hover).toContain('public void run()');
 			expect(envelope.data).toHaveProperty('javadoc');
 			expect(envelope.data.position).toBeDefined();
-			expect(envelope.data.position.jar).toBe('minecraft');
+			expect(envelope.data.position.jar).toBe('testmod/minecraft');
 
 			expect(mockDidOpen).toHaveBeenCalledOnce();
 			expect(mockDidClose).toHaveBeenCalledOnce();
@@ -151,7 +151,7 @@ describe.skipIf(!toolModuleAvailable)('get_symbol_info', () => {
 				name: 'get_symbol_info',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['public void run\\('],
 				},
@@ -184,7 +184,7 @@ describe.skipIf(!toolModuleAvailable)('get_symbol_info', () => {
 				name: 'get_symbol_info',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['import net.minecraft.util.Identifier'],
 				},
@@ -212,7 +212,7 @@ describe.skipIf(!toolModuleAvailable)('get_symbol_info', () => {
 				name: 'get_symbol_info',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['thisPatternWillNeverMatch12345'],
 				},
@@ -240,7 +240,7 @@ describe.skipIf(!toolModuleAvailable)('get_symbol_info', () => {
 				name: 'get_symbol_info',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['public void run\\('],
 				},

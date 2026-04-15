@@ -71,8 +71,8 @@ function makeMockClient() {
 
 function makeFakeProject(projectOverrides: Partial<Project> = {}): Project {
 	const deps = new Map<string, DependencyEntry>();
-	deps.set('minecraft', {
-		id: 'minecraft',
+	deps.set('testmod/minecraft', {
+		id: 'testmod/minecraft',
 		group: 'net.minecraft',
 		artifact: 'minecraft-merged',
 		version: '1.21.11',
@@ -117,7 +117,7 @@ describe.skipIf(!toolModuleAvailable)('find_references', () => {
 				name: 'find_references',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['public class MinecraftClient'],
 				},
@@ -159,14 +159,14 @@ describe.skipIf(!toolModuleAvailable)('find_references', () => {
 
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['minecraft', 'minecraft'], ['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1']]) }) });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['testmod/minecraft', 'minecraft'], ['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1']]) }) });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
 				name: 'find_references',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['public void run\\('],
 				},
@@ -175,11 +175,11 @@ describe.skipIf(!toolModuleAvailable)('find_references', () => {
 			const envelope = parseEnvelope(result);
 			expect(envelope.success).toBe(true);
 			expect(envelope.data.results).toHaveLength(2);
-			expect(envelope.data.results[0].jar).toBe('minecraft');
+			expect(envelope.data.results[0].jar).toBe('testmod/minecraft');
 			// Compact by default: context, entryPath, provenanceChains are stripped
 			expect(envelope.data.results[0].context).toBeUndefined();
 			expect(envelope.data.results[0].entryPath).toBeUndefined();
-			expect(envelope.data.results[1].jar).toBe('minecraft');
+			expect(envelope.data.results[1].jar).toBe('testmod/minecraft');
 			expect(mockDidOpen).toHaveBeenCalledOnce();
 			expect(mockDidClose).toHaveBeenCalledOnce();
 		} finally {
@@ -213,14 +213,14 @@ describe.skipIf(!toolModuleAvailable)('find_references', () => {
 
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['minecraft', 'minecraft'], ['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1']]) }) });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['testmod/minecraft', 'minecraft'], ['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1']]) }) });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
 				name: 'find_references',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['public void run\\('],
 					details: { lineContent: true },
@@ -248,14 +248,14 @@ describe.skipIf(!toolModuleAvailable)('find_references', () => {
 
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['minecraft', 'minecraft'], ['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1']]) }) });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['testmod/minecraft', 'minecraft'], ['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1']]) }) });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
 				name: 'find_references',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['public void run\\('],
 				},
@@ -273,14 +273,14 @@ describe.skipIf(!toolModuleAvailable)('find_references', () => {
 	test('returns error on cascading regex failure', async () => {
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['minecraft', 'minecraft'], ['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1']]) }) });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['testmod/minecraft', 'minecraft'], ['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1']]) }) });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
 				name: 'find_references',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['thisPatternWillNeverMatch12345'],
 				},
@@ -318,14 +318,14 @@ describe.skipIf(!toolModuleAvailable)('find_references', () => {
 
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['minecraft', 'minecraft'], ['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1']]) }) });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['testmod/minecraft', 'minecraft'], ['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1']]) }) });
 			projectStore.set('test', fake);
 
 			const result = await pair.client.callTool({
 				name: 'find_references',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['public class MinecraftClient'],
 				},
@@ -337,7 +337,7 @@ describe.skipIf(!toolModuleAvailable)('find_references', () => {
 			// First result from minecraft jar
 			const jars = envelope.data.results.map((r: any) => r.jar);
 			if (jars.length >= 2) {
-				expect(jars).toContain('minecraft');
+				expect(jars).toContain('testmod/minecraft');
 				expect(jars).toContain('fabric-api:fabric-networking-api-v1');
 			}
 		} finally {
@@ -365,14 +365,14 @@ describe.skipIf(!toolModuleAvailable)('find_references', () => {
 
 			const pair = await createTestPair();
 			try {
-				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['minecraft', 'minecraft']]) }) });
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['testmod/minecraft', 'minecraft']]) }) });
 				projectStore.set('test', fake);
 
 				const result = await pair.client.callTool({
 					name: 'find_references',
 					arguments: {
 						project: 'test',
-						jar: 'minecraft',
+						jar: 'testmod/minecraft',
 						class: 'net.minecraft.client.MinecraftClient',
 						patterns: ['public void run\\('],
 					},
@@ -407,14 +407,14 @@ describe.skipIf(!toolModuleAvailable)('find_references', () => {
 
 			const pair = await createTestPair();
 			try {
-				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['minecraft', 'minecraft']]) }) });
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['testmod/minecraft', 'minecraft']]) }) });
 				projectStore.set('test', fake);
 
 				const result = await pair.client.callTool({
 					name: 'find_references',
 					arguments: {
 						project: 'test',
-						jar: 'minecraft',
+						jar: 'testmod/minecraft',
 						class: 'net.minecraft.client.MinecraftClient',
 						patterns: ['public void run\\('],
 						limit: 1,
@@ -451,14 +451,14 @@ describe.skipIf(!toolModuleAvailable)('find_references', () => {
 
 			const pair = await createTestPair();
 			try {
-				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['minecraft', 'minecraft']]) }) });
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['testmod/minecraft', 'minecraft']]) }) });
 				projectStore.set('test', fake);
 
 				const result = await pair.client.callTool({
 					name: 'find_references',
 					arguments: {
 						project: 'test',
-						jar: 'minecraft',
+						jar: 'testmod/minecraft',
 						class: 'net.minecraft.client.MinecraftClient',
 						patterns: ['public void run\\('],
 						limit: 1,
@@ -495,7 +495,7 @@ describe.skipIf(!toolModuleAvailable)('find_references', () => {
 
 			const pair = await createTestPair();
 			try {
-				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['minecraft', 'minecraft']]) }) });
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['testmod/minecraft', 'minecraft']]) }) });
 				projectStore.set('test', fake);
 
 				// Paginated: text should contain "showing"
@@ -503,7 +503,7 @@ describe.skipIf(!toolModuleAvailable)('find_references', () => {
 					name: 'find_references',
 					arguments: {
 						project: 'test',
-						jar: 'minecraft',
+						jar: 'testmod/minecraft',
 						class: 'net.minecraft.client.MinecraftClient',
 						patterns: ['public void run\\('],
 						limit: 1,
@@ -517,7 +517,7 @@ describe.skipIf(!toolModuleAvailable)('find_references', () => {
 					name: 'find_references',
 					arguments: {
 						project: 'test',
-						jar: 'minecraft',
+						jar: 'testmod/minecraft',
 						class: 'net.minecraft.client.MinecraftClient',
 						patterns: ['public void run\\('],
 					},
@@ -536,14 +536,14 @@ describe.skipIf(!toolModuleAvailable)('find_references', () => {
 
 		const pair = await createTestPair();
 		try {
-			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['minecraft', 'minecraft'], ['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1']]) }) });
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['testmod/minecraft', 'minecraft'], ['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1']]) }) });
 			projectStore.set('test', fake);
 
 			await pair.client.callTool({
 				name: 'find_references',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['public void run\\('],
 				},

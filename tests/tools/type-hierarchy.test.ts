@@ -95,7 +95,7 @@ describe.skipIf(!toolModuleAvailable)('type_hierarchy', () => {
 				name: 'type_hierarchy',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.DoesNotExist',
 				},
 			});
@@ -178,7 +178,7 @@ describe.skipIf(!toolModuleAvailable)('type_hierarchy', () => {
 				name: 'type_hierarchy',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 				},
 			});
@@ -242,7 +242,7 @@ describe.skipIf(!toolModuleAvailable)('type_hierarchy', () => {
 				name: 'type_hierarchy',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					depth: 1,
 				},
@@ -302,7 +302,7 @@ describe.skipIf(!toolModuleAvailable)('type_hierarchy', () => {
 				name: 'type_hierarchy',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 				},
 			});
@@ -334,7 +334,7 @@ describe.skipIf(!toolModuleAvailable)('type_hierarchy', () => {
 				name: 'type_hierarchy',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 				},
 			});

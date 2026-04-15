@@ -47,8 +47,8 @@ public static class Options {
 
 function makeFakeProject(modOverrides: Partial<FabricModChild> = {}): Project {
 	const deps = new Map<string, DependencyEntry>();
-	deps.set('minecraft', {
-		id: 'minecraft',
+	deps.set('testmod/minecraft', {
+		id: 'testmod/minecraft',
 		group: 'net.minecraft',
 		artifact: 'minecraft-merged',
 		version: '1.21.11',
@@ -57,11 +57,11 @@ function makeFakeProject(modOverrides: Partial<FabricModChild> = {}): Project {
 		available: true,
 		provenanceChains: [],
 	});
-	deps.set('src', {
-		id: 'src',
-		group: 'testmod',
-		artifact: 'testmod',
-		version: '1.0.0',
+	deps.set('testmod', {
+		id: 'testmod',
+		group: '',
+		artifact: '',
+		version: '',
 		category: 'mod-source',
 		sourcesJarPath: null,
 		available: true,
@@ -119,13 +119,13 @@ describe('read_source tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'read_source',
-			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient' },
+			arguments: { project: 'test', jar: 'testmod/minecraft', class: 'net.minecraft.client.MinecraftClient' },
 		});
 
 		const envelope = parseEnvelope(result);
 		expect(envelope.success).toBe(true);
 		expect(envelope.data.sources).toHaveLength(1);
-		expect(envelope.data.sources[0].jar).toBe('minecraft');
+		expect(envelope.data.sources[0].jar).toBe('testmod/minecraft');
 		expect(envelope.data.sources[0].source).toContain('public class MinecraftClient');
 		expect(envelope.data.sources[0].totalLineCount).toBeGreaterThan(0);
 		expect(envelope.data.sources[0].category).toBe('minecraft');
@@ -143,7 +143,7 @@ describe('read_source tool', () => {
 		const envelope = parseEnvelope(result);
 		expect(envelope.success).toBe(true);
 		expect(envelope.data.sources.length).toBeGreaterThanOrEqual(1);
-		expect(envelope.data.sources[0].jar).toBe('minecraft');
+		expect(envelope.data.sources[0].jar).toBe('testmod/minecraft');
 	});
 
 	it('returns multiple matches when class exists in multiple jars', async () => {
@@ -168,7 +168,7 @@ describe('read_source tool', () => {
 		// Should have matches from both minecraft and fabric jars
 		expect(envelope.data.sources.length).toBeGreaterThanOrEqual(2);
 		const jarIds = envelope.data.sources.map((s: any) => s.jar);
-		expect(jarIds).toContain('minecraft');
+		expect(jarIds).toContain('testmod/minecraft');
 	});
 
 	it('supports inner class FQN with $ notation', async () => {
@@ -177,7 +177,7 @@ describe('read_source tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'read_source',
-			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient$Options' },
+			arguments: { project: 'test', jar: 'testmod/minecraft', class: 'net.minecraft.client.MinecraftClient$Options' },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -276,7 +276,7 @@ describe('read_source tool', () => {
 			expect(fabricResult.provenanceChains).toEqual([['net.fabricmc.fabric-api:fabric-api']]);
 		}
 		// Minecraft jar should have empty provenance chains
-		const mcResult = envelope.data.sources.find((s: any) => s.jar === 'minecraft');
+		const mcResult = envelope.data.sources.find((s: any) => s.jar === 'testmod/minecraft');
 		expect(mcResult.provenanceChains).toEqual([]);
 	});
 
@@ -286,7 +286,7 @@ describe('read_source tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'read_source',
-			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient' },
+			arguments: { project: 'test', jar: 'testmod/minecraft', class: 'net.minecraft.client.MinecraftClient' },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -315,7 +315,7 @@ describe('read_source tool', () => {
 
 		const envelope = parseEnvelope(result);
 		// First result should be from minecraft (highest priority)
-		expect(envelope.data.sources[0].jar).toBe('minecraft');
+		expect(envelope.data.sources[0].jar).toBe('testmod/minecraft');
 	});
 
 	it('totalLineCount reflects actual number of lines', async () => {
@@ -324,7 +324,7 @@ describe('read_source tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'read_source',
-			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient' },
+			arguments: { project: 'test', jar: 'testmod/minecraft', class: 'net.minecraft.client.MinecraftClient' },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -338,7 +338,7 @@ describe('read_source tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'read_source',
-			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient' },
+			arguments: { project: 'test', jar: 'testmod/minecraft', class: 'net.minecraft.client.MinecraftClient' },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -356,7 +356,7 @@ describe('read_source tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'read_source',
-			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient', startLine: 3, lineCount: 2 },
+			arguments: { project: 'test', jar: 'testmod/minecraft', class: 'net.minecraft.client.MinecraftClient', startLine: 3, lineCount: 2 },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -374,7 +374,7 @@ describe('read_source tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'read_source',
-			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient', startLine: 5 },
+			arguments: { project: 'test', jar: 'testmod/minecraft', class: 'net.minecraft.client.MinecraftClient', startLine: 5 },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -391,7 +391,7 @@ describe('read_source tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'read_source',
-			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient', lineCount: 3 },
+			arguments: { project: 'test', jar: 'testmod/minecraft', class: 'net.minecraft.client.MinecraftClient', lineCount: 3 },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -436,7 +436,7 @@ describe('read_source tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'read_source',
-			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient', startLine: 10, lineCount: 500 },
+			arguments: { project: 'test', jar: 'testmod/minecraft', class: 'net.minecraft.client.MinecraftClient', startLine: 10, lineCount: 500 },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -453,7 +453,7 @@ describe('read_source tool', () => {
 		// Read full file
 		const fullResult = await pair.client.callTool({
 			name: 'read_source',
-			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient' },
+			arguments: { project: 'test', jar: 'testmod/minecraft', class: 'net.minecraft.client.MinecraftClient' },
 		});
 		const fullEnv = parseEnvelope(fullResult);
 		const totalLines = fullEnv.data.sources[0].totalLineCount;
@@ -461,14 +461,14 @@ describe('read_source tool', () => {
 		// Read first 5 lines
 		const chunk1Result = await pair.client.callTool({
 			name: 'read_source',
-			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient', startLine: 1, lineCount: 5 },
+			arguments: { project: 'test', jar: 'testmod/minecraft', class: 'net.minecraft.client.MinecraftClient', startLine: 1, lineCount: 5 },
 		});
 		const chunk1Env = parseEnvelope(chunk1Result);
 
 		// Read remaining lines
 		const chunk2Result = await pair.client.callTool({
 			name: 'read_source',
-			arguments: { project: 'test', jar: 'minecraft', class: 'net.minecraft.client.MinecraftClient', startLine: 6, lineCount: totalLines - 5 },
+			arguments: { project: 'test', jar: 'testmod/minecraft', class: 'net.minecraft.client.MinecraftClient', startLine: 6, lineCount: totalLines - 5 },
 		});
 		const chunk2Env = parseEnvelope(chunk2Result);
 

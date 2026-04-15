@@ -48,8 +48,8 @@ public class MinecraftClient {
 
 function makeFakeProject(modOverrides: Partial<FabricModChild> = {}): Project {
 	const deps = new Map<string, DependencyEntry>();
-	deps.set('minecraft', {
-		id: 'minecraft',
+	deps.set('testmod/minecraft', {
+		id: 'testmod/minecraft',
 		group: 'net.minecraft',
 		artifact: 'minecraft-merged',
 		version: '1.21.11',
@@ -58,11 +58,11 @@ function makeFakeProject(modOverrides: Partial<FabricModChild> = {}): Project {
 		available: true,
 		provenanceChains: [],
 	});
-	deps.set('src', {
-		id: 'src',
-		group: 'testmod',
-		artifact: 'testmod',
-		version: '1.0.0',
+	deps.set('testmod', {
+		id: 'testmod',
+		group: '',
+		artifact: '',
+		version: '',
 		category: 'mod-source',
 		sourcesJarPath: null,
 		available: true,
@@ -124,7 +124,7 @@ describe('locate_in_source tool', () => {
 			name: 'locate_in_source',
 			arguments: {
 				project: 'test',
-				jar: 'minecraft',
+				jar: 'testmod/minecraft',
 				class: 'net.minecraft.client.MinecraftClient',
 				patterns: ['public class MinecraftClient', 'MinecraftClient'],
 			},
@@ -133,7 +133,7 @@ describe('locate_in_source tool', () => {
 		const envelope = parseEnvelope(result);
 		expect(envelope.success).toBe(true);
 		expect(envelope.data.results).toHaveLength(1);
-		expect(envelope.data.results[0].jar).toBe('minecraft');
+		expect(envelope.data.results[0].jar).toBe('testmod/minecraft');
 		expect(envelope.data.results[0].category).toBe('minecraft');
 		// Compact by default: steps and provenanceChains are stripped
 		expect(envelope.data.results[0].steps).toBeUndefined();
@@ -152,7 +152,7 @@ describe('locate_in_source tool', () => {
 			name: 'locate_in_source',
 			arguments: {
 				project: 'test',
-				jar: 'minecraft',
+				jar: 'testmod/minecraft',
 				class: 'net.minecraft.client.MinecraftClient',
 				patterns: ['public class MinecraftClient', 'MinecraftClient'],
 				details: { steps: true },
@@ -222,7 +222,7 @@ describe('locate_in_source tool', () => {
 
 		// Success should be from minecraft
 		const successJar = envelope.data.results[0].jar;
-		expect(successJar).toBe('minecraft');
+		expect(successJar).toBe('testmod/minecraft');
 		// Compact by default: steps and provenanceChains are stripped
 		expect(envelope.data.results[0].steps).toBeUndefined();
 		expect(envelope.data.results[0].line).toBeGreaterThanOrEqual(1);
@@ -290,7 +290,7 @@ describe('locate_in_source tool', () => {
 				name: 'locate_in_source',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['private static MinecraftClient instance'],
 					context: { linesBefore: 1, linesAfter: 1 },
@@ -317,7 +317,7 @@ describe('locate_in_source tool', () => {
 				name: 'locate_in_source',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					// Pattern matches mid-line: "static" within the instance line
 					patterns: ['private static MinecraftClient instance', 'static'],
@@ -342,7 +342,7 @@ describe('locate_in_source tool', () => {
 				name: 'locate_in_source',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['public class MinecraftClient', 'MinecraftClient'],
 				},
@@ -363,7 +363,7 @@ describe('locate_in_source tool', () => {
 				name: 'locate_in_source',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['package net\\.minecraft\\.client;'],
 					context: { linesBefore: 10, linesAfter: 0 },
@@ -386,7 +386,7 @@ describe('locate_in_source tool', () => {
 				name: 'locate_in_source',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['public void run\\(\\)[\\s\\S]*\\}[\\s\\S]*', '\\}$'],
 					context: { linesBefore: 0, linesAfter: 100 },

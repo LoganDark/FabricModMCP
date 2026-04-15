@@ -100,7 +100,7 @@ describe.skipIf(!toolModuleAvailable)('list_members', () => {
 				name: 'list_members',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.DoesNotExist',
 				},
 			});
@@ -151,7 +151,7 @@ describe.skipIf(!toolModuleAvailable)('list_members', () => {
 				name: 'list_members',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 				},
 			});
@@ -217,7 +217,7 @@ describe.skipIf(!toolModuleAvailable)('list_members', () => {
 				name: 'list_members',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					details: { signatures: true },
 				},
@@ -274,7 +274,7 @@ describe.skipIf(!toolModuleAvailable)('list_members', () => {
 				name: 'list_members',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					details: { signatures: true },
 				},
@@ -326,7 +326,7 @@ describe.skipIf(!toolModuleAvailable)('list_members', () => {
 				name: 'list_members',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 				},
 			});
@@ -373,7 +373,7 @@ describe.skipIf(!toolModuleAvailable)('list_members', () => {
 				name: 'list_members',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					details: { signatures: true },
 				},
@@ -416,7 +416,7 @@ describe.skipIf(!toolModuleAvailable)('list_members', () => {
 				name: 'list_members',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 				},
 			});
@@ -468,7 +468,7 @@ describe.skipIf(!toolModuleAvailable)('list_members', () => {
 				name: 'list_members',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 				},
 			});
@@ -515,7 +515,7 @@ describe.skipIf(!toolModuleAvailable)('list_members', () => {
 				name: 'list_members',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 				},
 			});

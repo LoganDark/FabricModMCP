@@ -89,7 +89,7 @@ describe.skipIf(!toolModuleAvailable)('find_implementations', () => {
 				name: 'find_implementations',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['public class MinecraftClient'],
 				},
@@ -126,7 +126,7 @@ describe.skipIf(!toolModuleAvailable)('find_implementations', () => {
 				name: 'find_implementations',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['public void run\\('],
 				},
@@ -135,7 +135,7 @@ describe.skipIf(!toolModuleAvailable)('find_implementations', () => {
 			const envelope = parseEnvelope(result);
 			expect(envelope.success).toBe(true);
 			expect(envelope.data.results).toHaveLength(1);
-			expect(envelope.data.results[0].jar).toBe('minecraft');
+			expect(envelope.data.results[0].jar).toBe('testmod/minecraft');
 			// Compact by default: entryPath, context, provenanceChains are stripped
 			expect(envelope.data.results[0].entryPath).toBeUndefined();
 			expect(envelope.data.results[0].line).toBe(4); // 1-based
@@ -172,7 +172,7 @@ describe.skipIf(!toolModuleAvailable)('find_implementations', () => {
 				name: 'find_implementations',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['public void run\\('],
 					details: { lineContent: true },
@@ -205,7 +205,7 @@ describe.skipIf(!toolModuleAvailable)('find_implementations', () => {
 				name: 'find_implementations',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['public void run\\('],
 				},
@@ -246,7 +246,7 @@ describe.skipIf(!toolModuleAvailable)('find_implementations', () => {
 					name: 'find_implementations',
 					arguments: {
 						project: 'test',
-						jar: 'minecraft',
+						jar: 'testmod/minecraft',
 						class: 'net.minecraft.client.MinecraftClient',
 						patterns: ['public void run\\('],
 					},
@@ -285,7 +285,7 @@ describe.skipIf(!toolModuleAvailable)('find_implementations', () => {
 					name: 'find_implementations',
 					arguments: {
 						project: 'test',
-						jar: 'minecraft',
+						jar: 'testmod/minecraft',
 						class: 'net.minecraft.client.MinecraftClient',
 						patterns: ['public void run\\('],
 						limit: 1,
@@ -326,7 +326,7 @@ describe.skipIf(!toolModuleAvailable)('find_implementations', () => {
 					name: 'find_implementations',
 					arguments: {
 						project: 'test',
-						jar: 'minecraft',
+						jar: 'testmod/minecraft',
 						class: 'net.minecraft.client.MinecraftClient',
 						patterns: ['public void run\\('],
 						limit: 1,
@@ -368,7 +368,7 @@ describe.skipIf(!toolModuleAvailable)('find_implementations', () => {
 					name: 'find_implementations',
 					arguments: {
 						project: 'test',
-						jar: 'minecraft',
+						jar: 'testmod/minecraft',
 						class: 'net.minecraft.client.MinecraftClient',
 						patterns: ['public void run\\('],
 						limit: 1,
@@ -381,7 +381,7 @@ describe.skipIf(!toolModuleAvailable)('find_implementations', () => {
 					name: 'find_implementations',
 					arguments: {
 						project: 'test',
-						jar: 'minecraft',
+						jar: 'testmod/minecraft',
 						class: 'net.minecraft.client.MinecraftClient',
 						patterns: ['public void run\\('],
 					},
@@ -404,7 +404,7 @@ describe.skipIf(!toolModuleAvailable)('find_implementations', () => {
 				name: 'find_implementations',
 				arguments: {
 					project: 'test',
-					jar: 'minecraft',
+					jar: 'testmod/minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
 					patterns: ['thisPatternWillNeverMatch12345'],
 				},
