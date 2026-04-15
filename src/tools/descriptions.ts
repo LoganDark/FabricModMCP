@@ -52,7 +52,7 @@ More examples:
 **details parameter**: Many tools return compact output by default to save context. \
 Pass a \`details\` object with boolean flags to opt into richer output: \
 navigation tools accept \`{ lineContent: true }\`, list_members accepts \`{ signatures: true }\`, \
-list_classes/search_classes accept \`{ modifiers: true }\`, locate_in_source accepts \`{ steps: true }\`, \
+list_classes/search_classes accept \`{ modifiers: true, innerClasses: true }\`, locate_in_source accepts \`{ steps: true }\`, \
 and read_source/read_member accept \`{ provenance: true }\`.
 
 **Mapping eras**: Projects are either \`mapped\` (Yarn-deobfuscated names like MinecraftClient, getBlockState) \
@@ -115,7 +115,10 @@ export const DETAIL_PARAMS = {
 	/** Class listing tools: list_classes, search_classes */
 	class: z.object({
 		modifiers: z.boolean().optional().describe(
-			'Include access level, modifiers, and inner class listings'
+			'Include access level and modifiers (abstract, final, static, sealed)'
+		),
+		innerClasses: z.boolean().optional().describe(
+			'Include inner class listings. Inner classes respect the modifiers flag.'
 		),
 	}).optional().describe('Detail flags (all default to false = compact)'),
 
@@ -173,10 +176,10 @@ export const TOOL_DESCRIPTIONS = {
 		'List Java packages across source jars. Drill into a parent package with the `package` parameter, control nesting depth, and filter by jar. Returns package names with class counts. Start here to explore unfamiliar code top-down.',
 
 	list_classes:
-		'List classes in a package with metadata: simple name, FQN, kind (class/interface/enum/record/@interface), and which jars contain it. Pass details: { modifiers: true } to include access level, modifiers (abstract/final/static/sealed), and inner classes. Filter by jar or include sub-packages with depth.',
+		'List classes in a package with metadata: simple name, FQN, kind (class/interface/enum/record/@interface), and which jars contain it. Pass details: { modifiers: true } to include access level and modifiers (abstract/final/static/sealed). Pass details: { innerClasses: true } to include inner class listings. Inner classes respect the modifiers flag. Filter by jar or include sub-packages with depth.',
 
 	search_classes:
-		'Search for classes by glob pattern against fully-qualified names. Use * for one name segment, ** to cross package boundaries. Case-insensitive by default. Examples: "*Client" finds MinecraftClient, "net.minecraft.block.*" lists that package, "**.*Registry" finds registries anywhere. Filterable by kind and jar. Paginated. Pass details: { modifiers: true } to include access level, modifiers, and inner classes.',
+		'Search for classes by glob pattern against fully-qualified names. Use * for one name segment, ** to cross package boundaries. Case-insensitive by default. Examples: "*Client" finds MinecraftClient, "net.minecraft.block.*" lists that package, "**.*Registry" finds registries anywhere. Filterable by kind and jar. Paginated. Pass details: { modifiers: true } to include access level and modifiers. Pass details: { innerClasses: true } to include inner class listings.',
 
 	list_members:
 		'List all members of a Java class as a structured tree: fields, methods, constructors, enum constants, and inner classes. Each member includes its name, kind, line range, member FQN, and nested children. Pass details: { signatures: true } to include parameter types, return types, field types, and LSP detail strings. Use this to understand a class\'s API before reading its source — especially useful for identifying Mixin targets.',

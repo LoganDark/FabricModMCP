@@ -18,8 +18,8 @@ export interface InnerClassInfo {
 	name: string;      // dollar-separated: "MinecraftClient$Options"
 	fqn: string;       // "net.minecraft.client.MinecraftClient$Options"
 	kind: string;      // "class" | "interface" | "enum" | "record" | "@interface"
-	access: string;    // "public" | "protected" | "private" | "package-private"
-	modifiers: string[];
+	access?: string;   // "public" | "protected" | "private" | "package-private"
+	modifiers?: string[];
 }
 
 export interface ClassInfo {

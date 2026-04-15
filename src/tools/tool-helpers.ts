@@ -415,16 +415,33 @@ export function stripEnrichedSymbol(
 
 /**
  * Strip detail fields from a ClassInfo for compact output.
- * When details.modifiers is true, returns the full ClassInfo unchanged.
+ * modifiers flag controls access/modifiers fields.
+ * innerClasses flag controls inner class listings.
+ * When innerClasses is true but modifiers is false, inner classes have compact shape (name/fqn/kind only).
  *
  * Compact shape keeps: name, fqn, kind, jars.
- * Full shape adds: access, modifiers, innerClasses.
+ * Full shape adds: access, modifiers, innerClasses (with inner class access/modifiers).
  */
 export function stripClassInfo(
 	info: ClassInfo,
-	details?: { modifiers?: boolean },
+	details?: { modifiers?: boolean; innerClasses?: boolean },
 ): ClassInfo {
-	if (details?.modifiers) return info;
 	const { access, modifiers, innerClasses, ...essential } = info;
-	return essential;
+	const result: ClassInfo = { ...essential };
+
+	if (details?.modifiers) {
+		result.access = access;
+		result.modifiers = modifiers;
+	}
+
+	if (details?.innerClasses && innerClasses) {
+		if (details?.modifiers) {
+			result.innerClasses = innerClasses;
+		} else {
+			// Compact inner classes: strip access and modifiers from each entry
+			result.innerClasses = innerClasses.map(({ access: _a, modifiers: _m, ...ic }) => ic);
+		}
+	}
+
+	return result;
 }
