@@ -89,11 +89,11 @@ describe('workspace-sync', () => {
 			const studyJar = createMockStudyJar('myjar', '/fake/study.jar');
 			const dirName = await extractStudyJarToWorkspace(studyJar, tempDir, jarReader);
 
-			expect(dirName).toBe('study__myjar');
-			expect(existsSync(join(tempDir, 'study__myjar'))).toBe(true);
-			expect(existsSync(join(tempDir, 'study__myjar', 'com', 'example', 'Foo.java'))).toBe(true);
+			expect(dirName).toBe('myjar');
+			expect(existsSync(join(tempDir, 'myjar'))).toBe(true);
+			expect(existsSync(join(tempDir, 'myjar', 'com', 'example', 'Foo.java'))).toBe(true);
 
-			const content = await readFile(join(tempDir, 'study__myjar', 'com', 'example', 'Foo.java'), 'utf-8');
+			const content = await readFile(join(tempDir, 'myjar', 'com', 'example', 'Foo.java'), 'utf-8');
 			expect(content).toBe('public class Foo {}');
 		});
 
@@ -112,7 +112,7 @@ describe('workspace-sync', () => {
 			await expect(extractStudyJarToWorkspace(studyJar, tempDir, failingReader))
 				.rejects.toThrow('read failed');
 
-			expect(existsSync(join(tempDir, 'study__badjar'))).toBe(false);
+			expect(existsSync(join(tempDir, 'badjar'))).toBe(false);
 		});
 	});
 
@@ -121,7 +121,7 @@ describe('workspace-sync', () => {
 			const tempDir = await mkdtemp(join(tmpdir(), 'test-ws-sync-'));
 			tempDirs.push(tempDir);
 
-			const studyDir = join(tempDir, 'study__myjar');
+			const studyDir = join(tempDir, 'myjar');
 			await mkdir(studyDir, { recursive: true });
 			await writeFile(join(studyDir, 'Foo.java'), 'class Foo {}');
 			expect(existsSync(studyDir)).toBe(true);
@@ -151,7 +151,7 @@ describe('isWorkspaceSynced', () => {
 
 		it('returns true when jarIdToDirName has the study jar entry', () => {
 			const jdtls = createMockJdtLsSession('/tmp/test');
-			jdtls.jarIdToDirName.set('study:myjar', 'study__myjar');
+			jdtls.jarIdToDirName.set('myjar', 'myjar');
 			expect(isWorkspaceSynced('myjar', jdtls)).toBe(true);
 		});
 
@@ -192,16 +192,16 @@ describe('isWorkspaceSynced', () => {
 			expect(result.warning).toBeUndefined();
 
 			// Check extraction happened
-			expect(existsSync(join(tempDir, 'study__myjar', 'com', 'example', 'Foo.java'))).toBe(true);
+			expect(existsSync(join(tempDir, 'myjar', 'com', 'example', 'Foo.java'))).toBe(true);
 
 			// Check jarIdToDirName updated
-			expect(jdtls.jarIdToDirName.get('study:myjar')).toBe('study__myjar');
+			expect(jdtls.jarIdToDirName.get('myjar')).toBe('myjar');
 
 			// Check .classpath written (use realpath since the function resolves symlinks)
 			const { realpathSync } = await import('node:fs');
 			const resolvedTempDir = realpathSync(tempDir);
 			const classpathContent = await readFile(join(resolvedTempDir, '.classpath'), 'utf-8');
-			expect(classpathContent).toContain('study__myjar');
+			expect(classpathContent).toContain('myjar');
 
 			// Check endpoint notified
 			expect(endpoint.notify).toHaveBeenCalledWith(
@@ -252,7 +252,7 @@ describe('isWorkspaceSynced', () => {
 
 			expect(result.synced).toBe(false);
 			expect(result.warning).toContain('sync failed');
-			expect(jdtls.jarIdToDirName.has('study:failjar')).toBe(false);
+			expect(jdtls.jarIdToDirName.has('failjar')).toBe(false);
 		});
 	});
 
@@ -267,13 +267,13 @@ describe('isWorkspaceSynced', () => {
 			tempDirs.push(tempDir);
 
 			// Set up extracted dir
-			const studyDir = join(tempDir, 'study__myjar');
+			const studyDir = join(tempDir, 'myjar');
 			await mkdir(studyDir, { recursive: true });
 			await writeFile(join(studyDir, 'Foo.java'), 'class Foo {}');
 
 			const endpoint = createMockEndpoint();
 			const jdtls = createMockJdtLsSession(tempDir, { endpoint });
-			jdtls.jarIdToDirName.set('study:myjar', 'study__myjar');
+			jdtls.jarIdToDirName.set('myjar', 'myjar');
 			jdtls.jarIdToDirName.set('minecraft', 'minecraft');
 
 			const result = await unsyncStudyJarFromWorkspace('myjar', jdtls);
@@ -284,14 +284,14 @@ describe('isWorkspaceSynced', () => {
 			expect(existsSync(studyDir)).toBe(false);
 
 			// Map cleaned
-			expect(jdtls.jarIdToDirName.has('study:myjar')).toBe(false);
+			expect(jdtls.jarIdToDirName.has('myjar')).toBe(false);
 			expect(jdtls.jarIdToDirName.has('minecraft')).toBe(true);
 
-			// .classpath regenerated without study__myjar
+			// .classpath regenerated without myjar
 			const { realpathSync } = await import('node:fs');
 			const resolvedTempDir = realpathSync(tempDir);
 			const classpathContent = await readFile(join(resolvedTempDir, '.classpath'), 'utf-8');
-			expect(classpathContent).not.toContain('study__myjar');
+			expect(classpathContent).not.toContain('myjar');
 			expect(classpathContent).toContain('minecraft');
 
 			// Endpoint notified
@@ -315,12 +315,12 @@ describe('isWorkspaceSynced', () => {
 			} as unknown as JSONRPCEndpoint;
 
 			const jdtls = createMockJdtLsSession(tempDir, { endpoint });
-			jdtls.jarIdToDirName.set('study:myjar', 'study__myjar');
+			jdtls.jarIdToDirName.set('myjar', 'myjar');
 
 			const result = await unsyncStudyJarFromWorkspace('myjar', jdtls);
 
 			expect(result.synced).toBe(false);
-			expect(jdtls.jarIdToDirName.has('study:myjar')).toBe(false);
+			expect(jdtls.jarIdToDirName.has('myjar')).toBe(false);
 		});
 	});
 });

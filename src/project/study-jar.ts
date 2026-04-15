@@ -6,6 +6,8 @@ import { evictEntryIndex } from '../browsing/entry-index-cache.js';
 import { DomainError } from '../errors/domain-error.js';
 import type { DependencyEntry, LoadedProject, StudyJar, StudyJarStats } from './types.js';
 import type { JarReader } from './jar-reader.js';
+import { unsyncStudyJarFromWorkspace } from '../jdtls/workspace-sync.js';
+import type { JdtLsSession } from '../jdtls/types.js';
 
 export const STUDY_JAR_NAME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9.\-]*$/;
 
@@ -31,12 +33,11 @@ export function deriveStudyJarName(jarPath: string): string {
 }
 
 export function validateStudyJarId(name: string, project: LoadedProject): void {
-	const id = `study:${name}`;
-	if (project.dependencyJars.has(id)) {
+	if (project.dependencyJars.has(name)) {
 		throw new DomainError(
 			'STUDY_JAR_ID_COLLISION',
-			`Study jar ID '${id}' collides with an existing dependency ID`,
-			[id],
+			`Study jar name '${name}' collides with an existing real dependency ID`,
+			[name],
 			['Choose a different name for the study jar'],
 		);
 	}
@@ -150,7 +151,7 @@ export async function checkAndReopenIfStale(
 
 export function studyJarToDependencyEntry(studyJar: StudyJar): DependencyEntry {
 	return {
-		id: `study:${studyJar.name}`,
+		id: studyJar.name,
 		group: 'study',
 		artifact: studyJar.name,
 		version: 'local',
@@ -159,4 +160,27 @@ export function studyJarToDependencyEntry(studyJar: StudyJar): DependencyEntry {
 		available: true,
 		provenanceChains: [],
 	};
+}
+
+/**
+ * Auto-unload study jars whose name collides with a real dependency ID.
+ * Called after dependency rediscovery (refresh_dependencies) to remove
+ * study jars that are now shadowed by real dependencies.
+ */
+export async function autoUnloadConflictingStudyJars(
+	project: LoadedProject,
+	jarReader: JarReader,
+	jdtls: JdtLsSession | undefined,
+): Promise<string[]> {
+	const unloaded: string[] = [];
+	for (const [name, studyJar] of project.studyJars) {
+		if (project.dependencyJars.has(name)) {
+			await unsyncStudyJarFromWorkspace(name, jdtls);
+			jarReader.removeProjectJar(project.name, studyJar.jarPath);
+			evictEntryIndex(studyJar.jarPath);
+			project.studyJars.delete(name);
+			unloaded.push(name);
+		}
+	}
+	return unloaded;
 }

@@ -140,12 +140,12 @@ describe('validateStudyJarId', () => {
 		expect(() => validateStudyJarId('foo', project)).not.toThrow();
 	});
 
-	it('throws STUDY_JAR_ID_COLLISION when dependency has matching study: id', () => {
+	it('throws STUDY_JAR_ID_COLLISION when name matches an existing real dependency ID', () => {
 		const project = makeProject({
 			dependencyJars: new Map([
-				['study:foo', {
-					id: 'study:foo', group: 'study', artifact: 'foo', version: 'local',
-					category: 'study', sourcesJarPath: '/some/path.jar', available: true, provenanceChains: [],
+				['foo', {
+					id: 'foo', group: 'com.example', artifact: 'foo', version: '1.0',
+					category: 'library', sourcesJarPath: '/some/path.jar', available: true, provenanceChains: [],
 				}],
 			]),
 		});
@@ -255,14 +255,14 @@ describe('checkAndReopenIfStale', () => {
 });
 
 describe('studyJarToDependencyEntry', () => {
-	it('returns DependencyEntry with study: prefix and correct fields', () => {
+	it('returns DependencyEntry with plain name ID and correct fields', () => {
 		const studyJar: StudyJar = {
 			name: 'my-lib', jarPath: '/path/to/my-lib.jar',
 			mtime: 123, size: 456,
 			autoInclude: false, stats: { totalEntries: 10, packageCount: 2, classCount: 5 },
 		};
 		const entry = studyJarToDependencyEntry(studyJar);
-		expect(entry.id).toBe('study:my-lib');
+		expect(entry.id).toBe('my-lib');
 		expect(entry.group).toBe('study');
 		expect(entry.artifact).toBe('my-lib');
 		expect(entry.version).toBe('local');

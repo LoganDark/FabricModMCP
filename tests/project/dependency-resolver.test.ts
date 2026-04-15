@@ -57,16 +57,16 @@ describe('getResolvedDependencies', () => {
 		expect(result).not.toBe(project.dependencyJars);
 	});
 
-	it('includes autoInclude=true study jar with id "study:name"', () => {
+	it('includes autoInclude=true study jar with plain name ID', () => {
 		const deps = new Map([['minecraft', makeDep('minecraft', 'minecraft')]]);
 		const studyJars = new Map([['mylib', makeStudyJar('mylib', true)]]);
 		const project = makeProject(deps, studyJars);
 		const result = getResolvedDependencies(project);
 		expect(result.size).toBe(2);
-		expect(result.has('study:mylib')).toBe(true);
-		const entry = result.get('study:mylib')!;
+		expect(result.has('mylib')).toBe(true);
+		const entry = result.get('mylib')!;
 		expect(entry.category).toBe('study');
-		expect(entry.id).toBe('study:mylib');
+		expect(entry.id).toBe('mylib');
 	});
 
 	it('excludes autoInclude=false study jar from result', () => {
@@ -75,7 +75,7 @@ describe('getResolvedDependencies', () => {
 		const project = makeProject(deps, studyJars);
 		const result = getResolvedDependencies(project);
 		expect(result.size).toBe(1);
-		expect(result.has('study:excluded')).toBe(false);
+		expect(result.has('excluded')).toBe(false);
 	});
 
 	it('with mix of autoInclude true/false includes only true ones', () => {
@@ -87,8 +87,8 @@ describe('getResolvedDependencies', () => {
 		const project = makeProject(deps, studyJars);
 		const result = getResolvedDependencies(project);
 		expect(result.size).toBe(2);
-		expect(result.has('study:included')).toBe(true);
-		expect(result.has('study:excluded')).toBe(false);
+		expect(result.has('included')).toBe(true);
+		expect(result.has('excluded')).toBe(false);
 	});
 
 	it('study jar entries use studyJarToDependencyEntry conversion', () => {
@@ -96,7 +96,7 @@ describe('getResolvedDependencies', () => {
 		const studyJars = new Map([['mylib', makeStudyJar('mylib', true)]]);
 		const project = makeProject(deps, studyJars);
 		const result = getResolvedDependencies(project);
-		const entry = result.get('study:mylib')!;
+		const entry = result.get('mylib')!;
 		expect(entry.group).toBe('study');
 		expect(entry.artifact).toBe('mylib');
 		expect(entry.version).toBe('local');
@@ -130,8 +130,8 @@ describe('getAllDependencies', () => {
 		const project = makeProject(deps, studyJars);
 		const result = getAllDependencies(project);
 		expect(result.size).toBe(3);
-		expect(result.has('study:included')).toBe(true);
-		expect(result.has('study:excluded')).toBe(true);
+		expect(result.has('included')).toBe(true);
+		expect(result.has('excluded')).toBe(true);
 	});
 
 	it('study jar entries use studyJarToDependencyEntry conversion', () => {
@@ -139,9 +139,9 @@ describe('getAllDependencies', () => {
 		const studyJars = new Map([['mylib', makeStudyJar('mylib', false)]]);
 		const project = makeProject(deps, studyJars);
 		const result = getAllDependencies(project);
-		const entry = result.get('study:mylib')!;
+		const entry = result.get('mylib')!;
 		expect(entry.category).toBe('study');
-		expect(entry.id).toBe('study:mylib');
+		expect(entry.id).toBe('mylib');
 		expect(entry.group).toBe('study');
 		expect(entry.artifact).toBe('mylib');
 		expect(entry.version).toBe('local');
@@ -161,14 +161,14 @@ describe('CATEGORY_PRIORITY', () => {
 describe('sortByPriority with study', () => {
 	it('places study category entries after library category entries', () => {
 		const entries: [string, DependencyEntry][] = [
-			['study:mylib', makeDep('study:mylib', 'study')],
+			['mylib', makeDep('mylib', 'study')],
 			['some-lib', makeDep('some-lib', 'library')],
 			['minecraft', makeDep('minecraft', 'minecraft')],
 		];
 		const sorted = sortByPriority(entries);
 		const ids = sorted.map(([id]) => id);
 		expect(ids.indexOf('minecraft')).toBeLessThan(ids.indexOf('some-lib'));
-		expect(ids.indexOf('some-lib')).toBeLessThan(ids.indexOf('study:mylib'));
+		expect(ids.indexOf('some-lib')).toBeLessThan(ids.indexOf('mylib'));
 	});
 });
 
@@ -182,12 +182,12 @@ describe('getDependenciesForTool', () => {
 			['mylib', makeStudyJar('mylib', false)],
 		]);
 		const project = makeProject(deps, studyJars);
-		const result = getDependenciesForTool(project, ['study:*']);
+		const result = getDependenciesForTool(project, ['mylib']);
 		expect(result.size).toBe(1);
-		expect(result.has('study:mylib')).toBe(true);
+		expect(result.has('mylib')).toBe(true);
 	});
 
-	it('with jars=[study:*, minecraft] returns study jars + minecraft', () => {
+	it('with jars=[mylib, minecraft] returns study jars + minecraft', () => {
 		const deps = new Map([
 			['minecraft', makeDep('minecraft', 'minecraft')],
 			['some-lib', makeDep('some-lib', 'library')],
@@ -196,14 +196,14 @@ describe('getDependenciesForTool', () => {
 			['mylib', makeStudyJar('mylib', false)],
 		]);
 		const project = makeProject(deps, studyJars);
-		const result = getDependenciesForTool(project, ['study:*', 'minecraft']);
+		const result = getDependenciesForTool(project, ['mylib', 'minecraft']);
 		expect(result.size).toBe(2);
-		expect(result.has('study:mylib')).toBe(true);
+		expect(result.has('mylib')).toBe(true);
 		expect(result.has('minecraft')).toBe(true);
 		expect(result.has('some-lib')).toBe(false);
 	});
 
-	it('with jars=[study:mylib] returns only that one study jar', () => {
+	it('with jars=[mylib] returns only that one study jar', () => {
 		const deps = new Map([
 			['minecraft', makeDep('minecraft', 'minecraft')],
 		]);
@@ -212,9 +212,9 @@ describe('getDependenciesForTool', () => {
 			['other', makeStudyJar('other', true)],
 		]);
 		const project = makeProject(deps, studyJars);
-		const result = getDependenciesForTool(project, ['study:mylib']);
+		const result = getDependenciesForTool(project, ['mylib']);
 		expect(result.size).toBe(1);
-		expect(result.has('study:mylib')).toBe(true);
+		expect(result.has('mylib')).toBe(true);
 	});
 
 	it('without jars param returns getFilteredDependencies(getResolvedDependencies(project), filterConfig)', () => {
@@ -231,9 +231,9 @@ describe('getDependenciesForTool', () => {
 		// Should include minecraft, some-lib, and autoInclude=true study jar
 		expect(result.has('minecraft')).toBe(true);
 		expect(result.has('some-lib')).toBe(true);
-		expect(result.has('study:included')).toBe(true);
+		expect(result.has('included')).toBe(true);
 		// autoInclude=false excluded
-		expect(result.has('study:excluded')).toBe(false);
+		expect(result.has('excluded')).toBe(false);
 	});
 
 	it('without jars param respects filterConfig exclusion patterns', () => {

@@ -29,7 +29,7 @@ export async function extractStudyJarToWorkspace(
 	tempDir: string,
 	jarReader: JarReader,
 ): Promise<string> {
-	const dirName = jarIdToDirName('study:' + studyJar.name);
+	const dirName = jarIdToDirName(studyJar.name);
 	const depDir = join(tempDir, dirName);
 
 	try {
@@ -57,7 +57,7 @@ export async function removeStudyJarFromWorkspace(
 	studyJarName: string,
 	tempDir: string,
 ): Promise<void> {
-	const dirName = jarIdToDirName('study:' + studyJarName);
+	const dirName = jarIdToDirName(studyJarName);
 	const depDir = join(tempDir, dirName);
 	await rm(depDir, { recursive: true, force: true });
 }
@@ -71,7 +71,7 @@ export function isWorkspaceSynced(
 	jdtls: JdtLsSession | undefined,
 ): boolean {
 	if (!jdtls?.available) return false;
-	return jdtls.jarIdToDirName.has('study:' + studyJarName);
+	return jdtls.jarIdToDirName.has(studyJarName);
 }
 
 /**
@@ -92,7 +92,7 @@ export async function syncStudyJarToWorkspace(
 
 	try {
 		const dirName = await extractStudyJarToWorkspace(studyJar, jdtls.tempDir, jarReader);
-		jdtls.jarIdToDirName.set('study:' + studyJar.name, dirName);
+		jdtls.jarIdToDirName.set(studyJar.name, dirName);
 
 		const allDirs = Array.from(jdtls.jarIdToDirName.values());
 		const classpathXml = generateClasspathFile(allDirs);
@@ -105,7 +105,7 @@ export async function syncStudyJarToWorkspace(
 
 		return { synced: true };
 	} catch (err) {
-		jdtls.jarIdToDirName.delete('study:' + studyJar.name);
+		jdtls.jarIdToDirName.delete(studyJar.name);
 		return {
 			synced: false,
 			warning: 'Workspace sync failed: ' + (err instanceof Error ? err.message : String(err)),
@@ -130,7 +130,7 @@ export async function unsyncStudyJarFromWorkspace(
 
 	try {
 		await removeStudyJarFromWorkspace(studyJarName, jdtls.tempDir);
-		jdtls.jarIdToDirName.delete('study:' + studyJarName);
+		jdtls.jarIdToDirName.delete(studyJarName);
 
 		const allDirs = Array.from(jdtls.jarIdToDirName.values());
 		const classpathXml = generateClasspathFile(allDirs);
@@ -143,7 +143,7 @@ export async function unsyncStudyJarFromWorkspace(
 
 		return { synced: true };
 	} catch {
-		jdtls.jarIdToDirName.delete('study:' + studyJarName);
+		jdtls.jarIdToDirName.delete(studyJarName);
 		return { synced: false };
 	}
 }
