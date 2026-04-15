@@ -25,7 +25,7 @@ Browse decompiled source, navigate dependencies, and use semantic Java analysis 
 
 ## Shared Concepts
 
-**project parameter**: Most tools accept an optional \`project\` name. Omit it when only one project is loaded or a default is set via set_default_project.
+**project parameter**: Most tools accept an optional \`project\` name. Omit it when only one project is loaded or a default is set via set_active_project.
 
 **Class names** use fully-qualified dot notation: \`net.minecraft.client.MinecraftClient\`, \`net.minecraft.world.World\`.
 
@@ -33,7 +33,7 @@ Browse decompiled source, navigate dependencies, and use semantic Java analysis 
 (e.g., "my-mod/minecraft", "my-mod/net.fabricmc.fabric-api:fabric-resource-loader-v0"). \
 A fabric mod's own source uses just the mod name (e.g., "my-mod"). \
 Study jars use their given name (bare, no prefix). \
-Use get_project_metadata with include_jar_inventory to see all available jars.
+Use get_project_info with include_jar_inventory to see all available jars.
 
 **scope parameter**: Most tools accept an optional \`scope\` to target a specific child (fabric mod). \
 When scoped, bare jar IDs like "minecraft" resolve within that child's namespace. \

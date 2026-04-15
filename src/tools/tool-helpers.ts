@@ -9,7 +9,7 @@
 
 import { readFile } from 'node:fs/promises';
 import picomatch from 'picomatch';
-import type { JarCategory, DependencyEntry, LoadedProject } from '../project/types.js';
+import type { JarCategory, DependencyEntry, Project } from '../project/types.js';
 import { getRootPath } from '../project/compat.js';
 import { resolveJarId, resolveJarIds, getAutoIncludeIds } from '../project/namespace-resolver.js';
 import { studyJarToDependencyEntry } from '../project/study-jar.js';
@@ -89,7 +89,7 @@ export function normalizeLocations(result: any): Array<{ uri: string; range: { s
  * Safely resolve a project from the project store, catching DomainError and returning
  * an MCP-formatted error response.
  */
-export function resolveProjectSafely(project?: string): { ok: true; project: LoadedProject } | { ok: false; error: { content: { type: 'text'; text: string }[]; structuredContent: ReturnType<typeof makeError> } } {
+export function resolveProjectSafely(project?: string): { ok: true; project: Project } | { ok: false; error: { content: { type: 'text'; text: string }[]; structuredContent: ReturnType<typeof makeError> } } {
 	try {
 		const loaded = projectStore.resolveProject(project);
 		return { ok: true, project: loaded };
@@ -138,7 +138,7 @@ export async function withLspDocument<T>(
  * Otherwise searches all filtered jars in priority order and returns the first match.
  */
 export async function resolveClassSource(
-	loadedProject: LoadedProject,
+	loadedProject: Project,
 	className: string,
 	jar?: string,
 	scope?: string,
@@ -209,7 +209,7 @@ export function handleSymbolPositionError(
 			'JAR_NOT_FOUND',
 			`Jar '${posResult.jar}' not found in project '${projectName}'`,
 			[posResult.jar],
-			['Check available jars with get_project_metadata'],
+			['Check available jars with get_member_info or get_project_info'],
 		);
 	}
 	if (posResult.kind === 'jar-not-available') {
@@ -254,7 +254,7 @@ export function handleClassSourceError(
 	jar?: string,
 ): { content: { type: 'text'; text: string }[]; structuredContent: any } {
 	if (sourceResult.kind === 'jar-not-found') {
-		return returnError('JAR_NOT_FOUND', `Jar '${sourceResult.jar}' not found in project '${projectName}'`, [sourceResult.jar], ['Check available jars with get_project_metadata']);
+		return returnError('JAR_NOT_FOUND', `Jar '${sourceResult.jar}' not found in project '${projectName}'`, [sourceResult.jar], ['Check available jars with get_member_info or get_project_info']);
 	}
 	if (sourceResult.kind === 'jar-not-available') {
 		return returnError('JAR_NOT_AVAILABLE', `Sources for jar '${sourceResult.jar}' are not available`, [sourceResult.jar], ['The dependency does not have a sources jar']);
@@ -269,7 +269,7 @@ export function handleClassSourceError(
  */
 export async function processNavigationLocations(
 	locations: ReturnType<typeof normalizeLocations>,
-	loadedProject: LoadedProject,
+	loadedProject: Project,
 	uriMapper: UriMapper,
 ): Promise<NavigationResult[]> {
 	const results: NavigationResult[] = [];
@@ -335,7 +335,7 @@ export function filterDependenciesByJarPattern(
  * Without jars param: scope-aware filtered dependencies with autoIncludeIds.
  */
 export function getDependenciesForTool(
-	project: LoadedProject,
+	project: Project,
 	jars?: string[],
 	scope?: string,
 ): Map<string, DependencyEntry> {

@@ -6,11 +6,11 @@ import { logger } from '../logging/logger.js';
 import { getAllDependencies } from '../project/dependency-resolver.js';
 import { resolveProjectSafely } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
-import type { LoadedProject, FabricModChild } from '../project/types.js';
+import type { Project, FabricModChild } from '../project/types.js';
 import { getGradleConfig, getFabricMod } from '../project/compat.js';
 import { returnError } from './tool-helpers.js';
 
-function buildProjectInfo(project: LoadedProject) {
+function buildProjectInfo(project: Project) {
 	const gc = getGradleConfig(project);
 	return {
 		minecraftVersion: gc.minecraftVersion,
@@ -21,7 +21,7 @@ function buildProjectInfo(project: LoadedProject) {
 	};
 }
 
-function buildModInfo(project: LoadedProject) {
+function buildModInfo(project: Project) {
 	const mod = getFabricMod(project) as Record<string, unknown>;
 	const {
 		schemaVersion,
@@ -52,7 +52,7 @@ function buildModInfo(project: LoadedProject) {
 	};
 }
 
-async function buildJarInventory(project: LoadedProject, includePaths: boolean) {
+async function buildJarInventory(project: Project, includePaths: boolean) {
 	const entries: Record<string, unknown>[] = [];
 
 	for (const [, dep] of getAllDependencies(project)) {

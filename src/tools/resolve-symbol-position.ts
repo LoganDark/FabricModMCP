@@ -6,7 +6,7 @@
  * Avoids quadruple duplication of this logic.
  */
 
-import type { JarCategory, LoadedProject } from '../project/types.js';
+import type { JarCategory, Project } from '../project/types.js';
 import type { CascadeStep, CascadeSuccess } from '../browsing/cascading-regex.js';
 import { getAllDependencies } from '../project/dependency-resolver.js';
 import { getRootPath } from '../project/compat.js';
@@ -61,7 +61,7 @@ export type SymbolPositionResult = SymbolPositionSuccess | SymbolPositionCascade
  *    or failure with kind indicator
  */
 export async function resolveSymbolPosition(
-	loadedProject: LoadedProject,
+	loadedProject: Project,
 	className: string,
 	patterns: string[],
 	jar?: string,
