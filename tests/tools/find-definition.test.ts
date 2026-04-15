@@ -138,6 +138,45 @@ describe('find_definition', () => {
 		}
 	});
 
+	test.skipIf(!toolModuleAvailable)('returns full results with context when details: { lineContent: true } is passed', async () => {
+		mockDefinition.mockResolvedValue({
+			uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
+			range: {
+				start: { line: 5, character: 13 },
+				end: { line: 5, character: 16 },
+			},
+		});
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'find_definition',
+				arguments: {
+					project: 'test',
+					jar: 'minecraft',
+					class: 'net.minecraft.client.MinecraftClient',
+					patterns: ['public void run\\('],
+					details: { lineContent: true },
+				},
+			});
+
+			const envelope = parseEnvelope(result);
+			expect(envelope.success).toBe(true);
+			expect(envelope.data.results).toHaveLength(1);
+			expect(envelope.data.results[0].context).toBeDefined();
+			expect(envelope.data.results[0].entryPath).toBeDefined();
+			expect(typeof envelope.data.results[0].entryPath).toBe('string');
+			expect(envelope.data.results[0].context.snippet).toBeDefined();
+			expect(typeof envelope.data.results[0].context.snippet).toBe('string');
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
+
 	test.skipIf(!toolModuleAvailable)('returns empty results when no definition found', async () => {
 		// Mock definition returns null
 		mockDefinition.mockResolvedValue(null);
