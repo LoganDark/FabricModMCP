@@ -92,9 +92,10 @@ None.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260415-81t | Remove study: prefix from study jar IDs | 2026-04-15 | c46f7c2 | [260415-81t-remove-study-prefix-from-study-jar-ids](./quick/260415-81t-remove-study-prefix-from-study-jar-ids/) |
+| 260415-8hc | Split innerClasses into separate detail flag | 2026-04-14 | 7cf52c0 | [260415-8hc-split-innerclasses-into-separate-detail-](./quick/260415-8hc-split-innerclasses-into-separate-detail-/) |
 
 ## Session Continuity
 
-Last session: 2026-04-15T12:55:00.000Z
-Stopped at: Completed quick task 260415-81t
+Last session: 2026-04-14T06:10:00.000Z
+Stopped at: Completed quick task 260415-8hc
 Resume file: None
