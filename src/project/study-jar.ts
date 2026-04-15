@@ -165,6 +165,30 @@ export function studyJarToDependencyEntry(studyJar: StudyJar): DependencyEntry {
 }
 
 /**
+ * Check study jars for name conflicts against a SPECIFIC set of dependency IDs.
+ * Used by scoped refresh to only check against the refreshed child's deps,
+ * not all children's deps (per user decision).
+ */
+export async function autoUnloadConflictingStudyJarsForDeps(
+	project: Project,
+	depIds: Map<string, DependencyEntry>,
+	jarReader: JarReader,
+	jdtls: JdtLsSession | undefined,
+): Promise<string[]> {
+	const unloaded: string[] = [];
+	for (const [name, child] of project.children) {
+		if (child.kind === 'study-jar' && depIds.has(name)) {
+			await unsyncStudyJarFromWorkspace(name, jdtls);
+			await jarReader.removeProjectJar(project.name, child.jarPath);
+			evictEntryIndex(child.jarPath);
+			project.children.delete(name);
+			unloaded.push(name);
+		}
+	}
+	return unloaded;
+}
+
+/**
  * Auto-unload study jars whose name collides with a real dependency ID.
  * Called after dependency rediscovery (refresh_dependencies) to remove
  * study jars that are now shadowed by real dependencies.

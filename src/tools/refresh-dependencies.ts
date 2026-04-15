@@ -2,13 +2,47 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { discoverDependencies } from '../project/dependency-discovery.js';
-import { clearEntryIndexCache, evictEntryIndex } from '../browsing/entry-index-cache.js';
-import { checkAndReopenIfStale, autoUnloadConflictingStudyJars } from '../project/study-jar.js';
+import { evictEntryIndex } from '../browsing/entry-index-cache.js';
+import { checkAndReopenIfStale, autoUnloadConflictingStudyJars, autoUnloadConflictingStudyJarsForDeps } from '../project/study-jar.js';
 import { jarReader } from './shared-jar-reader.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
-import { getSoleFabricMod, getStudyJars } from '../project/compat.js';
+import { getStudyJars } from '../project/compat.js';
+import { DomainError } from '../errors/domain-error.js';
+import type { FabricModChild, Project } from '../project/types.js';
+import { returnError } from './tool-helpers.js';
+
+function resolveFabricModsForRefresh(
+	project: Project,
+	scope?: string,
+): FabricModChild[] {
+	if (scope) {
+		const child = project.children.get(scope);
+		if (!child || child.kind !== 'fabric-mod') {
+			throw new DomainError(
+				'CHILD_NOT_FOUND',
+				`Fabric mod child '${scope}' not found in project '${project.name}'`,
+				[scope],
+				['Check available children with get_project_metadata'],
+			);
+		}
+		return [child];
+	}
+	const mods: FabricModChild[] = [];
+	for (const child of project.children.values()) {
+		if (child.kind === 'fabric-mod') mods.push(child);
+	}
+	if (mods.length === 0) {
+		throw new DomainError(
+			'NO_FABRIC_MOD',
+			`No fabric mod loaded in project '${project.name}'`,
+			[project.name],
+			['Load a fabric mod using load_project'],
+		);
+	}
+	return mods;
+}
 
 export function registerRefreshDependenciesTool(server: McpServer): void {
 	server.registerTool(
@@ -18,44 +52,92 @@ export function registerRefreshDependenciesTool(server: McpServer): void {
 			description: TOOL_DESCRIPTIONS.refresh_dependencies,
 			inputSchema: {
 				project: PARAMS.project,
+				scope: PARAMS.scope,
 			},
 		},
-		async ({ project }) => {
-			logger.debug('refresh_dependencies called', { project });
+		async ({ project, scope }) => {
+			logger.debug('refresh_dependencies called', { project, scope });
 
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
 
-			// Close old jar handles before re-discovering
-			await jarReader.closeProject(loadedProject.name);
-
-			const mod = getSoleFabricMod(loadedProject);
-
-			const result = await discoverDependencies(
-				mod.gradleConfig,
-				mod.sourcesJar.path,
-				mod.rootPath,
-				mod.name,
-			);
-
-			mod.dependencyJars = result.dependencies;
-
-			// Auto-unload study jars whose name now collides with a real dependency
-			const unloadedNames = await autoUnloadConflictingStudyJars(
-				loadedProject,
-				jarReader,
-				loadedProject.jdtls,
-			);
-
-			// Re-register jar paths with the jar reader
-			const jarPaths = new Set<string>();
-			for (const dep of result.dependencies.values()) {
-				if (dep.sourcesJarPath) jarPaths.add(dep.sourcesJarPath);
+			let modsToRefresh: FabricModChild[];
+			try {
+				modsToRefresh = resolveFabricModsForRefresh(loadedProject, scope);
+			} catch (err) {
+				if (err instanceof DomainError) {
+					return returnError(err.code, err.message, err.tried, err.suggestions);
+				}
+				throw err;
 			}
-			jarReader.registerProject(loadedProject.name, jarPaths);
 
-			// Re-register study jar paths that survived the refresh
+			const combinedSummaries: Array<{ modName: string; total: number; withSources: number; withoutSources: number }> = [];
+
+			for (const mod of modsToRefresh) {
+				// Collect old jar paths before closing
+				const oldJarPaths = new Set<string>();
+				for (const dep of mod.dependencyJars.values()) {
+					if (dep.sourcesJarPath) oldJarPaths.add(dep.sourcesJarPath);
+				}
+				if (mod.sourcesJar.path) oldJarPaths.add(mod.sourcesJar.path);
+
+				// Close ONLY this mod's old jar handles via removeProjectJar (not closeProject)
+				for (const jarPath of oldJarPaths) {
+					await jarReader.removeProjectJar(loadedProject.name, jarPath);
+				}
+
+				// Re-discover dependencies
+				const result = await discoverDependencies(
+					mod.gradleConfig,
+					mod.sourcesJar.path,
+					mod.rootPath,
+					mod.name,
+				);
+
+				mod.dependencyJars = result.dependencies;
+
+				// Re-register new jars via addProjectJar (incremental, not registerProject)
+				for (const dep of result.dependencies.values()) {
+					if (dep.sourcesJarPath) {
+						jarReader.addProjectJar(loadedProject.name, dep.sourcesJarPath);
+					}
+				}
+				if (mod.sourcesJar.path) {
+					jarReader.addProjectJar(loadedProject.name, mod.sourcesJar.path);
+				}
+
+				// Evict entry index cache for old jar paths
+				for (const jarPath of oldJarPaths) {
+					evictEntryIndex(jarPath);
+				}
+
+				combinedSummaries.push({
+					modName: mod.name,
+					...result.summary,
+				});
+			}
+
+			// Study jar collision check: scoped vs unscoped
+			let unloadedNames: string[];
+			if (scope && modsToRefresh.length === 1) {
+				// Scoped: only check against the refreshed child's deps
+				unloadedNames = await autoUnloadConflictingStudyJarsForDeps(
+					loadedProject,
+					modsToRefresh[0].dependencyJars,
+					jarReader,
+					loadedProject.jdtls,
+				);
+			} else {
+				// Unscoped: check against ALL children's deps
+				unloadedNames = await autoUnloadConflictingStudyJars(
+					loadedProject,
+					jarReader,
+					loadedProject.jdtls,
+				);
+			}
+
+			// Re-register surviving study jar paths
 			const studyJars = getStudyJars(loadedProject);
 			for (const studyJar of studyJars.values()) {
 				jarReader.addProjectJar(loadedProject.name, studyJar.jarPath);
@@ -66,24 +148,24 @@ export function registerRefreshDependenciesTool(server: McpServer): void {
 				await checkAndReopenIfStale(studyJar, jarReader);
 			}
 
-			// Clear entry index cache for dependency jars only
-			// (study jar caches are managed by checkAndReopenIfStale above)
-			for (const dep of result.dependencies.values()) {
-				if (dep.sourcesJarPath) {
-					evictEntryIndex(dep.sourcesJarPath);
-				}
-			}
+			// Build combined summary
+			const totalSummary = {
+				total: combinedSummaries.reduce((sum, s) => sum + s.total, 0),
+				withSources: combinedSummaries.reduce((sum, s) => sum + s.withSources, 0),
+				withoutSources: combinedSummaries.reduce((sum, s) => sum + s.withoutSources, 0),
+			};
 
 			const suggestions: string[] = [];
-			if (result.summary.withoutSources > 0) {
+			if (totalSummary.withoutSources > 0) {
 				suggestions.push(
-					`${result.summary.withoutSources} dependencies are missing source jars. Run ./gradlew downloadSources in the project directory to download them, then refresh again.`,
+					`${totalSummary.withoutSources} dependencies are missing source jars. Run ./gradlew downloadSources in the project directory to download them, then refresh again.`,
 				);
 			}
 
 			const envelope = makeSuccess(
 				{
-					summary: result.summary,
+					summary: totalSummary,
+					refreshedChildren: modsToRefresh.map(m => m.name),
 					suggestions,
 					...(unloadedNames.length > 0 ? { autoUnloaded: unloadedNames } : {}),
 				},
@@ -91,11 +173,12 @@ export function registerRefreshDependenciesTool(server: McpServer): void {
 					provenance: {
 						tool: 'refresh_dependencies',
 						project: loadedProject.name,
+						...(scope ? { scope } : {}),
 					},
 				},
 			);
 
-			let text = `Refreshed dependencies: ${result.summary.total} total, ${result.summary.withSources} with sources, ${result.summary.withoutSources} without sources`;
+			let text = `Refreshed dependencies for ${modsToRefresh.map(m => m.name).join(', ')}: ${totalSummary.total} total, ${totalSummary.withSources} with sources, ${totalSummary.withoutSources} without sources`;
 			if (unloadedNames.length > 0) {
 				text += `\nAuto-unloaded ${unloadedNames.length} study jar(s) that now match real dependencies: ${unloadedNames.join(', ')}`;
 			}

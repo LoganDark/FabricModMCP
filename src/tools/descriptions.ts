@@ -176,7 +176,7 @@ export const TOOL_DESCRIPTIONS = {
 		'Filter which dependency jars appear in browsing and search results. In include-all mode (default), glob patterns define jars to EXCLUDE. In exclude-all mode, patterns define jars to INCLUDE. Each child\'s own source and minecraft dependency are always included in its filtered results. Patterns match jar IDs (e.g., "net.fabricmc.*" to match all Fabric API modules).',
 
 	refresh_dependencies:
-		'Re-scan for dependency source jars in the Gradle cache. Use after running ./gradlew downloadSources or changing build.gradle dependencies. Does not re-parse the Gradle config — use unload_project + load_project for that. Automatically unloads any study jars whose names now conflict with real dependencies.',
+		'Re-scan for dependency source jars in the Gradle cache. With scope, refreshes only that child\'s dependencies and checks study jar conflicts only against that child\'s deps. Without scope, refreshes all fabric mods. Use after running ./gradlew downloadSources or changing build.gradle dependencies. Automatically unloads any study jars whose names now conflict with real dependencies.',
 
 	// -- Browsing ------------------------------------------------------------
 
