@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveJarId, resolveJarIds, inferSoleChildName, getAutoIncludeIds } from '../../src/project/namespace-resolver.js';
+import { resolveJarId, resolveJarIds, inferSoleChildName, getAutoIncludeIds, renameChildNamespace } from '../../src/project/namespace-resolver.js';
 import type { Project, FabricModChild, DependencyEntry } from '../../src/project/types.js';
 import { DomainError } from '../../src/errors/domain-error.js';
 
@@ -155,6 +155,41 @@ describe('resolveJarIds', () => {
 		const project = makeProject([['testmod', makeMod('testmod', ['testmod/minecraft', 'testmod/fabric-api'])]]);
 		const result = resolveJarIds(project, ['minecraft', 'testmod/fabric-api']);
 		expect(result).toEqual(['testmod/minecraft', 'testmod/fabric-api']);
+	});
+});
+
+describe('renameChildNamespace', () => {
+	it('renames exact match of original name', () => {
+		const deps = new Map<string, DependencyEntry>([
+			['mymod', { id: 'mymod', group: '', artifact: '', version: '', category: 'mod-source', sourcesJarPath: null, available: true, provenanceChains: [] }],
+		]);
+		const result = renameChildNamespace(deps, 'mymod', 'mymod-2');
+		expect(result.has('mymod-2')).toBe(true);
+		expect(result.get('mymod-2')!.id).toBe('mymod-2');
+		expect(result.has('mymod')).toBe(false);
+	});
+
+	it('renames entries prefixed with originalName/', () => {
+		const deps = new Map<string, DependencyEntry>([
+			['mymod/minecraft', { id: 'mymod/minecraft', group: 'net.minecraft', artifact: 'minecraft', version: '1.21.11', category: 'minecraft', sourcesJarPath: '/fake.jar', available: true, provenanceChains: [] }],
+			['mymod/fabric-api', { id: 'mymod/fabric-api', group: 'net.fabricmc', artifact: 'fabric-api', version: '1.0', category: 'fabric-api', sourcesJarPath: '/fake2.jar', available: true, provenanceChains: [] }],
+		]);
+		const result = renameChildNamespace(deps, 'mymod', 'mymod-2');
+		expect(result.has('mymod-2/minecraft')).toBe(true);
+		expect(result.get('mymod-2/minecraft')!.id).toBe('mymod-2/minecraft');
+		expect(result.has('mymod-2/fabric-api')).toBe(true);
+		expect(result.has('mymod/minecraft')).toBe(false);
+	});
+
+	it('preserves entries not prefixed with originalName', () => {
+		const deps = new Map<string, DependencyEntry>([
+			['mymod/minecraft', { id: 'mymod/minecraft', group: 'net.minecraft', artifact: 'minecraft', version: '1.21.11', category: 'minecraft', sourcesJarPath: '/fake.jar', available: true, provenanceChains: [] }],
+			['other/lib', { id: 'other/lib', group: 'other', artifact: 'lib', version: '1.0', category: 'library', sourcesJarPath: '/fake3.jar', available: true, provenanceChains: [] }],
+		]);
+		const result = renameChildNamespace(deps, 'mymod', 'mymod-2');
+		expect(result.has('mymod-2/minecraft')).toBe(true);
+		expect(result.has('other/lib')).toBe(true);
+		expect(result.get('other/lib')!.id).toBe('other/lib');
 	});
 });
 

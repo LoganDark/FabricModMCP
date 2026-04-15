@@ -4,7 +4,9 @@
  * Translates between file:// URIs pointing to extracted source files on disk
  * and the project's jar-based model (jar ID + entry path within the jar).
  *
- * Directory naming rule: Replace `:` with `__` in jar IDs for filesystem safety.
+ * Directory naming conventions:
+ * - `/` (namespace separator) -> `--` (double dash)
+ * - `:` (Maven coordinate separator) -> `__` (double underscore)
  */
 
 import { realpathSync } from 'node:fs';
@@ -16,18 +18,20 @@ export interface UriMapping {
 
 /**
  * Convert a jar ID to a filesystem-safe directory name.
- * Replaces `:` with `__`.
+ * Replaces `/` with `--` and `:` with `__`.
+ * Order matters: `/` first to avoid ambiguity.
  */
 export function jarIdToDirName(jarId: string): string {
-	return jarId.replace(/:/g, '__');
+	return jarId.replace(/\//g, '--').replace(/:/g, '__');
 }
 
 /**
  * Convert a filesystem directory name back to a jar ID.
- * Replaces `__` with `:`.
+ * Replaces `--` with `/` and `__` with `:`.
+ * Order matters: `--` first to avoid ambiguity.
  */
 export function dirNameToJarId(dirName: string): string {
-	return dirName.replace(/__/g, ':');
+	return dirName.replace(/--/g, '/').replace(/__/g, ':');
 }
 
 /**

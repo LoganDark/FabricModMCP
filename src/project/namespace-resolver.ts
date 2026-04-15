@@ -1,5 +1,5 @@
 import { DomainError } from '../errors/domain-error.js';
-import type { Project, FabricModChild } from './types.js';
+import type { Project, FabricModChild, DependencyEntry } from './types.js';
 
 export function inferSoleChildName(project: Project): string | null {
 	let soleName: string | null = null;
@@ -42,6 +42,30 @@ export function resolveJarId(project: Project, jarId: string, scope?: string): s
 
 export function resolveJarIds(project: Project, jarIds: string[], scope?: string): string[] {
 	return jarIds.map(id => resolveJarId(project, id, scope));
+}
+
+/**
+ * Rename all dependency IDs that belong to a child namespace.
+ * Used when a child is auto-suffixed to avoid name collisions.
+ * E.g., renaming "mymod" to "mymod-2" also renames "mymod/minecraft" to "mymod-2/minecraft".
+ */
+export function renameChildNamespace(
+	deps: Map<string, DependencyEntry>,
+	originalName: string,
+	newName: string,
+): Map<string, DependencyEntry> {
+	const renamed = new Map<string, DependencyEntry>();
+	for (const [id, dep] of deps) {
+		if (id === originalName) {
+			renamed.set(newName, { ...dep, id: newName });
+		} else if (id.startsWith(originalName + '/')) {
+			const newId = newName + id.slice(originalName.length);
+			renamed.set(newId, { ...dep, id: newId });
+		} else {
+			renamed.set(id, dep);
+		}
+	}
+	return renamed;
 }
 
 export function getAutoIncludeIds(child: FabricModChild): Set<string> {

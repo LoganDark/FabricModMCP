@@ -19,6 +19,14 @@ describe('jarIdToDirName', () => {
 	it('handles multiple colons', () => {
 		expect(jarIdToDirName('a:b:c')).toBe('a__b__c');
 	});
+
+	it('replaces slash with double dashes for namespace separator', () => {
+		expect(jarIdToDirName('my-mod/minecraft')).toBe('my-mod--minecraft');
+	});
+
+	it('handles both slash and colon separators', () => {
+		expect(jarIdToDirName('my-mod/net.fabricmc:fabric-api')).toBe('my-mod--net.fabricmc__fabric-api');
+	});
 });
 
 describe('dirNameToJarId', () => {
@@ -34,6 +42,14 @@ describe('dirNameToJarId', () => {
 	it('handles multiple double underscores', () => {
 		expect(dirNameToJarId('a__b__c')).toBe('a:b:c');
 	});
+
+	it('replaces double dashes with slash for namespace separator', () => {
+		expect(dirNameToJarId('my-mod--minecraft')).toBe('my-mod/minecraft');
+	});
+
+	it('handles both double dashes and double underscores', () => {
+		expect(dirNameToJarId('my-mod--net.fabricmc__fabric-api')).toBe('my-mod/net.fabricmc:fabric-api');
+	});
 });
 
 describe('round-trip jarId <-> dirName', () => {
@@ -42,6 +58,8 @@ describe('round-trip jarId <-> dirName', () => {
 		'fabric-api:fabric-networking-api-v1',
 		'net.fabricmc:fabric-loader',
 		'com.mojang:brigadier',
+		'my-mod/minecraft',
+		'my-mod/net.fabricmc:fabric-api',
 	];
 
 	for (const id of ids) {

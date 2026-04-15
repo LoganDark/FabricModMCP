@@ -68,6 +68,60 @@ export function makeFakeProject(overrides: Partial<Project> = {}): Project {
 	};
 }
 
+export function makeFakeFabricModNamed(name: string, overrides: Partial<FabricModChild> = {}): FabricModChild {
+	return makeFakeFabricMod({
+		name,
+		rootPath: `/fake/${name}`,
+		fabricMod: {
+			schemaVersion: 1,
+			id: name,
+			version: '1.0.0',
+			name,
+			description: `A ${name} mod`,
+			authors: ['Test'],
+			license: 'MIT',
+			environment: '*',
+			mixins: [],
+			depends: {},
+		},
+		dependencyJars: new Map<string, DependencyEntry>([
+			[`${name}/minecraft`, {
+				id: `${name}/minecraft`,
+				group: 'net.minecraft',
+				artifact: 'minecraft-merged',
+				version: '1.21.11',
+				category: 'minecraft' as const,
+				sourcesJarPath: '/fake/minecraft-sources.jar',
+				available: true,
+				provenanceChains: [],
+			}],
+			[name, {
+				id: name,
+				group: '',
+				artifact: '',
+				version: '',
+				category: 'mod-source' as const,
+				sourcesJarPath: null,
+				available: true,
+				provenanceChains: [],
+			}],
+		]),
+		...overrides,
+	});
+}
+
+export function makeFakeMultiModProject(modNames: string[], overrides: Partial<Project> = {}): Project {
+	const children = new Map<string, FabricModChild>();
+	for (const name of modNames) {
+		children.set(name, makeFakeFabricModNamed(name));
+	}
+	return {
+		name: 'test',
+		children,
+		...overrides,
+	};
+}
+
 export function makeJdtlsSession(client: any, overrides: Partial<JdtLsSession> = {}): JdtLsSession {
 	return {
 		available: true,
