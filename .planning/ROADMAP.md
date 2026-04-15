@@ -102,7 +102,11 @@ Plans:
   2. A fabric mod's own source is accessible via its mod name as a jar ID (e.g., `my-mod` instead of `src`)
   3. Tools accept an optional scope parameter to target a single child, with auto-resolve when only one child exists
   4. Bare jar ID patterns (e.g., `minecraft`) still work when exactly one fabric mod is loaded (backward compatibility)
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 24-01-PLAN.md — Namespace resolution module, Project type update, test factory migration
+- [ ] 24-02-PLAN.md — Namespace dependency-discovery, source-adapter, jar-registry, dependency-resolver
+- [ ] 24-03-PLAN.md — Add scope parameter to all jar-aware tools and update server instructions
 
 ### Phase 25: Child Management Tools
 **Goal**: Agents can build multi-mod projects by adding fabric mods to existing projects, with all tools producing namespaced results
@@ -148,7 +152,7 @@ Phases execute in numeric order: 23 -> 24 -> 25 -> 26 -> 27
 | 15-18 | v1.2 | 7/7 | Complete | 2026-04-14 |
 | 19-22 | v1.3 | 9/9 | Complete | 2026-04-15 |
 | 23. Type Foundation | v1.4 | 4/4 | Complete    | 2026-04-15 |
-| 24. Dep Namespacing | v1.4 | 0/? | Not started | - |
+| 24. Dep Namespacing | v1.4 | 0/3 | Planned     | - |
 | 25. Child Mgmt Tools | v1.4 | 0/? | Not started | - |
 | 26. JDT LS Unification | v1.4 | 0/? | Not started | - |
 | 27. Migration Cleanup | v1.4 | 0/? | Not started | - |
