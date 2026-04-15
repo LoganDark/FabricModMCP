@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Project Rearchitecture
 status: unknown
-stopped_at: Completed 25.1-02-PLAN.md
-last_updated: "2026-04-15T22:26:56.520Z"
+stopped_at: Completed 25.1-04-PLAN.md
+last_updated: "2026-04-15T22:36:42.995Z"
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State
@@ -55,6 +55,7 @@ Plan: 4 of 4
 | Phase 25.1 P01 | 5min | 2 tasks | 19 files |
 | Phase 25.1 P03 | 5min | 2 tasks | 14 files |
 | Phase 25.1 P02 | 5min | 2 tasks | 12 files |
+| Phase 25.1 P04 | 7min | 2 tasks | 30 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,7 @@ See PROJECT.md Key Decisions table for full decision log.
 - [Phase 25.1]: get_project_info always returns full member list, no toggle flags
 - [Phase 25.1]: list_projects simplified to name/memberCount/activeChild/isActive -- use get_project_info for details
 - [Phase 25.1]: add_fabric_mod auto-registers project with jar reader if not yet registered (handles create_project -> add_fabric_mod flow)
+- [Phase 25.1]: getRootPathForScope returns undefined instead of throwing -- createSourceAdapter guards with DomainError
 
 ### Roadmap Evolution
 
@@ -105,6 +107,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-15T22:26:56.518Z
-Stopped at: Completed 25.1-02-PLAN.md
+Last session: 2026-04-15T22:36:42.993Z
+Stopped at: Completed 25.1-04-PLAN.md
 Resume file: None

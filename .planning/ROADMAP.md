@@ -128,13 +128,13 @@ Plans:
 **Goal:** Rework tools and tests to be entirely native to the new architecture rather than using any compatibility shims. Cleanly separate Project creation, addition of fabric mod children or study jar children, and operations within an entire project or within any set of its children. Do not worry about breaking existing clients as all clients are large language models and will be capable of interpreting the new instructions perfectly fine.
 **Requirements**: REWORK-01, REWORK-02, REWORK-03, REWORK-04, REWORK-05
 **Depends on:** Phase 25
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 25.1-01-PLAN.md — Rename defaultChild/defaultProject to activeChild/activeProject, remove LoadedProject alias, clean up ProjectStore
 - [x] 25.1-02-PLAN.md — Create lifecycle tools (create_project, add_fabric_mod, remove_project, remove_project_member, set_active_child)
 - [x] 25.1-03-PLAN.md — Create info/refresh tools (get_project_info, get_member_info, refresh_project, refresh_project_members, set_active_project, list_projects rework)
-- [ ] 25.1-04-PLAN.md — Migrate browsing tools off compat, delete old tools/tests/compat, wire index.ts, rewrite SERVER_INSTRUCTIONS
+- [x] 25.1-04-PLAN.md — Migrate browsing tools off compat, delete old tools/tests/compat, wire index.ts, rewrite SERVER_INSTRUCTIONS
 
 ### Phase 26: JDT LS Workspace Unification
 **Goal**: Semantic navigation works across all children in a project through a single JDT LS workspace
@@ -170,6 +170,6 @@ Phases execute in numeric order: 23 -> 24 -> 25 -> 25.1 -> 26 -> 27
 | 23. Type Foundation | v1.4 | 4/4 | Complete    | 2026-04-15 |
 | 24. Dep Namespacing | v1.4 | 3/3 | Complete    | 2026-04-15 |
 | 25. Child Mgmt Tools | v1.4 | 2/2 | Complete    | 2026-04-15 |
-| 25.1. Tool Rework | v1.4 | 3/4 | In Progress|  |
+| 25.1. Tool Rework | v1.4 | 4/4 | Complete   | 2026-04-15 |
 | 26. JDT LS Unification | v1.4 | 0/? | Not started | - |
 | 27. Migration Cleanup | v1.4 | 0/? | Not started | - |
