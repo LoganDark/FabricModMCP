@@ -140,6 +140,29 @@ describe('locate_in_source tool', () => {
 		expect(envelope.metadata.provenance.tool).toBe('locate_in_source');
 	});
 
+	it('returns full results with steps when details: { steps: true } is passed', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'locate_in_source',
+			arguments: {
+				project: 'test',
+				jar: 'minecraft',
+				class: 'net.minecraft.client.MinecraftClient',
+				patterns: ['public class MinecraftClient', 'MinecraftClient'],
+				details: { steps: true },
+			},
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		expect(envelope.data.results).toHaveLength(1);
+		expect(envelope.data.results[0].steps).toBeDefined();
+		expect(Array.isArray(envelope.data.results[0].steps)).toBe(true);
+		expect(envelope.data.results[0].steps.length).toBeGreaterThan(0);
+	});
+
 	it('returns DomainError for nonexistent project', async () => {
 		const result = await pair.client.callTool({
 			name: 'locate_in_source',
