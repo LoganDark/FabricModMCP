@@ -58,9 +58,17 @@ export function createFsAdapter(rootPath: string): SourceAdapter {
 export function createSourceAdapter(
 	jarReader: JarReader,
 	dep: DependencyEntry,
-	rootPath: string,
+	rootPath?: string,
 ): SourceAdapter {
 	if (dep.category === 'mod-source') {
+		if (!rootPath) {
+			throw new DomainError(
+				'NO_ROOT_PATH',
+				`Cannot read mod source for ${dep.id} without a root path`,
+				[dep.id],
+				['Specify a scope to target a specific fabric mod'],
+			);
+		}
 		return createFsAdapter(rootPath);
 	}
 

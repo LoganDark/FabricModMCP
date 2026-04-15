@@ -9,12 +9,11 @@
 import type { JarCategory, Project } from '../project/types.js';
 import type { CascadeStep, CascadeSuccess } from '../browsing/cascading-regex.js';
 import { getAllDependencies } from '../project/dependency-resolver.js';
-import { getRootPath } from '../project/compat.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { cascadeRegex } from '../browsing/cascading-regex.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
-import { classNameToEntryPath, sortByPriority, getDependenciesForTool } from './tool-helpers.js';
+import { classNameToEntryPath, sortByPriority, getDependenciesForTool, getRootPathForScope } from './tool-helpers.js';
 import { resolveJarId } from '../project/namespace-resolver.js';
 
 export interface SymbolPositionSuccess {
@@ -71,9 +70,7 @@ export async function resolveSymbolPosition(
 	const uriMapper = createUriMapper(jdtls.tempDir, jdtls.jarIdToDirName);
 
 	const entryPath = classNameToEntryPath(className);
-	const rootPath = scope
-		? (() => { const c = loadedProject.children.get(scope); return c?.kind === 'fabric-mod' ? c.rootPath : getRootPath(loadedProject); })()
-		: getRootPath(loadedProject);
+	const rootPath = getRootPathForScope(loadedProject, scope);
 
 	if (jar !== undefined) {
 		// Specific jar mode — resolve bare IDs via namespace resolver

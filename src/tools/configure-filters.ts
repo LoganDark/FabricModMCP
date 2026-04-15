@@ -6,7 +6,6 @@ import { getFilteredDependencies } from '../project/jar-registry.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely, returnError } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
-import { getSoleFabricMod } from '../project/compat.js';
 import { getAutoIncludeIds } from '../project/namespace-resolver.js';
 import type { FabricModChild } from '../project/types.js';
 
@@ -41,14 +40,26 @@ export function registerConfigureFiltersTool(server: McpServer): void {
 				if (!child || child.kind !== 'fabric-mod') {
 					return returnError(
 						'CHILD_NOT_FOUND',
-						`Child '${scope}' not found or is not a fabric mod`,
+						`Member '${scope}' not found or is not a fabric mod`,
 						[scope],
-						['Check available children with get_project_metadata'],
+						['Check available members with get_project_info'],
 					);
 				}
 				mod = child;
 			} else {
-				mod = getSoleFabricMod(loadedProject);
+				let found: FabricModChild | undefined;
+				for (const child of loadedProject.children.values()) {
+					if (child.kind === 'fabric-mod') {
+						if (found) {
+							return returnError('AMBIGUOUS_CHILD', 'Multiple fabric mods — specify scope parameter', [...loadedProject.children.keys()], ['Use scope to target a specific fabric mod']);
+						}
+						found = child;
+					}
+				}
+				if (!found) {
+					return returnError('NO_FABRIC_MOD', `No fabric mod in project '${loadedProject.name}'`, [], ['Add a fabric mod with add_fabric_mod']);
+				}
+				mod = found;
 			}
 
 			if (mode !== undefined) {

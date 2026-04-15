@@ -6,9 +6,8 @@ import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { parseClassDeclaration } from '../browsing/class-parser.js';
 import { getOrBuildIndex } from '../browsing/entry-index-cache.js';
 import { logger } from '../logging/logger.js';
-import { getDependenciesForTool, resolveProjectSafely, stripClassInfo } from './tool-helpers.js';
+import { getDependenciesForTool, resolveProjectSafely, stripClassInfo, getRootPathForScope } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
-import { getRootPath } from '../project/compat.js';
 import type { SourceAdapter } from '../browsing/source-adapter.js';
 import type { ClassInfo, InnerClassInfo } from '../browsing/types.js';
 
@@ -64,9 +63,9 @@ export function registerListClassesTool(server: McpServer): void {
 				if (!dep.available) continue;
 
 				try {
-					const adapter = createSourceAdapter(jarReader, dep, getRootPath(loadedProject));
+					const adapter = createSourceAdapter(jarReader, dep, getRootPathForScope(loadedProject, scope));
 					const entries = await adapter.listJavaEntries();
-					const cacheKey = dep.sourcesJarPath ?? `fs:${getRootPath(loadedProject)}:${id}`;
+					const cacheKey = dep.sourcesJarPath ?? `fs:${getRootPathForScope(loadedProject, scope)}:${id}`;
 					const index = getOrBuildIndex(entries, cacheKey);
 
 					// Get packages to scan (just this package, or sub-packages if depth > 1)

@@ -10,7 +10,6 @@
 import { readFile } from 'node:fs/promises';
 import picomatch from 'picomatch';
 import type { JarCategory, DependencyEntry, Project } from '../project/types.js';
-import { getRootPath } from '../project/compat.js';
 import { resolveJarId, resolveJarIds, getAutoIncludeIds } from '../project/namespace-resolver.js';
 import { studyJarToDependencyEntry } from '../project/study-jar.js';
 import type { CascadeStep } from '../browsing/cascading-regex.js';
@@ -53,6 +52,27 @@ export function sortByPriority(entries: [string, DependencyEntry][]): [string, D
 		if (pa !== pb) return pa - pb;
 		return a[0].localeCompare(b[0]);
 	});
+}
+
+/**
+ * Get rootPath for a dependency's owning child.
+ * With scope: use that child's rootPath.
+ * Without scope: find sole fabric mod's rootPath, or undefined if ambiguous.
+ */
+export function getRootPathForScope(project: Project, scope?: string): string | undefined {
+	if (scope) {
+		const child = project.children.get(scope);
+		return child?.kind === 'fabric-mod' ? child.rootPath : undefined;
+	}
+	// Find sole fabric mod's rootPath
+	let rootPath: string | undefined;
+	for (const child of project.children.values()) {
+		if (child.kind === 'fabric-mod') {
+			if (rootPath !== undefined) return undefined; // multiple mods, ambiguous
+			rootPath = child.rootPath;
+		}
+	}
+	return rootPath;
 }
 
 export function classNameToEntryPath(className: string): string {
@@ -149,9 +169,7 @@ export async function resolveClassSource(
 	| { success: false; kind: 'class-not-found'; entryPath: string; jar?: string }
 > {
 	const entryPath = classNameToEntryPath(className);
-	const rootPath = scope
-		? (() => { const c = loadedProject.children.get(scope); return c?.kind === 'fabric-mod' ? c.rootPath : getRootPath(loadedProject); })()
-		: getRootPath(loadedProject);
+	const rootPath = getRootPathForScope(loadedProject, scope);
 
 	if (jar !== undefined) {
 		const resolvedJar = resolveJarId(loadedProject, jar, scope);

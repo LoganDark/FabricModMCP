@@ -4,9 +4,8 @@ import { getAllDependencies } from '../project/dependency-resolver.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { logger } from '../logging/logger.js';
-import { classNameToEntryPath, handleClassSourceError, sortByPriority, resolveProjectSafely, returnError, resolveClassSource, getDependenciesForTool } from './tool-helpers.js';
+import { classNameToEntryPath, handleClassSourceError, sortByPriority, resolveProjectSafely, returnError, resolveClassSource, getDependenciesForTool, getRootPathForScope } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
-import { getRootPath } from '../project/compat.js';
 import { resolveJarId } from '../project/namespace-resolver.js';
 import { sliceLines } from '../browsing/line-slicer.js';
 import type { SourceResult } from '../browsing/types.js';
@@ -44,7 +43,7 @@ export function registerReadSourceTool(server: McpServer): void {
 					'JAR_REQUIRED',
 					`Line-range parameters (startLine/lineCount) require specifying a jar. Available jars: ${jarIds.join(', ')}`,
 					[],
-					['Specify the jar parameter to use line-range reading', 'Use get_project_metadata with include_jar_inventory to see all available jars'],
+					['Specify the jar parameter to use line-range reading', 'Use get_member_info to see all available jars'],
 				);
 			}
 
@@ -84,9 +83,7 @@ export function registerReadSourceTool(server: McpServer): void {
 			// Search all jars in priority order
 			const filtered = getDependenciesForTool(loadedProject, undefined, scope);
 			const sorted = sortByPriority(Array.from(filtered.entries()));
-			const rootPath = scope
-				? (() => { const c = loadedProject.children.get(scope); return c?.kind === 'fabric-mod' ? c.rootPath : getRootPath(loadedProject); })()
-				: getRootPath(loadedProject);
+			const rootPath = getRootPathForScope(loadedProject, scope);
 
 			const sources: SourceResult[] = [];
 

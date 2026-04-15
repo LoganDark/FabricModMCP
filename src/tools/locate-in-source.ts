@@ -6,9 +6,8 @@ import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { cascadeRegex } from '../browsing/cascading-regex.js';
 import { logger } from '../logging/logger.js';
-import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError, stripLocateResult, stripLocateFailure, getDependenciesForTool } from './tool-helpers.js';
+import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError, stripLocateResult, stripLocateFailure, getDependenciesForTool, getRootPathForScope } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
-import { getRootPath } from '../project/compat.js';
 import { resolveJarId } from '../project/namespace-resolver.js';
 import type { LocateFailure } from './tool-helpers.js';
 import type { LocateResult, LocateResultContext } from '../browsing/types.js';
@@ -61,9 +60,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 				class: className,
 			};
 
-			const rootPath = scope
-				? (() => { const c = loadedProject.children.get(scope); return c?.kind === 'fabric-mod' ? c.rootPath : getRootPath(loadedProject); })()
-				: getRootPath(loadedProject);
+			const rootPath = getRootPathForScope(loadedProject, scope);
 
 			// Specific jar mode
 			if (jar !== undefined) {
@@ -74,7 +71,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 						'JAR_NOT_FOUND',
 						`Jar '${jar}' not found in project '${loadedProject.name}'`,
 						[jar],
-						['Check available jars with get_project_metadata'],
+						['Check available jars with get_member_info or get_project_info'],
 					);
 				}
 

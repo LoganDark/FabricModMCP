@@ -49,7 +49,7 @@ export function registerReadJarEntryTool(server: McpServer): void {
 					'JAR_NO_SOURCES',
 					`Source jar for '${jar}' is not available`,
 					[jar],
-					['Run ./gradlew downloadSources in the project directory, then use refresh_dependencies'],
+					['Run ./gradlew downloadSources in the project directory, then use refresh_project'],
 				);
 			}
 

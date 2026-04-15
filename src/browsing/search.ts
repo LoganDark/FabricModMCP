@@ -25,7 +25,7 @@ export interface SearchOptions {
 export async function searchClasses(
 	options: SearchOptions,
 	resolvedDeps: Map<string, DependencyEntry>,
-	rootPath: string,
+	rootPath: string | undefined,
 	jarReaderInstance: JarReader,
 ): Promise<SearchResponse> {
 	const offset = options.offset ?? 0;

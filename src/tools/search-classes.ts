@@ -4,9 +4,8 @@ import { makeSuccess } from '../types/envelope.js';
 import { jarReader } from './shared-jar-reader.js';
 import { searchClasses } from '../browsing/search.js';
 import { logger } from '../logging/logger.js';
-import { resolveProjectSafely, getDependenciesForTool, stripClassInfo } from './tool-helpers.js';
+import { resolveProjectSafely, getDependenciesForTool, stripClassInfo, getRootPathForScope } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
-import { getRootPath } from '../project/compat.js';
 
 export function registerSearchClassesTool(server: McpServer): void {
 	server.registerTool(
@@ -37,7 +36,7 @@ export function registerSearchClassesTool(server: McpServer): void {
 			const response = await searchClasses(
 				{ pattern, caseSensitive, kind, offset, limit },
 				resolvedDeps,
-				getRootPath(loadedProject),
+				getRootPathForScope(loadedProject, scope),
 				jarReader,
 			);
 
