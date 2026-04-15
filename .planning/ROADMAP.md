@@ -147,7 +147,7 @@ Phases execute in numeric order: 23 -> 24 -> 25 -> 26 -> 27
 | 11-14 | v1.1 | 8/8 | Complete | 2026-04-14 |
 | 15-18 | v1.2 | 7/7 | Complete | 2026-04-14 |
 | 19-22 | v1.3 | 9/9 | Complete | 2026-04-15 |
-| 23. Type Foundation | v1.4 | 4/4 | Complete   | 2026-04-15 |
+| 23. Type Foundation | v1.4 | 4/4 | Complete    | 2026-04-15 |
 | 24. Dep Namespacing | v1.4 | 0/? | Not started | - |
 | 25. Child Mgmt Tools | v1.4 | 0/? | Not started | - |
 | 26. JDT LS Unification | v1.4 | 0/? | Not started | - |
