@@ -1,27 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
-import { parseEnvelope, makeFakeFabricMod } from '../helpers/factories.js';
+import { parseEnvelope, makeFakeFabricModNamed } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
-import type { DependencyEntry, Project } from '../../src/project/types.js';
+import type { Project, StudyJarChild } from '../../src/project/types.js';
 
-function makeFakeProject(name: string, mcVersion: string = '1.21.11'): Project {
-	const mod = makeFakeFabricMod({
-		gradleConfig: {
-			minecraftVersion: mcVersion,
-			mappingEra: 'mapped',
-			yarnMappings: `${mcVersion}+build.4`,
-			loaderVersion: '0.16.14',
-			fabricApiVersion: '0.119.5+1.21.11',
-			dependencies: [],
-		},
-		dependencyJars: new Map<string, DependencyEntry>([
-			['minecraft', { id: 'minecraft', group: 'net.minecraft', artifact: 'minecraft', version: mcVersion, category: 'minecraft' as const, sourcesJarPath: '/fake/mc.jar', available: true, provenanceChains: [] }],
-		]),
-	});
-	return {
-		name,
-		children: new Map([[mod.name, mod]]),
-	};
+function makeFakeProject(name: string, modNames: string[] = ['testmod']): Project {
+	const children = new Map<string, any>();
+	for (const modName of modNames) {
+		children.set(modName, makeFakeFabricModNamed(modName));
+	}
+	return { name, children };
 }
 
 describe('list_projects tool', () => {
@@ -37,9 +25,9 @@ describe('list_projects tool', () => {
 		projectStore.clear();
 	});
 
-	it('returns all loaded projects with metadata', async () => {
-		projectStore.set('mod-a', makeFakeProject('mod-a', '1.21.11'));
-		projectStore.set('mod-b', makeFakeProject('mod-b', '1.20.4'));
+	it('returns simplified output with name, memberCount, activeChild, isActive', async () => {
+		projectStore.set('mod-a', makeFakeProject('mod-a'));
+		projectStore.set('mod-b', makeFakeProject('mod-b', ['alpha', 'beta']));
 		projectStore.setActive('mod-a');
 
 		const result = await pair.client.callTool({
@@ -49,19 +37,34 @@ describe('list_projects tool', () => {
 
 		const envelope = parseEnvelope(result);
 		expect(envelope.success).toBe(true);
-		expect(envelope.data.count).toBe(2);
 		expect(envelope.data.projects).toHaveLength(2);
 
 		const projA = envelope.data.projects.find((p: any) => p.name === 'mod-a');
 		expect(projA).toBeDefined();
-		expect(projA.minecraftVersion).toBe('1.21.11');
-		expect(projA.mappingEra).toBe('mapped');
-		expect(projA.dependencyCount).toBe(1);
-		expect(projA.isDefault).toBe(true);
+		expect(projA.memberCount).toBe(1);
+		expect(projA.activeChild).toBeNull();
+		expect(projA.isActive).toBe(true);
 
 		const projB = envelope.data.projects.find((p: any) => p.name === 'mod-b');
 		expect(projB).toBeDefined();
-		expect(projB.isDefault).toBe(false);
+		expect(projB.memberCount).toBe(2);
+		expect(projB.isActive).toBe(false);
+	});
+
+	it('does not include MC version, rootPath, or gradle config', async () => {
+		projectStore.set('test', makeFakeProject('test'));
+
+		const result = await pair.client.callTool({
+			name: 'list_projects',
+			arguments: {},
+		});
+
+		const envelope = parseEnvelope(result);
+		const proj = envelope.data.projects[0];
+		expect(proj.minecraftVersion).toBeUndefined();
+		expect(proj.rootPath).toBeUndefined();
+		expect(proj.mappingEra).toBeUndefined();
+		expect(proj.dependencyCount).toBeUndefined();
 	});
 
 	it('empty when no projects loaded', async () => {
@@ -73,6 +76,20 @@ describe('list_projects tool', () => {
 		const envelope = parseEnvelope(result);
 		expect(envelope.success).toBe(true);
 		expect(envelope.data.projects).toHaveLength(0);
-		expect(envelope.data.count).toBe(0);
+	});
+
+	it('includes activeChild when set on project', async () => {
+		const project = makeFakeProject('test');
+		project.activeChild = 'testmod';
+		projectStore.set('test', project);
+
+		const result = await pair.client.callTool({
+			name: 'list_projects',
+			arguments: {},
+		});
+
+		const envelope = parseEnvelope(result);
+		const proj = envelope.data.projects[0];
+		expect(proj.activeChild).toBe('testmod');
 	});
 });

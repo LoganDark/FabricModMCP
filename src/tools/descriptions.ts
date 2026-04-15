@@ -162,7 +162,7 @@ export const TOOL_DESCRIPTIONS = {
 		'Unload a project by name. Closes jar handles and frees resources. Clears the default project if this was it.',
 
 	list_projects:
-		'List all loaded projects with name, Minecraft version, mapping era, dependency count, and which is the default.',
+		'List all projects with name, member count, active child name, and whether each is the active project.',
 
 	set_default_project:
 		'Set the default project used when the project parameter is omitted in other tools.',
@@ -188,6 +188,12 @@ export const TOOL_DESCRIPTIONS = {
 	set_active_child:
 		'Set the active child (fabric mod) on a project. When set, bare jar IDs like "minecraft" resolve within that child\'s namespace without requiring the scope parameter.',
 
+	add_fabric_mod:
+		'Add a Fabric/Loom Gradle project as a member of an existing project. Parses gradle.properties and build.gradle.kts to detect Minecraft version, Yarn mappings, and dependencies. Locates source jars in the Gradle cache. The member name is derived from fabric.mod.json id. If a member with the same name already exists, auto-suffixes with -2, -3, etc.',
+
+	remove_project_member:
+		'Remove one or more members (fabric mods or study jars) from a project by name. Closes jar handles, cleans up workspace entries, and frees resources. Accepts an array of names; fails on the first nonexistent name with no partial removal.',
+
 	// -- Configuration -------------------------------------------------------
 
 	configure_filters:
@@ -195,6 +201,12 @@ export const TOOL_DESCRIPTIONS = {
 
 	refresh_dependencies:
 		'Re-scan for dependency source jars in the Gradle cache. With scope, refreshes only that child\'s dependencies and checks study jar conflicts only against that child\'s deps. Without scope, refreshes all fabric mods. Use after running ./gradlew downloadSources or changing build.gradle dependencies. Automatically unloads any study jars whose names now conflict with real dependencies.',
+
+	refresh_project:
+		'Re-scan all fabric mod members for dependency source jars in the Gradle cache. Use after running ./gradlew downloadSources or changing build.gradle dependencies. Automatically unloads any study jars whose names now conflict with real dependencies.',
+
+	refresh_project_members:
+		'Re-scan specific fabric mod members for dependency source jars. Requires an array of member names. An empty array is not an error but returns "nothing changed". Use after running ./gradlew downloadSources for specific mods.',
 
 	// -- Browsing ------------------------------------------------------------
 

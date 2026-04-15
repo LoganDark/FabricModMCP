@@ -31,6 +31,10 @@ import { registerSetActiveChildTool } from './set-active-child.js';
 import { registerSetActiveProjectTool } from './set-active-project.js';
 import { registerGetProjectInfoTool } from './get-project-info.js';
 import { registerGetMemberInfoTool } from './get-member-info.js';
+import { registerAddFabricModTool } from './add-fabric-mod.js';
+import { registerRemoveProjectMemberTool } from './remove-project-member.js';
+import { registerRefreshProjectTool } from './refresh-project.js';
+import { registerRefreshProjectMembersTool } from './refresh-project-members.js';
 
 export function registerAllTools(server: McpServer): void {
 	registerEchoTool(server);
@@ -65,4 +69,8 @@ export function registerAllTools(server: McpServer): void {
 	registerSetActiveProjectTool(server);
 	registerGetProjectInfoTool(server);
 	registerGetMemberInfoTool(server);
+	registerAddFabricModTool(server);
+	registerRemoveProjectMemberTool(server);
+	registerRefreshProjectTool(server);
+	registerRefreshProjectMembersTool(server);
 }

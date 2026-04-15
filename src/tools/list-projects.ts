@@ -1,10 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
-import { getResolvedDependencies } from '../project/dependency-resolver.js';
 import { projectStore } from '../state/project-store.js';
 import { logger } from '../logging/logger.js';
 import { TOOL_DESCRIPTIONS } from './descriptions.js';
-import { getRootPath, getGradleConfig } from '../project/compat.js';
 
 export function registerListProjectsTool(server: McpServer): void {
 	server.registerTool(
@@ -17,26 +15,24 @@ export function registerListProjectsTool(server: McpServer): void {
 		async () => {
 			logger.debug('list_projects called');
 
-			const defaultName = projectStore.getActive();
-			const projects = projectStore.list().map((p) => {
-				const gc = getGradleConfig(p);
-				return {
-					name: p.name,
-					rootPath: getRootPath(p),
-					minecraftVersion: gc.minecraftVersion,
-					mappingEra: gc.mappingEra,
-					dependencyCount: getResolvedDependencies(p).size,
-					isDefault: p.name === defaultName,
-				};
-			});
+			const activeName = projectStore.getActive();
+			const projects = projectStore.list().map((p) => ({
+				name: p.name,
+				memberCount: p.children.size,
+				activeChild: p.activeChild ?? null,
+				isActive: p.name === activeName,
+			}));
 
 			const envelope = makeSuccess({
 				projects,
-				count: projects.length,
 			});
 
+			const text = projects.length === 0
+				? 'No projects loaded'
+				: projects.map(p => `${p.name} (${p.memberCount} member${p.memberCount === 1 ? '' : 's'})${p.isActive ? ' [active]' : ''}`).join(', ');
+
 			return {
-				content: [{ type: 'text' as const, text: `${projects.length} project${projects.length === 1 ? '' : 's'} loaded${defaultName ? ` (default: ${defaultName})` : ''}` }],
+				content: [{ type: 'text' as const, text }],
 				structuredContent: envelope,
 			};
 		},
