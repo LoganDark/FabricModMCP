@@ -65,7 +65,7 @@
 - 20 pre-existing TypeScript errors (index signature mismatch) remain unfixed from v1.0 — carried as tech debt
 
 ### Patterns Established
-- `study:` namespace prefix for study jar IDs — collision avoidance with real dependencies
+- Study jar IDs used `study:` namespace prefix (later removed in v1.3 quick task — plain names with collision detection)
 - Two-mode resolver: getResolvedDependencies for default views, getAllDependencies for explicit selection
 - Probe-based readiness detection for JDT LS (workspace/symbol query '*')
 - Warning-on-failure-only pattern for optional workspace sync operations
@@ -119,14 +119,57 @@
 - 4 phases completed in a single session continuation
 - Phase 18 end-to-end (discuss → plan → execute → verify) took ~20 minutes of wall clock
 
+## Milestone: v1.3 — Context Management
+
+**Shipped:** 2026-04-15
+**Phases:** 4 | **Plans:** 9 | **Tasks:** 17
+
+### What Was Built
+- read_source line-range support (startLine/lineCount) with per-response metadata on all code paths
+- read_member context expansion (linesBefore/linesAfter) with member position metadata
+- Generic pagination utility wired into find_references, find_implementations, find_definition
+- Compact-by-default output system with category-based DETAIL_PARAMS and strip functions
+- 66.5% response size reduction measured across benchmark classes (229K full -> 77K compact)
+- 66 new tests (526 -> 592), zero regressions
+
+### What Worked
+- All 4 phases were architecturally independent — could have been parallelized if desired
+- sliceLines pure utility approach made line-range bulletproof with 11 edge-case tests before wiring
+- Category-based detail schemas (navigation/member/class/locate/source) scaled better than per-tool schemas
+- Verbosity audit phase last (after controls existed) gave real data to optimize against
+- Quick tasks for post-milestone cleanup (study prefix removal, innerClasses flag split) were effective
+
+### What Was Inefficient
+- Phase 22 Plan 02 took 12min (3x average) — audit report generation + test updates across many files
+- Gap closure plan (22-03) existed only to add 4 missing opt-in tests — could have been caught in 22-01/02
+- Two quick tasks (study prefix, innerClasses split) were discovered during description review, not planned
+
+### Patterns Established
+- DETAIL_PARAMS with category-based schemas and strip functions for opt-in verbosity
+- Destructuring rest pattern for clean field stripping (type-safe, no explicit delete)
+- applyPagination generic utility with PaginatedResult envelope (total/offset/hasMore)
+- sliceLines pure utility for line-range extraction with clamping semantics
+- Study jar plain name IDs with collision detection at add time and auto-unload on refresh
+
+### Key Lessons
+- Compact-by-default is the right trade-off for MCP tools — agents can opt in when they need detail
+- Measuring real response sizes (Phase 22 audit) was essential — gut feel about "worst offenders" was wrong
+- Description/instruction review after building reveals API inconsistencies that automated tests miss
+- Quick task workflow catches post-milestone polish items efficiently
+
+### Cost Observations
+- 9 plans executed across ~34 minutes of wall clock
+- Phase 22 was the most expensive (3 plans, 18min) due to cross-cutting changes across many tool files
+- 2 quick tasks added ~10min for study prefix removal and innerClasses flag split
+
 ## Cross-Milestone Trends
 
-| Metric | v1.0 | v1.1 | v1.2 |
-|--------|------|------|------|
-| Phases | 10 | 4 | 4 |
-| Plans | 22 | 8 | 7 |
-| Tasks | 41 | ~66 | 12 |
-| LOC | 5,336 | 6,030 | 6,863 |
-| Tests | 327 | 423 | 526 |
-| Timeline | 2 days | 1 day | 1 day |
-| Requirements | 46/46 | 10/10 | 7/7 |
+| Metric | v1.0 | v1.1 | v1.2 | v1.3 |
+|--------|------|------|------|------|
+| Phases | 10 | 4 | 4 | 4 |
+| Plans | 22 | 8 | 7 | 9 |
+| Tasks | 41 | ~66 | 12 | 17 |
+| LOC | 5,336 | 6,030 | 6,863 | 7,281 |
+| Tests | 327 | 423 | 526 | 592 |
+| Timeline | 2 days | 1 day | 1 day | 1 day |
+| Requirements | 46/46 | 10/10 | 7/7 | 11/11 |

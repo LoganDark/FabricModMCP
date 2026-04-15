@@ -1,5 +1,23 @@
 # Milestones
 
+## v1.3 Context Management (Shipped: 2026-04-15)
+
+**Phases completed:** 4 phases, 9 plans, 17 tasks
+
+**Key accomplishments:**
+
+- Pure sliceLines utility with 11 edge-case tests covering no-params, partial ranges, clamping, beyond-EOF, empty files, trailing newlines, and chunk concatenation invariant
+- read_source tool accepts startLine/lineCount params with JAR_REQUIRED validation and metadata on every response
+- extractMemberSource accepts optional linesBefore/linesAfter with silent boundary clamping and memberStartLine/memberEndLine metadata
+- read_member tool accepts linesBefore/linesAfter params, passing them to extractMemberSource and returning memberStartLine/memberEndLine metadata
+- Generic applyPagination<T>() utility with PaginationInput/PaginatedResult types and PARAMS.limit/offset Zod schemas
+- Paginated find_references/find_implementations/find_definition with limit/offset params and total/offset/hasMore envelope metadata
+- Compact-by-default navigation and locate tools via shared DETAIL_PARAMS schemas and strip functions
+- Compact-by-default member/class listing tools with 66.5% overall response size reduction measured against real Minecraft project
+- 4 new tests covering detail flag opt-in paths for navigation and locate tools (lineContent: true, steps: true)
+
+---
+
 ## v1.2 Symbol Resolution (Shipped: 2026-04-14)
 
 **Phases completed:** 4 phases, 7 plans, 12 tasks

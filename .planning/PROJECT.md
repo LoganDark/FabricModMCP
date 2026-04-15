@@ -33,13 +33,14 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - ✓ FQN scheme for methods and fields with enriched structured output in list_members and search_symbols — v1.2
 - ✓ read_member tool reads individual method/field source by FQN with Javadoc, annotations, and body — v1.2
 - ✓ locate_in_source optional context lines parameter extends matches to whole lines with surrounding context — v1.2
+- ✓ read_source line-range reading with startLine/lineCount and per-response metadata — v1.3
+- ✓ read_member context expansion with linesBefore/linesAfter and member position metadata — v1.3
+- ✓ Navigation pagination (limit/offset) on find_references, find_implementations, find_definition — v1.3
+- ✓ Compact-by-default output with category-based DETAIL_PARAMS and opt-in detail flags — v1.3
 
 ### Active
 
-- Navigation pagination on find_references/find_implementations/find_definition — Validated in Phase 21: navigation-pagination (moving to Validated next milestone close)
-- Context lines on read_member — Validated in Phase 20: member-context-lines (moving to Validated next milestone close)
-- Line-range reading on read_source — Validated in Phase 19: line-range-reading (moving to Validated next milestone close)
-- Verbosity audit with compact defaults and opt-in detail flags — Validated in Phase 22: verbosity-audit (moving to Validated next milestone close)
+(None — defining next milestone)
 
 ### Out of Scope
 
@@ -50,21 +51,16 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - Version comparison across MC versions — useful for unmapped sources, deferred
 - FQN-based tool input for find_references/find_definition (NAV-01, NAV-02) — scheme defined, acceptance deferred
 
-## Current Milestone: v1.3 Context Management
+## Current Milestone
 
-**Goal:** Give agents control over response size to prevent context window overflow from large tool results.
-
-**Target features:**
-- Line-range reading on read_source (offset + limit, requires single jar)
-- Optional context lines on read_member (lines before/after the member)
-- Audit and reduce default verbosity of search/find-references/find-usages results
-- Add pagination or limit controls to search tools where missing
+Defining next milestone. v1.3 shipped 2026-04-15.
 
 ## Context
 
 - **Shipped:** v1.0 MVP on 2026-04-14 — 5,336 LOC TypeScript, 21 MCP tools, 327 tests
 - **Shipped:** v1.1 Study Jars on 2026-04-14 — 6,030 LOC TypeScript, 25 MCP tools, 423 tests (+96 tests, +4 tools)
 - **Shipped:** v1.2 Symbol Resolution on 2026-04-14 — 6,863 LOC TypeScript, 22 MCP tools, 526 tests (+103 tests, +1 tool)
+- **Shipped:** v1.3 Context Management on 2026-04-15 — 7,281 LOC TypeScript, 25 MCP tools, 592 tests (+66 tests)
 - **Tech stack:** TypeScript 5.7+, Node.js 22 LTS, official MCP SDK 1.29.x, Zod 4, node-stream-zip, JDT LS via ts-lsp-client
 - **Architecture:** Layered domain → tool pattern. Domain modules handle logic; tool layer wires Zod schemas and MCP registration. Shared abstractions: ProjectStore, JarReader, EntryIndex, SourceAdapter, cascadeRegex, resolveSymbolPosition, dependency-resolver, member-enrichment, member-extractor, symbol-transform
 - **Ecosystem:** Fabric mod development uses Gradle with Fabric Loom. Loom's genSources decompiles Minecraft into a sources jar (~6,600 .java files) in `~/.gradle/caches/fabric-loom/minecraftMaven/`
@@ -94,10 +90,14 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 | Two-mode dependency resolver | getResolvedDependencies for defaults, getAllDependencies for explicit selection | ✓ Good — clean study jar integration across all tools |
 | Incremental workspace sync | Extract/remove study jars individually, not full rebuild | ✓ Good — fast add/remove, no full project reload |
 | Remove readiness probe entirely | Async notification sufficient; probe caused result explosion with method declarations | ✓ Good — simpler, no blocking |
-| Study jar `study:` namespace prefix | Collision avoidance with real dependency IDs | ✓ Good — clear separation |
+| Study jar plain name IDs (no prefix) | Simpler API; collision detected at add time, auto-unload on refresh | ✓ Good |
 | `#` separator for member FQNs | Javadoc convention (`Class#method()`), familiar to Java developers | ✓ Good — matches existing tooling ecosystem |
 | Multi-jar resolvePackage inline | createResolvePackage handles single EntryIndex; tools need all jars | ✓ Good — correct for multi-jar case |
 | Shared symbol-transform module | Extracted from list-members to avoid duplication with read_member | ✓ Good — DRY, both tools share transform logic |
+| startLine/lineCount for line-range params | Avoids collision with offset/limit pagination params | ✓ Good — clear separation of concerns |
+| Category-based DETAIL_PARAMS | navigation/member/class/locate/source categories, not per-tool schemas | ✓ Good — scales cleanly, consistent API |
+| Compact-by-default with opt-in richness | Agents get small responses unless they ask for more | ✓ Good — 66.5% size reduction measured |
+| Strip functions via destructuring rest | Clean field removal without explicit delete | ✓ Good — type-safe, readable |
 
 ## Evolution
 
@@ -117,4 +117,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-15 after Phase 22 (verbosity-audit) complete*
+*Last updated: 2026-04-15 after v1.3 milestone*
