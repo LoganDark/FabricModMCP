@@ -82,7 +82,7 @@ export async function cleanupTempDir(tempDir: string): Promise<void> {
 	await rm(tempDir, { recursive: true, force: true });
 }
 
-function generateProjectFile(): string {
+export function generateProjectFile(): string {
 	return `<?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
   <name>mcp-sources</name>
