@@ -9,6 +9,11 @@ vi.mock('../../src/project/dependency-discovery.js', () => ({
 	discoverDependencies: vi.fn(),
 }));
 
+vi.mock('../../src/jdtls/workspace-sync.js', () => ({
+	syncFabricModToWorkspace: vi.fn().mockResolvedValue({ synced: false, warning: 'JDT LS unavailable' }),
+	unsyncFabricModFromWorkspace: vi.fn().mockResolvedValue({ synced: false }),
+}));
+
 function makeDiscoveryResult(modName: string, extraDeps: Map<string, DependencyEntry> = new Map()) {
 	const deps = new Map<string, DependencyEntry>([
 		[`${modName}/minecraft`, {
@@ -167,5 +172,41 @@ describe('refresh_project_members tool', () => {
 		const envelope = parseEnvelope(result);
 		expect(envelope.success).toBe(false);
 		expect(envelope.error.code).toBe('INVALID_CHILD_TYPE');
+	});
+
+	it('calls unsyncFabricModFromWorkspace then syncFabricModToWorkspace for each refreshed mod', async () => {
+		const { discoverDependencies } = await import('../../src/project/dependency-discovery.js');
+		const { syncFabricModToWorkspace, unsyncFabricModFromWorkspace } = await import('../../src/jdtls/workspace-sync.js');
+		vi.mocked(unsyncFabricModFromWorkspace).mockClear();
+		vi.mocked(syncFabricModToWorkspace).mockClear();
+
+		const project = makeFakeMultiModProject(['mod-a', 'mod-b']);
+		projectStore.set('test', project);
+		projectStore.setActive('test');
+		jarReader.registerProject('test', new Set(['/fake/minecraft-sources.jar']));
+
+		vi.mocked(discoverDependencies).mockResolvedValue(makeDiscoveryResult('mod-a'));
+
+		await pair.client.callTool({
+			name: 'refresh_project_members',
+			arguments: { project: 'test', members: ['mod-a'] },
+		});
+
+		// Should have been called once (only mod-a refreshed)
+		expect(unsyncFabricModFromWorkspace).toHaveBeenCalledTimes(1);
+		expect(syncFabricModToWorkspace).toHaveBeenCalledTimes(1);
+
+		// Verify unsync was called with old deps
+		expect(unsyncFabricModFromWorkspace).toHaveBeenCalledWith(
+			expect.objectContaining({ name: 'mod-a' }),
+			undefined,
+		);
+
+		// Verify sync was called with new deps and jarReader
+		expect(syncFabricModToWorkspace).toHaveBeenCalledWith(
+			expect.objectContaining({ name: 'mod-a' }),
+			undefined,
+			expect.anything(),
+		);
 	});
 });

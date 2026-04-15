@@ -9,6 +9,7 @@ import { logger } from '../logging/logger.js';
 import { resolveProjectSafely, returnError } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import type { FabricModChild, DependencyEntry, StudyJarChild } from '../project/types.js';
+import { syncFabricModToWorkspace, unsyncFabricModFromWorkspace } from '../jdtls/workspace-sync.js';
 
 export function registerRefreshProjectMembersTool(server: McpServer): void {
 	server.registerTool(
@@ -75,6 +76,9 @@ export function registerRefreshProjectMembersTool(server: McpServer): void {
 			const combinedSummaries: Array<{ modName: string; total: number; withSources: number; withoutSources: number }> = [];
 
 			for (const mod of modsToRefresh) {
+				// Save old dependency list for workspace unsync
+				const oldDeps = mod.dependencyJars;
+
 				// Collect old jar paths before closing
 				const oldJarPaths = new Set<string>();
 				for (const dep of mod.dependencyJars.values()) {
@@ -110,6 +114,14 @@ export function registerRefreshProjectMembersTool(server: McpServer): void {
 				// Evict entry index cache for old jar paths
 				for (const jarPath of oldJarPaths) {
 					evictEntryIndex(jarPath);
+				}
+
+				// Resync JDT LS workspace: unsync old deps, sync new deps
+				const oldModForUnsync = { ...mod, dependencyJars: oldDeps } as FabricModChild;
+				await unsyncFabricModFromWorkspace(oldModForUnsync, loadedProject.jdtls);
+				const syncResult = await syncFabricModToWorkspace(mod, loadedProject.jdtls, jarReader);
+				if (syncResult.warning) {
+					logger.warn(`Workspace resync for '${mod.name}': ${syncResult.warning}`);
 				}
 
 				combinedSummaries.push({
