@@ -10,6 +10,7 @@ import type { JarCategory, LoadedProject } from '../project/types.js';
 import type { CascadeStep, CascadeSuccess } from '../browsing/cascading-regex.js';
 import { getAllDependencies, getResolvedDependencies } from '../project/dependency-resolver.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
+import { getRootPath, getFilterConfig } from '../project/compat.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { cascadeRegex } from '../browsing/cascading-regex.js';
@@ -83,7 +84,7 @@ export async function resolveSymbolPosition(
 
 		let sourceText: string;
 		try {
-			const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
+			const adapter = createSourceAdapter(jarReader, dep, getRootPath(loadedProject));
 			const buffer = await adapter.readEntry(entryPath);
 			sourceText = buffer.toString('utf-8');
 		} catch {
@@ -115,13 +116,13 @@ export async function resolveSymbolPosition(
 		};
 	} else {
 		// All-jars mode: read from all jars in parallel, return highest-priority match
-		const filtered = getFilteredDependencies(getResolvedDependencies(loadedProject), loadedProject.filterConfig);
+		const filtered = getFilteredDependencies(getResolvedDependencies(loadedProject), getFilterConfig(loadedProject));
 		const sorted = sortByPriority(Array.from(filtered.entries()));
 
 		const attempts = await Promise.all(sorted.map(async ([id, dep]) => {
 			if (!dep.available) return null;
 			try {
-				const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
+				const adapter = createSourceAdapter(jarReader, dep, getRootPath(loadedProject));
 				const buffer = await adapter.readEntry(entryPath);
 				const text = buffer.toString('utf-8');
 				const result = cascadeRegex(text, patterns);
