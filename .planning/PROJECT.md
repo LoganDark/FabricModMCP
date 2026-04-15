@@ -40,7 +40,13 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 
 ### Active
 
-(None — defining next milestone)
+- [ ] Projects are pure named containers; children are fabric mods or study jars
+- [ ] Fabric mods loaded by root dir, dependencies namespaced by mod name within project
+- [ ] Study jars live at project level, not under fabric mods
+- [ ] Multiple fabric mods per project
+- [ ] Tools work across whole project or scoped to a single child
+- [ ] Default project created at startup
+- [ ] Investigate JDT LS in-memory file support (avoid tmpdir extraction)
 
 ### Out of Scope
 
@@ -51,9 +57,18 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - Version comparison across MC versions — useful for unmapped sources, deferred
 - FQN-based tool input for find_references/find_definition (NAV-01, NAV-02) — scheme defined, acceptance deferred
 
-## Current Milestone
+## Current Milestone: v1.4 Project Rearchitecture
 
-Defining next milestone. v1.3 shipped 2026-04-15.
+**Goal:** Restructure projects from monolithic Fabric-only containers into composable named containers that hold any mix of fabric mods and study jars, with namespaced dependency resolution and flexible scoping.
+
+**Target features:**
+- Projects as pure named containers (no root dir)
+- Fabric mods and study jars as named children under a project
+- Dependency namespacing by fabric mod name (e.g., `my-mod/minecraft`)
+- Tool scoping: project-wide or single-child
+- Multiple fabric mods per project
+- Default project on startup
+- Research JDT LS in-memory file support
 
 ## Context
 
@@ -117,4 +132,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-15 after v1.3 milestone*
+*Last updated: 2026-04-15 after v1.4 milestone start*
