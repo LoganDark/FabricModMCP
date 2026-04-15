@@ -21,11 +21,11 @@ Requirements for v1.4 Project Rearchitecture milestone. Each maps to roadmap pha
 - [x] **DEP-01**: Fabric mod dependencies are namespaced by mod name within the project (e.g., `my-mod/minecraft`)
 - [x] **DEP-02**: A fabric mod's own source is accessible via its mod name as a jar ID (e.g., `my-mod`)
 - [x] **DEP-03**: Tools can operate across the whole project or be scoped to a single child via jar patterns
-- [ ] **DEP-04**: `refresh_dependencies` can target a specific fabric mod child, not just the whole project
+- [x] **DEP-04**: `refresh_dependencies` can target a specific fabric mod child, not just the whole project
 
 ### Tool Integration
 
-- [ ] **TOOL-01**: All existing jar-aware tools work with namespaced jar IDs
+- [x] **TOOL-01**: All existing jar-aware tools work with namespaced jar IDs
 - [x] **TOOL-02**: `load_project` adds a fabric mod child to a project (defaults to "default" project)
 - [x] **TOOL-03**: Tool results include namespaced jar IDs so the agent knows which child a result came from
 
@@ -81,8 +81,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEP-01 | Phase 24 | Complete |
 | DEP-02 | Phase 24 | Complete |
 | DEP-03 | Phase 24 | Complete |
-| DEP-04 | Phase 25 | Pending |
-| TOOL-01 | Phase 25 | Pending |
+| DEP-04 | Phase 25 | Complete |
+| TOOL-01 | Phase 25 | Complete |
 | TOOL-02 | Phase 25 | Complete |
 | TOOL-03 | Phase 25 | Complete |
 | LSP-01 | Phase 26 | Pending |

@@ -70,7 +70,7 @@
 
 - [x] **Phase 23: Type Foundation and ProjectStore** - New container types, compatibility layer, default project at startup (completed 2026-04-15)
 - [x] **Phase 24: Dependency Namespacing** - Per-child dependency resolution with mod-name prefixes and scope parameter (completed 2026-04-15)
-- [ ] **Phase 25: Child Management Tools** - Multi-mod support, load/add/refresh tools, namespaced jar IDs in results
+- [x] **Phase 25: Child Management Tools** - Multi-mod support, load/add/refresh tools, namespaced jar IDs in results (completed 2026-04-15)
 - [ ] **Phase 26: JDT LS Workspace Unification** - Single workspace covering all children with cross-mod navigation
 - [ ] **Phase 27: Migration Cleanup** - Remove compatibility shims, finalize test factories, verify clean codebase
 
@@ -118,10 +118,10 @@ Plans:
   3. `refresh_dependencies` can target a specific fabric mod child rather than refreshing everything
   4. All jar-aware tools work correctly with namespaced jar IDs (e.g., `my-mod/minecraft`)
   5. Tool results include the namespaced jar ID so the agent knows which child produced each result
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 25-01-PLAN.md — Evolve load_project to add children to existing projects with auto-suffix collision handling
-- [ ] 25-02-PLAN.md — Scope-aware refresh_dependencies and scoped unload jar cleanup
+- [x] 25-02-PLAN.md — Scope-aware refresh_dependencies and scoped unload jar cleanup
 
 ### Phase 26: JDT LS Workspace Unification
 **Goal**: Semantic navigation works across all children in a project through a single JDT LS workspace
@@ -156,6 +156,6 @@ Phases execute in numeric order: 23 -> 24 -> 25 -> 26 -> 27
 | 19-22 | v1.3 | 9/9 | Complete | 2026-04-15 |
 | 23. Type Foundation | v1.4 | 4/4 | Complete    | 2026-04-15 |
 | 24. Dep Namespacing | v1.4 | 3/3 | Complete    | 2026-04-15 |
-| 25. Child Mgmt Tools | v1.4 | 1/2 | In Progress|  |
+| 25. Child Mgmt Tools | v1.4 | 2/2 | Complete   | 2026-04-15 |
 | 26. JDT LS Unification | v1.4 | 0/? | Not started | - |
 | 27. Migration Cleanup | v1.4 | 0/? | Not started | - |

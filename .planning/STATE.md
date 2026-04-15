@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Project Rearchitecture
 status: unknown
-stopped_at: Completed 25-01-PLAN.md
-last_updated: "2026-04-15T21:10:28.598Z"
+stopped_at: Completed 25-02-PLAN.md
+last_updated: "2026-04-15T21:16:03.324Z"
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 9
-  completed_plans: 8
+  completed_plans: 9
 ---
 
 # Project State
@@ -51,6 +51,7 @@ Plan: 2 of 2
 | Phase 24 P02 | 5min | 2 tasks | 9 files |
 | Phase 24 P03 | 13min | 2 tasks | 25 files |
 | Phase 25-01 P01 | 4min | 2 tasks | 8 files |
+| Phase 25 P02 | 4min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,9 @@ See PROJECT.md Key Decisions table for full decision log.
 - [Phase 24]: get-project-metadata with scope returns child-specific dep inventory
 - [Phase 25]: load_project defaults to 'default' project instead of auto-generating from basename
 - [Phase 25]: Child auto-suffix uses -2, -3 pattern; JDT LS workspace sync deferred to Phase 26
+- [Phase 25]: Scoped refresh uses removeProjectJar/addProjectJar per-jar, never closeProject/registerProject
+- [Phase 25]: Scoped collision check uses autoUnloadConflictingStudyJarsForDeps against refreshed child's deps only
+- [Phase 25]: Scoped unload rebuilds .classpath and notifies JDT LS after removing child workspace entries
 
 ### Pending Todos
 
@@ -90,6 +94,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-15T21:10:28.596Z
-Stopped at: Completed 25-01-PLAN.md
+Last session: 2026-04-15T21:16:03.322Z
+Stopped at: Completed 25-02-PLAN.md
 Resume file: None
