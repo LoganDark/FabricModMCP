@@ -2,7 +2,7 @@
  * Centralized tool descriptions, server instructions, and shared parameter schemas.
  *
  * All MCP-facing text lives here so it's easy to review, refactor,
- * and keep consistent across the 25 tools.
+ * and keep consistent across all tools.
  */
 
 import { z } from 'zod';
@@ -18,26 +18,27 @@ Browse decompiled source, navigate dependencies, and use semantic Java analysis 
 
 ## Workflow
 
-1. Load a project with load_project (path to a Fabric mod's root directory)
-2. Browse: list_packages → list_classes → list_members → read_member (single member) or read_source (full class)
-3. Search: search_classes (by name pattern) or search_symbols (by any symbol name) → read_member
-4. Navigate: find_definition, find_references, find_implementations, get_symbol_info, type_hierarchy
+1. Create a project with create_project (or use the "default" project)
+2. Add a fabric mod with add_fabric_mod (path to a Fabric mod's root directory)
+3. Browse: list_packages -> list_classes -> list_members -> read_member (single member) or read_source (full class)
+4. Search: search_classes (by name pattern) or search_symbols (by any symbol name) -> read_member
+5. Navigate: find_definition, find_references, find_implementations, get_symbol_info, type_hierarchy
 
 ## Shared Concepts
 
-**project parameter**: Most tools accept an optional \`project\` name. Omit it when only one project is loaded or a default is set via set_active_project.
+**project parameter**: Most tools accept an optional \`project\` name. Omit it when only one project exists or an active project is set via set_active_project.
 
 **Class names** use fully-qualified dot notation: \`net.minecraft.client.MinecraftClient\`, \`net.minecraft.world.World\`.
 
-**Jar IDs** are namespaced by child name. A fabric mod's dependencies use "modName/depId" format \
+**Jar IDs** are namespaced by member name. A fabric mod's dependencies use "modName/depId" format \
 (e.g., "my-mod/minecraft", "my-mod/net.fabricmc.fabric-api:fabric-resource-loader-v0"). \
 A fabric mod's own source uses just the mod name (e.g., "my-mod"). \
 Study jars use their given name (bare, no prefix). \
-Use get_project_info with include_jar_inventory to see all available jars.
+Use get_project_info to see members, then get_member_info with a member name to see all available jars.
 
-**scope parameter**: Most tools accept an optional \`scope\` to target a specific child (fabric mod). \
-When scoped, bare jar IDs like "minecraft" resolve within that child's namespace. \
-When omitted, bare IDs resolve automatically if only one child exists, or error if ambiguous.
+**scope parameter**: Most tools accept an optional \`scope\` to target a specific member (fabric mod). \
+When scoped, bare jar IDs like "minecraft" resolve within that member's namespace. \
+When omitted, bare IDs resolve automatically if only one fabric mod exists, or error if ambiguous.
 
 **Cascading regex patterns**: Several tools locate a symbol position using an array of regex patterns that narrow progressively. \
 The first pattern searches the entire source file; each subsequent pattern searches only within the previous match. \
@@ -155,17 +156,8 @@ export const TOOL_DESCRIPTIONS = {
 	echo:
 		'Echo back the input. For testing and debugging only.',
 
-	load_project:
-		'Load a Fabric/Loom Gradle project. Adds the fabric mod as a child to the specified project (defaults to "default"). If the project does not exist, creates it. The child name is derived from fabric.mod.json id. Parses gradle.properties and build.gradle.kts to detect Minecraft version, Yarn mappings, and dependencies. Locates source jars in the Gradle cache.',
-
-	unload_project:
-		'Unload a project by name. Closes jar handles and frees resources. Clears the default project if this was it.',
-
 	list_projects:
 		'List all projects with name, member count, active child name, and whether each is the active project.',
-
-	set_default_project:
-		'Set the default project used when the project parameter is omitted in other tools.',
 
 	set_active_project:
 		'Set the active project used when the project parameter is omitted in other tools.',
@@ -175,9 +167,6 @@ export const TOOL_DESCRIPTIONS = {
 
 	get_member_info:
 		'Get detailed info for a specific project member. For fabric mods: Minecraft version, Yarn mappings, loader version, Fabric API version, mapping era, fabric.mod.json contents, and jar inventory with Maven coordinates, category, availability, and file size. For study jars: jar path, auto-include status, and stats.',
-
-	get_project_metadata:
-		'Get structured project metadata in three toggleable sections: projectInfo (Minecraft version, Yarn mappings, loader version, Fabric API version, mapping era), modInfo (everything from fabric.mod.json — id, name, authors, mixins, dependencies, etc.), and jarInventory (all source jars with Maven coordinates, category, availability, and file size). Omitting all flags returns all sections.',
 
 	create_project:
 		'Create a new empty project container. Projects hold fabric mods and study jars as members. The project name must be unique. Use add_fabric_mod or add_study_jar to populate it.',
@@ -198,9 +187,6 @@ export const TOOL_DESCRIPTIONS = {
 
 	configure_filters:
 		'Filter which dependency jars appear in browsing and search results. In include-all mode (default), glob patterns define jars to EXCLUDE. In exclude-all mode, patterns define jars to INCLUDE. Each child\'s own source and minecraft dependency are always included in its filtered results. Patterns match jar IDs (e.g., "net.fabricmc.*" to match all Fabric API modules).',
-
-	refresh_dependencies:
-		'Re-scan for dependency source jars in the Gradle cache. With scope, refreshes only that child\'s dependencies and checks study jar conflicts only against that child\'s deps. Without scope, refreshes all fabric mods. Use after running ./gradlew downloadSources or changing build.gradle dependencies. Automatically unloads any study jars whose names now conflict with real dependencies.',
 
 	refresh_project:
 		'Re-scan all fabric mod members for dependency source jars in the Gradle cache. Use after running ./gradlew downloadSources or changing build.gradle dependencies. Automatically unloads any study jars whose names now conflict with real dependencies.',
@@ -260,9 +246,6 @@ export const TOOL_DESCRIPTIONS = {
 
 	add_study_jar:
 		'Add a source jar to a project for study. Provide a file path to a sources JAR and an optional name (auto-derived from filename if omitted). The name is used as the jar ID — it must not conflict with an existing dependency ID. The jar becomes available to all browsing and search tools. Use configure_study_jar to enable auto-include if you want it in default results.',
-
-	remove_study_jar:
-		'Remove one or more study jars from a project by name. Closes jar handles and evicts cached data. Accepts an array of names; fails on the first nonexistent name with no partial removal. Use list_study_jars to see current names.',
 
 	list_study_jars:
 		'List all study jars on a project with their names, file paths, auto-include status, and stats (package count, class count, total entries).',
