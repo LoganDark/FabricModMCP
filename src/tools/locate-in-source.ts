@@ -9,6 +9,7 @@ import { cascadeRegex } from '../browsing/cascading-regex.js';
 import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError, stripLocateResult, stripLocateFailure } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
+import { getRootPath, getFilterConfig } from '../project/compat.js';
 import type { LocateFailure } from './tool-helpers.js';
 import type { LocateResult, LocateResultContext } from '../browsing/types.js';
 
@@ -81,7 +82,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 				}
 
 				try {
-					const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
+					const adapter = createSourceAdapter(jarReader, dep, getRootPath(loadedProject));
 					const buffer = await adapter.readEntry(entryPath);
 					const source = buffer.toString('utf-8');
 					const result = cascadeRegex(source, patterns);
@@ -131,7 +132,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 			}
 
 			// All-jars mode: search all jars in priority order
-			const filtered = getFilteredDependencies(getResolvedDependencies(loadedProject), loadedProject.filterConfig);
+			const filtered = getFilteredDependencies(getResolvedDependencies(loadedProject), getFilterConfig(loadedProject));
 			const sorted = sortByPriority(Array.from(filtered.entries()));
 
 			const results: LocateResult[] = [];
@@ -142,7 +143,7 @@ export function registerLocateInSourceTool(server: McpServer): void {
 
 				let source: string;
 				try {
-					const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
+					const adapter = createSourceAdapter(jarReader, dep, getRootPath(loadedProject));
 					const buffer = await adapter.readEntry(entryPath);
 					source = buffer.toString('utf-8');
 				} catch {

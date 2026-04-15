@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
-import { parseEnvelope, makeFakeProject as makeFakeProjectBase, makeJdtlsSession } from '../helpers/factories.js';
+import { parseEnvelope, makeFakeFabricMod, makeJdtlsSession } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
-import type { LoadedProject, DependencyEntry } from '../../src/project/types.js';
+import type { Project, FabricModChild, DependencyEntry } from '../../src/project/types.js';
 
 const toolModuleAvailable = await import('../../src/tools/find-references.js').then(() => true).catch(() => false);
 
@@ -69,7 +69,7 @@ function makeMockClient() {
 	};
 }
 
-function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedProject {
+function makeFakeProject(projectOverrides: Partial<Project> = {}): Project {
 	const deps = new Map<string, DependencyEntry>();
 	deps.set('minecraft', {
 		id: 'minecraft',
@@ -91,7 +91,12 @@ function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedProject 
 		available: true,
 		provenanceChains: [['net.fabricmc.fabric-api:fabric-api']],
 	});
-	return makeFakeProjectBase({ dependencyJars: deps, ...overrides });
+	const mod = makeFakeFabricMod({ dependencyJars: deps });
+	return {
+		name: 'test',
+		children: new Map([[mod.name, mod]]),
+		...projectOverrides,
+	};
 }
 
 describe.skipIf(!toolModuleAvailable)('find_references', () => {

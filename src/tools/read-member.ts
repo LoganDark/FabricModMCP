@@ -5,6 +5,7 @@ import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, handleClassSourceError, resolveProjectSafely, returnError, withLspDocument, resolveClassSource, getDependenciesForTool } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
+import { getRootPath } from '../project/compat.js';
 import type { MemberResult } from '../browsing/types.js';
 import { enrichSymbols } from '../browsing/member-enrichment.js';
 import { getOrBuildIndex } from '../browsing/entry-index-cache.js';
@@ -97,9 +98,9 @@ export function registerReadMemberTool(server: McpServer): void {
 					for (const [id, dep] of allDeps) {
 						if (!dep.available) continue;
 						try {
-							const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
+							const adapter = createSourceAdapter(jarReader, dep, getRootPath(loadedProject));
 							const entries = await adapter.listJavaEntries();
-							const cacheKey = dep.sourcesJarPath ?? `fs:${loadedProject.rootPath}:${id}`;
+							const cacheKey = dep.sourcesJarPath ?? `fs:${getRootPath(loadedProject)}:${id}`;
 							const index = getOrBuildIndex(entries, cacheKey);
 							for (const entry of index.getClasses(packageName)) {
 								classNames.add(entry.className);

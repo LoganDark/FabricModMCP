@@ -7,6 +7,7 @@ import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, handleClassSourceError, sortByPriority, resolveProjectSafely, returnError, resolveClassSource } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
+import { getRootPath, getFilterConfig } from '../project/compat.js';
 import { sliceLines } from '../browsing/line-slicer.js';
 import type { SourceResult } from '../browsing/types.js';
 
@@ -80,7 +81,7 @@ export function registerReadSourceTool(server: McpServer): void {
 			}
 
 			// Search all jars in priority order
-			const filtered = getFilteredDependencies(getResolvedDependencies(loadedProject), loadedProject.filterConfig);
+			const filtered = getFilteredDependencies(getResolvedDependencies(loadedProject), getFilterConfig(loadedProject));
 			const sorted = sortByPriority(Array.from(filtered.entries()));
 
 			const sources: SourceResult[] = [];
@@ -89,7 +90,7 @@ export function registerReadSourceTool(server: McpServer): void {
 				if (!dep.available) continue;
 
 				try {
-					const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
+					const adapter = createSourceAdapter(jarReader, dep, getRootPath(loadedProject));
 					const buffer = await adapter.readEntry(entryPath);
 					const source = buffer.toString('utf-8');
 					const sliced = sliceLines(source);

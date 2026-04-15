@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
-import { parseEnvelope, makeFakeProject as makeFakeProjectBase } from '../helpers/factories.js';
+import { parseEnvelope, makeFakeFabricMod } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
-import type { LoadedProject, DependencyEntry } from '../../src/project/types.js';
+import type { Project, FabricModChild, DependencyEntry } from '../../src/project/types.js';
 
 const mockListEntries = vi.fn<(jarPath: string) => Promise<string[]>>();
 const mockReadEntry = vi.fn<(jarPath: string, entryPath: string) => Promise<Buffer>>();
@@ -26,7 +26,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 	};
 });
 
-function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedProject {
+function makeFakeProject(modOverrides: Partial<FabricModChild> = {}): Project {
 	const deps = new Map<string, DependencyEntry>();
 	deps.set('minecraft', {
 		id: 'minecraft',
@@ -48,7 +48,11 @@ function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedProject 
 		available: true,
 		provenanceChains: [],
 	});
-	return makeFakeProjectBase({ dependencyJars: deps, ...overrides });
+	const mod = makeFakeFabricMod({ dependencyJars: deps, ...modOverrides });
+	return {
+		name: 'test',
+		children: new Map([[mod.name, mod]]),
+	};
 }
 
 const MC_ENTRIES = [

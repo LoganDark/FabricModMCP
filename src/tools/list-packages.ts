@@ -7,6 +7,7 @@ import { getOrBuildIndex } from '../browsing/entry-index-cache.js';
 import { logger } from '../logging/logger.js';
 import { getDependenciesForTool, resolveProjectSafely } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
+import { getRootPath } from '../project/compat.js';
 import type { PackageEntry } from '../browsing/types.js';
 
 export function registerListPackagesTool(server: McpServer): void {
@@ -38,9 +39,9 @@ export function registerListPackagesTool(server: McpServer): void {
 				if (!dep.available) continue;
 
 				try {
-					const adapter = createSourceAdapter(jarReader, dep, loadedProject.rootPath);
+					const adapter = createSourceAdapter(jarReader, dep, getRootPath(loadedProject));
 					const entries = await adapter.listJavaEntries();
-					const cacheKey = dep.sourcesJarPath ?? `fs:${loadedProject.rootPath}:${id}`;
+					const cacheKey = dep.sourcesJarPath ?? `fs:${getRootPath(loadedProject)}:${id}`;
 					const index = getOrBuildIndex(entries, cacheKey);
 					const packages = index.getPackages(packageName, depth ?? 1);
 
