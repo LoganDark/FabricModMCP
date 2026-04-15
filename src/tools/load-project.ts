@@ -2,7 +2,8 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { projectStore, ProjectStore } from '../state/project-store.js';
-import { loadProject } from '../project/loader.js';
+import { loadFabricMod } from '../project/loader.js';
+import type { Project } from '../project/types.js';
 import { jarReader } from './shared-jar-reader.js';
 import { logger } from '../logging/logger.js';
 import { returnError } from './tool-helpers.js';
@@ -26,7 +27,7 @@ export function registerLoadProjectTool(server: McpServer): void {
 			logger.debug('load_project called', { path, name });
 
 			try {
-				const project = await loadProject(path);
+				const fabricMod = await loadFabricMod(path);
 
 				// Determine project name
 				let projectName: string;
@@ -36,18 +37,22 @@ export function registerLoadProjectTool(server: McpServer): void {
 					projectName = ProjectStore.generateProjectName(path, projectStore.names());
 				}
 
-				project.name = projectName;
+				// Wrap fabric mod child into a project
+				const project: Project = {
+					name: projectName,
+					children: new Map([[fabricMod.name, fabricMod]]),
+				};
 				projectStore.set(projectName, project);
 
 				// Register jar handles for this project
 				const jarPaths = new Set<string>();
-				for (const entry of project.dependencyJars.values()) {
+				for (const entry of fabricMod.dependencyJars.values()) {
 					if (entry.sourcesJarPath) {
 						jarPaths.add(entry.sourcesJarPath);
 					}
 				}
-				if (project.sourcesJar.exists) {
-					jarPaths.add(project.sourcesJar.path);
+				if (fabricMod.sourcesJar.exists) {
+					jarPaths.add(fabricMod.sourcesJar.path);
 				}
 				jarReader.registerProject(projectName, jarPaths);
 
@@ -79,8 +84,8 @@ export function registerLoadProjectTool(server: McpServer): void {
 				} else {
 					try {
 						const extraction = await extractSourcesToTemp(
-							project.dependencyJars,
-							project.rootPath,
+							fabricMod.dependencyJars,
+							fabricMod.rootPath,
 							jarReader,
 						);
 						const lspResult = await startJdtLs(
@@ -112,17 +117,17 @@ export function registerLoadProjectTool(server: McpServer): void {
 
 				const envelope = makeSuccess({
 					name: projectName,
-					rootPath: project.rootPath,
-					minecraftVersion: project.gradleConfig.minecraftVersion,
-					mappingEra: project.gradleConfig.mappingEra,
-					dependencyCount: project.dependencyJars.size,
+					rootPath: fabricMod.rootPath,
+					minecraftVersion: fabricMod.gradleConfig.minecraftVersion,
+					mappingEra: fabricMod.gradleConfig.mappingEra,
+					dependencyCount: fabricMod.dependencyJars.size,
 					jdtlsAvailable: project.jdtls?.available ?? false,
 				}, {
 					provenance: { tool: 'load_project', project: projectName },
 				});
 
 				return {
-					content: [{ type: 'text' as const, text: `Loaded project '${projectName}' (Minecraft ${project.gradleConfig.minecraftVersion}, ${project.dependencyJars.size} dependencies, JDT LS ${project.jdtls?.available ? 'available' : 'unavailable'})` }],
+					content: [{ type: 'text' as const, text: `Loaded project '${projectName}' (Minecraft ${fabricMod.gradleConfig.minecraftVersion}, ${fabricMod.dependencyJars.size} dependencies, JDT LS ${project.jdtls?.available ? 'available' : 'unavailable'})` }],
 					structuredContent: envelope,
 				};
 			} catch (error) {

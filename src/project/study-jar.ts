@@ -4,7 +4,7 @@ import StreamZip from 'node-stream-zip';
 import { decomposeEntryPath } from '../browsing/entry-index.js';
 import { evictEntryIndex } from '../browsing/entry-index-cache.js';
 import { DomainError } from '../errors/domain-error.js';
-import type { DependencyEntry, LoadedProject, StudyJar, StudyJarStats } from './types.js';
+import type { DependencyEntry, Project, StudyJar, StudyJarStats } from './types.js';
 import type { JarReader } from './jar-reader.js';
 import { unsyncStudyJarFromWorkspace } from '../jdtls/workspace-sync.js';
 import type { JdtLsSession } from '../jdtls/types.js';
@@ -32,14 +32,16 @@ export function deriveStudyJarName(jarPath: string): string {
 	return sanitized || 'unnamed';
 }
 
-export function validateStudyJarId(name: string, project: LoadedProject): void {
-	if (project.dependencyJars.has(name)) {
-		throw new DomainError(
-			'STUDY_JAR_ID_COLLISION',
-			`Study jar name '${name}' collides with an existing real dependency ID`,
-			[name],
-			['Choose a different name for the study jar'],
-		);
+export function validateStudyJarId(name: string, project: Project): void {
+	for (const child of project.children.values()) {
+		if (child.kind === 'fabric-mod' && child.dependencyJars.has(name)) {
+			throw new DomainError(
+				'STUDY_JAR_ID_COLLISION',
+				`Study jar name '${name}' collides with an existing real dependency ID`,
+				[name],
+				['Choose a different name for the study jar'],
+			);
+		}
 	}
 }
 
@@ -64,7 +66,7 @@ function computeStats(entries: string[]): StudyJarStats {
 export async function createStudyJar(
 	jarPath: string,
 	name: string | undefined,
-	project: LoadedProject,
+	project: Project,
 ): Promise<StudyJar> {
 	// 1. Validate file exists
 	let resolvedPath: string;
@@ -86,7 +88,7 @@ export async function createStudyJar(
 	validateStudyJarName(finalName);
 
 	// 3. Check collisions
-	if (project.studyJars.has(finalName)) {
+	if (project.children.has(finalName)) {
 		throw new DomainError(
 			'STUDY_JAR_NAME_EXISTS',
 			`Study jar with name '${finalName}' already exists on project '${project.name}'`,
@@ -168,17 +170,27 @@ export function studyJarToDependencyEntry(studyJar: StudyJar): DependencyEntry {
  * study jars that are now shadowed by real dependencies.
  */
 export async function autoUnloadConflictingStudyJars(
-	project: LoadedProject,
+	project: Project,
 	jarReader: JarReader,
 	jdtls: JdtLsSession | undefined,
 ): Promise<string[]> {
 	const unloaded: string[] = [];
-	for (const [name, studyJar] of project.studyJars) {
-		if (project.dependencyJars.has(name)) {
+	// Collect all dependency IDs from all fabric mod children
+	const allDepIds = new Set<string>();
+	for (const child of project.children.values()) {
+		if (child.kind === 'fabric-mod') {
+			for (const depId of child.dependencyJars.keys()) {
+				allDepIds.add(depId);
+			}
+		}
+	}
+	// Check study jar children for collisions
+	for (const [name, child] of project.children) {
+		if (child.kind === 'study-jar' && allDepIds.has(name)) {
 			await unsyncStudyJarFromWorkspace(name, jdtls);
-			jarReader.removeProjectJar(project.name, studyJar.jarPath);
-			evictEntryIndex(studyJar.jarPath);
-			project.studyJars.delete(name);
+			jarReader.removeProjectJar(project.name, child.jarPath);
+			evictEntryIndex(child.jarPath);
+			project.children.delete(name);
 			unloaded.push(name);
 		}
 	}

@@ -1,9 +1,9 @@
 import { basename } from 'node:path';
-import type { LoadedProject } from '../project/types.js';
+import type { Project } from '../project/types.js';
 import { DomainError } from '../errors/domain-error.js';
 
 export class ProjectStore {
-	private projects = new Map<string, LoadedProject>();
+	private projects = new Map<string, Project>();
 	private defaultProject: string | undefined;
 
 	static generateProjectName(projectPath: string, existingNames: Set<string>): string {
@@ -15,11 +15,11 @@ export class ProjectStore {
 		}
 	}
 
-	get(name: string): LoadedProject | undefined {
+	get(name: string): Project | undefined {
 		return this.projects.get(name);
 	}
 
-	set(name: string, project: LoadedProject): void {
+	set(name: string, project: Project): void {
 		if (this.projects.has(name)) {
 			throw new DomainError(
 				'PROJECT_NAME_COLLISION',
@@ -35,11 +35,19 @@ export class ProjectStore {
 		return this.projects.has(name);
 	}
 
-	list(): LoadedProject[] {
+	list(): Project[] {
 		return Array.from(this.projects.values());
 	}
 
 	delete(name: string): boolean {
+		if (name === 'default') {
+			throw new DomainError(
+				'CANNOT_DELETE_DEFAULT',
+				"Cannot delete the 'default' project during compatibility mode",
+				['default'],
+				['The default project is required during the v1.4 migration'],
+			);
+		}
 		const result = this.projects.delete(name);
 		if (this.defaultProject === name) {
 			this.defaultProject = undefined;
@@ -71,7 +79,7 @@ export class ProjectStore {
 		return new Set(this.projects.keys());
 	}
 
-	resolveProject(name?: string): LoadedProject {
+	resolveProject(name?: string): Project {
 		if (name !== undefined) {
 			const p = this.projects.get(name);
 			if (!p) {

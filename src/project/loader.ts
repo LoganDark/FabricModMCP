@@ -1,12 +1,12 @@
 import { readFile, stat, access } from 'node:fs/promises';
-import { resolve, join, basename } from 'node:path';
+import { resolve, join } from 'node:path';
 import { DomainError } from '../errors/domain-error.js';
 import { logger } from '../logging/logger.js';
 import { parseGradleProperties, parseBuildGradle } from './gradle-parser.js';
 import { resolveSourcesJarPath } from './loom-cache.js';
 import { parseFabricMod } from './fabric-mod.js';
 import { discoverDependencies } from './dependency-discovery.js';
-import type { LoadedProject } from './types.js';
+import type { FabricModChild } from './types.js';
 
 async function fileExists(filePath: string): Promise<boolean> {
 	try {
@@ -17,9 +17,8 @@ async function fileExists(filePath: string): Promise<boolean> {
 	}
 }
 
-export async function loadProject(projectPath: string): Promise<LoadedProject> {
+export async function loadFabricMod(projectPath: string): Promise<FabricModChild> {
 	const absolutePath = resolve(projectPath);
-	const name = basename(absolutePath);
 
 	// Validate directory exists
 	let dirStat;
@@ -116,13 +115,13 @@ export async function loadProject(projectPath: string): Promise<LoadedProject> {
 	logger.info(`Dependency discovery: ${discovery.summary.total} dependencies found (${discovery.summary.withSources} with sources, ${discovery.summary.withoutSources} without)`);
 
 	return {
-		name,
+		kind: 'fabric-mod',
+		name: fabricMod.id,
 		rootPath: absolutePath,
 		gradleConfig,
 		sourcesJar: { path: sourcesJarPath, exists: true },
 		fabricMod,
 		dependencyJars: discovery.dependencies,
 		filterConfig: { mode: 'include-all', patterns: [] },
-		studyJars: new Map(),
 	};
 }

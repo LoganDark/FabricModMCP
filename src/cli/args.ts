@@ -1,9 +1,7 @@
 import { parseArgs } from 'node:util';
-import { resolve } from 'node:path';
 import type { LogLevel } from '../logging/logger.js';
 
 export interface CliArgs {
-	projects: string[];
 	logLevel: LogLevel;
 }
 
@@ -17,7 +15,6 @@ export function parseCli(argv: string[]): CliArgs {
 	const { values } = parseArgs({
 		args: argv,
 		options: {
-			project: { type: 'string', short: 'p', multiple: true },
 			verbose: { type: 'boolean', short: 'v' },
 			'log-level': { type: 'string' },
 		},
@@ -44,7 +41,6 @@ export function parseCli(argv: string[]): CliArgs {
 	}
 
 	return {
-		projects: (values.project ?? []).map(p => resolve(p)),
 		logLevel,
 	};
 }
