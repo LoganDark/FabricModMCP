@@ -1,303 +1,204 @@
-# Pitfalls Research
+# Domain Pitfalls
 
-**Domain:** Adding response size controls and progressive disclosure to an existing MCP server (22 tools, 526 tests)
-**Researched:** 2026-04-14
-**Confidence:** HIGH (based on codebase analysis of current tool implementations, response envelope patterns, and line-number conventions)
+**Domain:** Monolithic-to-composable project rearchitecture (v1.4)
+**Researched:** 2026-04-15
+**Confidence:** HIGH (based on direct codebase analysis of all 25 tools, 20+ domain modules, and 592 tests)
 
 ## Critical Pitfalls
 
-### Pitfall 1: Breaking structuredContent Contracts When Reducing Verbosity
+Mistakes that cause rewrites or major issues.
 
-**What goes wrong:**
-Existing agent workflows parse `structuredContent` envelopes expecting specific fields. Every tool returns `{ content: [...], structuredContent: makeSuccess({...}) }`. If you remove or rename fields from the structured response (e.g., dropping `context` from `NavigationResult` in find_references, or changing `source` to `lines` in `SourceResult`), agents that depended on those fields break silently -- they get `undefined` where they expected data, and their reasoning degrades without any error.
+### Pitfall 1: Big Bang Type Replacement
 
-**Why it happens:**
-The codebase has a dual-response pattern. Developers focus on making the human-readable `content[].text` look right and forget that `structuredContent` is the actual machine API. The types in `browsing/types.ts` (`SourceResult`, `MemberResult`, `LocateResult`, `NavigationResult`) and `jdtls/types.ts` (`ContextSnippet`) define the contract. Any field removal is a breaking change even though there is no formal schema versioning.
+**What goes wrong:** Replacing `LoadedProject` with a new type in one pass across all 25 tools and 20+ domain modules simultaneously. A single phase tries to change the type, update all consumers, and fix all 592 tests at once.
 
-**How to avoid:**
-- Never remove fields from existing `structuredContent` shapes. New parameters should be ADDITIVE: add optional params that cause the response to include LESS, but omitting those params must produce the identical response as before.
-- For `read_source`: adding `startLine`/`lineCount` params is safe because omitting them returns full source. The response should ADD new metadata fields (`startLine`, `endLine`, `totalLines`) alongside the existing `source` and `lineCount`.
-- For verbosity reduction: add a `verbosity` or `includeContext` param that defaults to the current (verbose) behavior. Agents opt into compact mode.
-- Test: call every modified tool with NO new parameters and assert the structuredContent is byte-identical to pre-change output.
+**Why it happens:** The new model (project = container of children) is fundamentally different from the old model (project = one fabric mod). It seems like you need to change everything at once because the old type shape does not accommodate multiple fabric mods.
 
-**Warning signs:**
-- Any test asserting on structuredContent field presence starts failing
-- Agent workflows produce "unexpected undefined" on fields that used to exist
-- A PR removes a field rather than adding an optional parameter
+**Consequences:** Enormous diff that is impossible to review or debug. If something breaks, the blast radius is the entire codebase. Tests are all red simultaneously, making it impossible to tell what is actually wrong vs. what is cascade failure from the type change.
 
-**Phase to address:**
-All phases -- this is a cross-cutting constraint. Establish the backward-compatibility rule in Phase 1 and enforce via tests throughout.
+**Prevention:** Use an adapter/facade pattern. Keep `LoadedProject` as an internal compatibility layer during migration:
+1. First phase: Create new types (`ProjectContainer`, `FabricChild`, etc.) alongside existing types
+2. Second phase: Add a function that synthesizes a `LoadedProject`-shaped view from the new container for a given scope (whole project or single child)
+3. Third phase: Migrate tools one-by-one to the new API, with the adapter keeping old tools working
+4. Final phase: Remove the adapter once all consumers are migrated
 
----
+**Detection:** If a phase plan involves changing more than 5 files simultaneously to accommodate a type change, the phase is too large.
 
-### Pitfall 2: Off-by-One Errors in Line-Range Extraction
+### Pitfall 2: Losing the "src" (Mod Source) Abstraction During Decomposition
 
-**What goes wrong:**
-Line-range slicing returns wrong content -- missing the first or last line, or including an extra line. This is insidious because the codebase already uses THREE different line-number conventions simultaneously.
+**What goes wrong:** The current system treats mod source code as a special dependency entry with `id: 'src'` and `category: 'mod-source'`. The `createSourceAdapter` function (source-adapter.ts:63) uses `dep.id === 'src'` to choose the filesystem adapter vs jar adapter. When splitting into multiple fabric mods, each mod needs its own `src` entry pointing to its own `rootPath`, but the hardcoded `'src'` ID creates a collision.
 
-**Why it happens:**
-The existing code mixes conventions:
+**Why it happens:** The `'src'` ID was a valid singleton when there was exactly one fabric mod per project. With multiple fabric mods, you need namespaced source IDs (e.g., `my-mod/src`, `other-mod/src`).
 
-1. **LSP positions:** 0-based lines and characters (`loc.range.start.line`, converted at `search-symbols.ts:103`)
-2. **User-facing line numbers:** 1-based (`cascadeResult.line`, `MemberResult.startLine`, `LocateResult.line`)
-3. **Array indices:** 0-based (`lines[targetIdx]`, `Array.slice(start, end)` where end is exclusive)
+**Consequences:** Two fabric mods in the same project would both try to use `id: 'src'` in the merged dependency map. One shadows the other. Tools silently read the wrong mod's source code. Extremely difficult to debug because results look plausible but are wrong.
 
-The existing `extractContext` in `locate-in-source.ts` converts correctly:
-```typescript
-const startLine = Math.max(1, line - linesBefore);  // 1-based
-const endLine = Math.min(totalLines, line + linesAfter);  // 1-based
-const text = lines.slice(startLine - 1, endLine).join('\n');  // 0-based for slice
-```
+**Prevention:**
+- Namespace the `src` entry early: `{modName}/src` instead of bare `src`
+- Update `createSourceAdapter` to detect `mod-source` category (not just `id === 'src'`) and look up the root path from the child, not the project
+- Add a test that loads two fabric mods with overlapping package names and verifies each reads from its own source tree
 
-But `member-extractor.ts` uses a different approach:
-```typescript
-const rangeStartIdx = sym.range.start.line - 1;  // 1-based to 0-based
-const rangeEndIdx = sym.range.end.line;  // "1-based end line = exclusive 0-based slice end"
-```
+**Detection:** Any code path that uses `dep.id === 'src'` or relies on a single `rootPath` for filesystem source resolution.
 
-New line-range code must be unambiguous about which convention it uses at every step.
+### Pitfall 3: Dependency Namespace Collision Across Mods
 
-**How to avoid:**
-- Define the API clearly: `startLine` is 1-based (first line of file is 1), `lineCount` is the number of lines to return. This matches editor conventions and avoids "is the end inclusive or exclusive?" ambiguity.
-- Document the conversion at the slicing site: `// startLine is 1-based, lineCount is count. slice(startLine-1, startLine-1+lineCount)`
-- Add explicit boundary tests: `startLine=1, lineCount=1` returns exactly line 1; `startLine=totalLines, lineCount=1` returns last line; `startLine` past end returns empty with correct metadata; `startLine=0` returns an error.
-- Add a reassembly test: reading the file in N-line chunks and concatenating must produce identical output to reading without range params.
+**What goes wrong:** Two fabric mods in the same project depend on different versions of the same library (e.g., mod-a uses `com.google:gson:2.10` and mod-b uses `com.google:gson:2.11`). The current `dependencyJars: Map<string, DependencyEntry>` uses artifact coordinates as keys. Merging both mods' dependencies into a single map silently drops one version.
 
-**Warning signs:**
-- Tests pass for mid-file ranges but fail for first or last line
-- `startLine=1, lineCount=10` returns 9 or 11 lines
-- Full-read `lineCount` differs from range-reassembled line count
+**Why it happens:** The current single-mod design never faces this. The flat Map with string keys has no namespacing. The dependency-resolver functions (`getResolvedDependencies`, `getAllDependencies`) both operate on `project.dependencyJars` as a flat Map.
 
-**Phase to address:**
-Phase 1 (read_source line-range). Boundary condition tests are acceptance criteria.
+**Consequences:** Wrong dependency version served to tools. Cascading failures in JDT LS because it indexes the wrong version. Subtle type resolution bugs that appear as "JDT LS can't find this class" when it actually can -- just from the wrong version.
 
----
+**Prevention:**
+- Namespace dependency IDs by mod: `{modName}/minecraft`, `{modName}/fabric-api:...`
+- Or keep each child's dependencies isolated and merge only at tool invocation time with explicit scoping
+- `getDependenciesForTool` already accepts `jars` patterns -- extend it to accept `{child}/{jar}` scoping syntax
+- Study jars should NOT be namespaced (they live at project level per the requirements)
 
-### Pitfall 3: `offset` Parameter Name Collision Across Tools
+**Detection:** Test with two mods that have overlapping dependency IDs but different jar paths. Assert that scoped queries return the correct jar for each mod.
 
-**What goes wrong:**
-`search_classes` and `search_symbols` already use `offset` to mean "pagination offset: skip this many results." If `read_source` also uses `offset` to mean "start at this line number," agents will confuse the two. An agent that learned "`offset` skips results" from search_classes will pass `offset: 50` to read_source expecting to skip 50 results, but instead gets source starting at line 50.
+### Pitfall 4: JDT LS Single-Workspace Assumption
 
-**Why it happens:**
-`offset` is a generic, overloaded term. In pagination contexts (search_classes, search_symbols) it means "result index." In line-range contexts it means "line number." The milestone description even says "offset + limit" for read_source, matching the pagination terminology exactly.
+**What goes wrong:** Currently one JDT LS process gets one workspace (one `.project` + `.classpath` in one temp dir). All jars from all children get extracted into the same flat namespace. When two fabric mods have the same class (e.g., both have `net.minecraft.client.MinecraftClient` from different MC versions), JDT LS sees duplicate definitions and semantic navigation breaks unpredictably.
 
-**How to avoid:**
-- Use DISTINCT parameter names: `startLine` and `lineCount` for line-range reading. Keep `offset` and `limit` exclusively for pagination.
-- This naming also makes the API self-documenting: `startLine: 50, lineCount: 20` is unambiguous. `offset: 50, limit: 20` on a source-reading tool is not.
-- Audit all tools before implementation to ensure no parameter name means different things on different tools.
+**Why it happens:** JDT LS was initialized in load-project.ts for one fabric mod. The workspace extraction (workspace.ts) creates one temp dir with one .classpath. There is no concept of multiple Eclipse "projects" within the workspace.
 
-**Warning signs:**
-- Tool description for read_source says "offset" without clarifying it means line number
-- Agent passes pagination-style offset to a line-range tool or vice versa
-- Test names use "offset" ambiguously
+**Consequences:** find-definition returns results from the wrong mod's Minecraft version. find-references returns mixed results across incompatible codebases. Type hierarchy shows phantom implementations from incompatible versions. These are silent data corruption bugs -- the results look valid but are wrong.
 
-**Phase to address:**
-Phase 1 (first phase that adds parameters). Naming convention must be decided before any implementation.
+**Prevention:**
+- Option A: One JDT LS process per fabric child (simple, memory-heavy ~200-400MB per JVM, but correct isolation)
+- Option B: Multiple Eclipse projects within one JDT LS workspace (one .project per child, with separate classpaths -- needs investigation of whether JDT LS supports this in headless mode)
+- Option C: Shared JDT LS when all mods target the same MC version, separate when they differ
+- The current `extractSourcesToTemp` creates a single `mcp-sources` project name. Multiple `.project` files would need separate subdirectories.
+- Phase that tackles this MUST be a research phase first -- do not assume .classpath extension works for cross-mod isolation.
 
----
+**Detection:** If any phase plan assumes "just add more source dirs to the existing .classpath" without addressing cross-mod class duplication, flag it.
 
-### Pitfall 4: Changing Default Verbosity Breaks Agent Reasoning Without Visible Errors
+## Moderate Pitfalls
 
-**What goes wrong:**
-You reduce the default response of `find_references` by removing `context: ContextSnippet` from each `NavigationResult`. Responses are smaller and faster. But the agent was using those snippets to understand WHAT each reference does -- without them, it cannot distinguish a meaningful reference from a trivial one. Analysis quality degrades silently. No error, no test failure, just worse answers.
+### Pitfall 5: rootPath Removal Breaks 18+ Call Sites
 
-**Why it happens:**
-The `context` field in `NavigationResult` (defined in `jdtls/types.ts`) is populated by `extractEnclosingContext()` in `context-extractor.ts`, which finds the enclosing method/field/class for each reference location. This is expensive (reads the source file, parses structure) but provides critical semantic context. Removing it saves tokens but removes the information the agent needs to reason about references.
+**What goes wrong:** The new model says "projects are pure named containers (no root dir)." But `rootPath` appears in 18+ call sites across tool files. It is used for three distinct purposes:
+1. `createSourceAdapter(jarReader, dep, loadedProject.rootPath)` -- filesystem source reading (13 sites)
+2. Cache keys: `fs:${loadedProject.rootPath}:${id}` (4 sites)
+3. `extractSourcesToTemp(deps, project.rootPath, jarReader)` -- workspace creation (1 site)
+4. Response metadata: `list-projects.ts:22` returns rootPath to agent
 
-**How to avoid:**
-- NEVER reduce default verbosity. Only add optional parameters that let the agent request LESS when it knows it wants less.
-- Add `includeContext: boolean` (default: `true`) to find_references/find_definition/find_implementations. When `false`, the `context` field is omitted from results.
-- Document the tradeoff in tool descriptions: "Set includeContext=false for large result sets where you only need locations, then use read_source to inspect specific results."
-- The right pattern is progressive disclosure: full details by default, opt-in to compact mode.
+**Prevention:**
+- `rootPath` moves from project to fabric child (each mod has its own root)
+- Create a helper that resolves the root path given a dependency entry (looks up which child owns that dep, returns that child's rootPath)
+- Or store rootPath directly on each `DependencyEntry` with `mod-source` category, eliminating the lookup entirely
+- Do NOT make rootPath optional on the project type -- this creates nullable access bugs across 18 sites and TypeScript will not catch them all if you use `!`
 
-**Warning signs:**
-- Agent starts making more follow-up tool calls after the change (compensating for lost context)
-- Agent analysis of references becomes shallower ("found 47 references" without explaining what they do)
-- No test failures despite meaningful behavior change
+### Pitfall 6: Test Factory Coupling to LoadedProject Shape
 
-**Phase to address:**
-The verbosity audit phase. This is the most dangerous phase because "improvements" can be invisible regressions.
+**What goes wrong:** `makeFakeProject()` in `tests/helpers/factories.ts` constructs a full `LoadedProject` with all 9 fields hardcoded. 21 test files (37 references total) depend on this shape. Trying to update the factory and all tests in one pass is the same big-bang problem as Pitfall 1.
 
----
+**Prevention:**
+- Update `makeFakeProject` first to support the new shape with backward-compatible defaults
+- If using the adapter pattern from Pitfall 1, the factory can produce the new container type and the adapter produces the old shape -- tests keep working until individually migrated
+- Add a `makeFakeContainer` factory alongside `makeFakeProject` for new tests
+- Phase the test migration: update factory -> migrate project/domain tests -> migrate tool tests
 
-### Pitfall 5: Line-Range Without Single-Jar Requirement Creates Ambiguity
+### Pitfall 7: Study Jar Collision Detection Assumes Flat Namespace
 
-**What goes wrong:**
-`read_source` currently searches ALL jars when `jar` is omitted, returning the class from every jar that contains it (see `read-source.ts:63-110`). If line-range params are allowed without requiring a specific jar, you get nonsensical results: line 50-60 from the Minecraft jar is different content than line 50-60 from a mod source jar. The agent gets multiple incompatible line ranges.
+**What goes wrong:** `validateStudyJarId` (study-jar.ts:36) checks `project.dependencyJars.has(name)` to detect collisions between study jar names and real dependency IDs. `autoUnloadConflictingStudyJars` does the same. With namespaced dependencies (`mod-a/minecraft`), a study jar named `minecraft` no longer collides with `mod-a/minecraft`. But it WILL shadow results in tools that search across all jars, because `getDependenciesForTool` matches by pattern.
 
-**Why it happens:**
-The multi-jar search is useful for "find me this class" but meaningless for "read lines 50-60." Different jars may have different versions of the same class with different line counts.
+**Prevention:**
+- Decide the collision policy explicitly: study jars collide with the UNNAMESPACED portion of any child's dep IDs
+- Since study jars live at project level (requirement), collision should iterate all children's dependency maps and check the bare dep ID (not the namespaced one)
+- Update `autoUnloadConflictingStudyJars` to use the same logic
 
-**How to avoid:**
-- When `startLine` or `lineCount` is provided, REQUIRE the `jar` parameter. Return a clear error if line-range params are given without a single jar.
-- Validate early: check for the invalid combination BEFORE any jar I/O, in the input validation section of the handler.
-- The error message should explain why: "Line-range reading requires a specific jar because different jars may contain different versions of this class."
+### Pitfall 8: getDependenciesForTool Merge Order Creates Silent Shadowing
 
-**Warning signs:**
-- Multi-jar + line-range silently returns results from multiple jars with conflicting content
-- Agent gets confused about which jar's line numbers to use in follow-up calls
+**What goes wrong:** `getDependenciesForTool` currently returns a flat `Map<string, DependencyEntry>`. When merging dependencies from multiple children, insertion order determines which entry wins for duplicate keys. Different merge orders produce different results with no warning.
 
-**Phase to address:**
-Phase 1 (read_source line-range). Input validation is the first thing to implement.
+**Prevention:**
+- When merging across children, use namespaced keys (`{child}/{depId}`) so there are no collisions in the merged map
+- If a tool requests unscoped jars (no child specified), define explicit precedence rules (first-loaded mod wins, or all mods included with namespaced IDs)
+- Never silently shadow entries -- at minimum log a warning, at best use namespaced keys so shadowing is impossible
 
----
+### Pitfall 9: filterConfig Scope Ambiguity
 
-### Pitfall 6: Trailing Newline Produces Phantom Empty Last Line
+**What goes wrong:** `filterConfig` currently lives on `LoadedProject` and applies globally via `getFilteredDependencies`. With multiple fabric mods, should filter patterns apply per-mod or project-wide? A pattern like `fabric-api:*` would filter the same group from all mods if project-wide. If per-mod, `configure_filters` needs a child selector.
 
-**What goes wrong:**
-Java source files end with a newline. `source.split('\n')` on `"line1\nline2\n"` produces `["line1", "line2", ""]` -- three elements for two lines of content. The existing `lineCount` field (computed as `source.split('\n').length` in `read-source.ts:39` and `read-source.ts:76`) counts this phantom empty element. When the agent requests the last "line" via range, it gets an empty string. When `totalLines` reports 3 but the file has 2 meaningful lines, pagination logic breaks.
+**Prevention:**
+- Keep filterConfig at the project level (it filters what appears in default results, not what exists)
+- Jar patterns need to work with namespaced IDs: does `minecraft` match `mod-a/minecraft`? Define this before implementing
+- Recommended: bare patterns match across all children (convenience), namespaced patterns match specific children (precision)
 
-**Why it happens:**
-This has been invisible because nobody was paginating by line number before -- agents read the full source. Line-range reading exposes the inconsistency.
+### Pitfall 10: Backward Incompatible Tool Schemas
 
-**How to avoid:**
-- Do NOT change the existing `lineCount` semantics (that would break backward compatibility per Pitfall 1).
-- In the line-range response, use `totalLines` that matches `lineCount` exactly. Be consistent, not clever.
-- If the agent requests beyond end-of-file, clamp and return what exists. Include `startLine` and `endLine` in the response so the agent knows exactly what it received.
-- Add a test: full read vs reading the entire file via `startLine=1, lineCount=totalLines` must produce identical `source` content.
+**What goes wrong:** Adding a required `child` parameter to all 25 tools to specify which fabric mod to target. This breaks every existing Claude conversation that uses the tools -- Claude has learned the current parameter shapes and will send the old format.
 
-**Warning signs:**
-- Full-read `lineCount` differs from `totalLines` in line-range response for the same file
-- Chunk-reassembly test fails due to extra empty line at boundary
+**Prevention:**
+- The `child` parameter MUST be optional, with smart defaults (if project has one fabric mod, use it; if multiple, require specification)
+- Mirror the pattern from `resolveProject` in project-store.ts (lines 74-113): optional name, auto-resolve when unambiguous, error when ambiguous
+- Create `resolveChild(project, childName?)` that follows the exact same logic
+- Test: every tool called with NO `child` parameter on a single-mod project produces identical results to v1.3
 
-**Phase to address:**
-Phase 1 (read_source line-range). The reassembly test catches this.
+## Minor Pitfalls
 
----
+### Pitfall 11: Entry Index Cache Keys Become Ambiguous
 
-### Pitfall 7: Context Lines on read_member Overlapping Adjacent Members
+**What goes wrong:** Cache keys like `fs:${loadedProject.rootPath}:${id}` assume one rootPath per project. With multiple mods from different directories, two children with the same dep ID (e.g., both have `src`) would produce different cache keys correctly IF rootPath is different, but the pattern breaks if rootPath moves.
 
-**What goes wrong:**
-Adding context lines to `read_member` (e.g., 5 lines before/after) includes raw lines that may contain the end of the previous method or start of the next method. Java classes pack members tightly. The agent gets fragments of unrelated members and may misattribute them to the target member.
+**Prevention:** Include child name in cache key: `fs:${childName}:${rootPath}:${id}`. Or better: use the dep's `sourcesJarPath` as the cache key (already unique) and only use the compound key for `mod-source` entries.
 
-**Why it happens:**
-Context lines are dumb -- they do not respect semantic boundaries. `locate_in_source` already has this exact pattern (`context.linesBefore`, `context.linesAfter`) and it works there because locate finds a POINT in source, not a complete semantic unit. But `read_member` already returns a complete unit (Javadoc + annotations + signature + body via `extractMemberSource` in `member-extractor.ts`). Adding raw line context around a complete unit creates a mixed response.
+### Pitfall 12: jarReader.registerProject Assumes One Registration Per Project
 
-**How to avoid:**
-- Consider whether this feature is necessary at all. The agent can already get surrounding context via `read_source` with a line range around the member's `startLine`/`endLine`.
-- If context IS added, clearly separate the member source from context in the response: `{ memberSource: "...", contextBefore: "...", contextAfter: "..." }`. Do NOT concatenate them into the existing `source` field.
-- Alternatively, use semantic boundaries: extend to the nearest blank line or class-level declaration rather than a fixed line count.
+**What goes wrong:** `jarReader.registerProject(projectName, jarPaths)` registers all jar paths under the project name in one shot. With multiple fabric mods added incrementally (add mod-a, then later add mod-b), each new mod needs to register additional jars without deregistering mod-a's jars.
 
-**Warning signs:**
-- Context includes partial method signatures from adjacent members
-- Agent references code from context as if it belongs to the target member
-- Tests check line count of context but not content coherence
+**Prevention:** Change to additive registration (`jarReader.addJars(projectName, jarPaths)`) or register per-child (`jarReader.registerProject(`${projectName}/${childName}`, jarPaths)`). The shared-jar-reader already uses ref counting, so additive registration should work cleanly.
 
-**Phase to address:**
-The read_member context phase. Evaluate whether read_source line-range makes this redundant.
+### Pitfall 13: Default Project vs. Default Child Two-Level Confusion
 
----
+**What goes wrong:** The system already has "default project" semantics (project-store.ts lines 54-65). Adding "default child" within a project creates a two-level defaulting system. Agents get confused about which level is being set when they call `set_default_project`.
 
-### Pitfall 8: Pagination on find_references Without Clear "More Results" Signal
+**Prevention:**
+- Only one level of defaulting: the project. Within a project, auto-resolve when there is exactly one child (like `resolveProject` does for single-project sessions)
+- When ambiguous, return a clear error listing children, not a silent wrong choice
+- Do NOT add a `set_default_child` tool
 
-**What goes wrong:**
-`find_references` currently returns ALL results (no pagination). If you add a `limit` parameter, the agent might get 50 of 312 results and treat them as the complete set because the response does not clearly signal truncation.
+### Pitfall 14: load_project Tool Semantics Shift
 
-**Why it happens:**
-MCP tools are stateless -- no cursors. The agent must be told there are more results and how to get them. The existing `search_classes` and `search_symbols` tools handle this with `total`/`offset`/`limit` fields. But `find_references` processes results through `processNavigationLocations()` in `tool-helpers.ts`, which returns a flat array with no pagination metadata.
+**What goes wrong:** `load_project` currently takes a path and creates a project with one fabric mod. In the new model, loading a project and adding a fabric mod are separate concepts. If `load_project` changes to only create an empty container, all existing agent workflows break because they expect `load_project(path)` to give them a usable project.
 
-**How to avoid:**
-- Every paginated response must include: `total`, `offset`, `limit`, and ideally `hasMore: boolean` (redundant but explicit for agents).
-- For `find_references`: the default `limit` should be undefined (meaning "all results") to preserve backward compatibility. Pagination only activates when the agent explicitly passes a `limit`.
-- Add `truncated: true/false` when results are implicitly capped (e.g., by a maximum safeguard limit) without explicit agent pagination.
-- Update `TOOL_DESCRIPTIONS.find_references` to mention pagination: "Use limit/offset to paginate large result sets. Response includes total count."
+**Prevention:**
+- Keep `load_project` as sugar: creates a project (if needed) AND adds a fabric mod child to it, all in one call
+- This preserves backward compatibility -- single-mod workflows work identically to v1.3
+- Add a separate `add_fabric_mod` tool for adding additional mods to an existing project
+- Optional: `create_project` tool for creating empty containers, but `load_project` should remain the primary entry point
 
-**Warning signs:**
-- Agent says "found 50 references" when there are 312 (only got page 1, didn't notice hasMore)
-- Tests verify result count but not pagination metadata
+### Pitfall 15: UriMapper Breaks With Multiple Workspaces
 
-**Phase to address:**
-The phase adding pagination to navigation tools. Follow the exact pattern from `search_classes`.
+**What goes wrong:** `UriMapper` (jdtls/uri-mapper.ts) maps between file URIs in the temp extraction directory and jar IDs. It uses the `jarIdToDirName` map from `JdtLsSession`. With multiple fabric children each having their own extraction, the URI mapper needs to know which child's extraction directory a given file URI belongs to.
 
----
+**Prevention:** Either one UriMapper per child (if separate JDT LS processes) or a multi-root UriMapper that includes child context in mappings. Do not try to share a single UriMapper across children with overlapping class names.
 
-## Technical Debt Patterns
+## Phase-Specific Warnings
 
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Using `offset`/`limit` names for line-range params | Matches milestone description terminology | Agents confuse line-range offset with pagination offset | Never. Use `startLine`/`lineCount` for line ranges. |
-| Slicing results in the tool handler while JDT LS returns all | Quick pagination implementation | Full work still done server-side; pagination only saves response size | Acceptable -- JDT LS has no server-side pagination for workspace/symbol or references |
-| Silently clamping invalid ranges | No error responses to handle | Agent doesn't know its request was modified | Only for boundary clamping (past-end-of-file). Invalid combos (line-range without jar) should be hard errors |
-| Adding context param to read_member when read_source line-range exists | Convenience for agents | Two ways to get surrounding context; inconsistent patterns | Evaluate whether read_source line-range makes it redundant before building |
-
-## Integration Gotchas
-
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| MCP SDK inputSchema | Adding new optional params and assuming old agents send `undefined` for them | Zod `.optional()` handles this correctly. Test that omitting the param calls the handler with `undefined` and produces backward-compatible output. |
-| structuredContent envelope | Changing the `makeSuccess` data shape without updating `browsing/types.ts` | The existing TS errors (ToolError/ToolSuccess index signature) already show type drift. Adding new fields to response types must update types AND test factories. |
-| TOOL_DESCRIPTIONS | Adding params without updating the tool description | Agents read descriptions to learn how to use tools. New params not mentioned in descriptions will not be used. Update `descriptions.ts` for every param addition. |
-| processNavigationLocations | Adding pagination after this function returns all results | Pagination must wrap around the full results array, not inside processNavigationLocations. Keep the helper returning all results; the tool handler slices. |
-| extractEnclosingContext | Assuming it's cheap to call for every result | It reads the source file and parses structure for each location. For 300 references, this means reading up to 300 files. The sourceCache in processNavigationLocations helps but semantic parsing still scales linearly. |
-
-## Performance Traps
-
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| Reading full source then slicing for line-range | Latency same as full read for 5-line request | Acceptable: node-stream-zip reads entire entries from the jar. String splitting is negligible for Java files (largest MC classes ~5K lines). | Never at this project's scale |
-| find_references with 500+ results including full context snippets | Large response payloads, context window overflow | This is the EXACT problem v1.3 aims to solve. Add optional `limit` param. | Already an issue for heavily-referenced symbols like `Identifier.of()` |
-| enrichSymbols pipeline for read_member context | 100ms+ per call for full symbol enrichment | Context lines don't require enrichment -- they're raw source lines. If implementing context on read_member, don't re-enrich just to get line ranges. | Not expected to be a real issue |
-
-## UX Pitfalls (Agent Experience)
-
-| Pitfall | Agent Impact | Better Approach |
-|---------|-------------|-----------------|
-| Same param name (`offset`) meaning different things on different tools | Agent applies line-number offset to a pagination tool or vice versa | `startLine`/`lineCount` for line ranges, `offset`/`limit` for pagination. Distinct names. |
-| Silent truncation without metadata | Agent treats truncated results as complete, misses references | Always include `total`, `returned`, `hasMore` in paginated responses |
-| Compact mode removing context the agent needs | Analysis quality degrades silently | Default to full verbosity. Agent opts into compact. Document what compact removes. |
-| Error message for line-range without jar doesn't explain why | Agent retries without jar, gets same error | Error: "Line-range requires a specific jar because different jars may have different versions of this class." |
-| Adding `lineCount` param that collides with response field `lineCount` | Confusion between the request param and the response field | Use `lineCount` as the request param (how many lines to read), keep `lineCount` in response (how many lines returned). OR rename the request param to `maxLines` to disambiguate. |
-
-## "Looks Done But Isn't" Checklist
-
-- [ ] **read_source line-range:** Boundary tests -- `startLine=1, lineCount=1` returns first line; `startLine=totalLines, lineCount=1` returns last line; beyond-end returns empty with metadata; `startLine=0` errors
-- [ ] **read_source line-range:** Reassembly test -- reading file in N-line chunks and concatenating produces identical output to full read
-- [ ] **read_source line-range:** Input validation -- `startLine` or `lineCount` without `jar` returns clear error
-- [ ] **read_source line-range:** Response metadata -- includes `startLine`, `endLine`, `totalLines` alongside `source`
-- [ ] **Pagination on navigation tools:** Response includes `total` even when limit is applied, not just array length
-- [ ] **Pagination on navigation tools:** TOOL_DESCRIPTIONS updated to mention pagination params and usage pattern
-- [ ] **Verbosity controls:** Calling tool with NO new params produces structuredContent identical to pre-change version
-- [ ] **read_member context:** Context output doesn't include partial fragments of adjacent members
-- [ ] **Parameter naming:** All line-range params use same names across tools, all pagination params use same names, no collisions between the two
-
-## Recovery Strategies
-
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| Broke structuredContent contract | MEDIUM | Add back removed fields, release patch. Agents that cached broken schema need tool refresh. |
-| Off-by-one in line range | LOW | Fix slicing math, update tests. Read-only server, no data corruption possible. |
-| Pagination missing total count | LOW | Add `total` field. Additive change, backward compatible. |
-| Changed default verbosity | HIGH | Reverting is easy but damage (degraded agent reasoning) already happened. Cannot undo bad analysis. |
-| Parameter name collision | MEDIUM | Renaming params is breaking for agents that learned old names. Get it right first time. |
-| Line-range without jar validation | LOW | Add validation check. No data corruption, just confusing results to fix. |
-
-## Pitfall-to-Phase Mapping
-
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| Breaking structuredContent contracts | All phases (cross-cutting rule) | Test: omitting new params produces identical structuredContent |
-| Off-by-one in line-range | read_source line-range phase | Boundary tests + reassembly test |
-| Parameter name collision (offset) | First phase (naming convention decision) | Audit: no param name means different things on different tools |
-| Silent verbosity degradation | Verbosity audit phase | Before/after structuredContent comparison with no new params |
-| Line-range without jar | read_source line-range phase | Test: line-range params without jar returns clear error |
-| Trailing newline inconsistency | read_source line-range phase | Test: full read vs range-reassembled content is identical |
-| Context lines overlapping members | read_member context phase | Test: context doesn't contain partial adjacent member signatures |
-| Pagination without hasMore signal | Navigation pagination phase | Test: response includes total/offset/limit/hasMore metadata |
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| New type definitions | Big Bang Type Replacement (#1) | Define new types alongside old ones, do not remove old types yet |
+| Dependency namespacing | Namespace Collision (#3), src Abstraction (#2) | Namespace dep IDs by child name, update src handling to use category not ID |
+| Tool migration | Backward Incompatible Schemas (#10), rootPath Removal (#5) | Optional child param with auto-resolve, adapter pattern for rootPath |
+| JDT LS multi-child | Single-Workspace Assumption (#4), UriMapper (#15) | Research phase first, do not assume .classpath extension works |
+| Test migration | Factory Coupling (#6) | Update factory to new shape with compat defaults, migrate tests incrementally |
+| Filter/collision updates | filterConfig Scope (#9), Study Jar Collision (#7) | Define scoping rules before code, test with multi-mod scenarios |
+| Default project on startup | Default Confusion (#13), load_project Semantics (#14) | Keep load_project as sugar, single-level defaulting |
+| Dependency merging | getDependenciesForTool Shadowing (#8) | Use namespaced keys in merged maps, never silently shadow |
 
 ## Sources
 
-- Codebase: `src/tools/read-source.ts` -- current full-source response pattern, `lineCount` via `split('\n').length`
-- Codebase: `src/tools/read-member.ts` -- member extraction pipeline, enrichSymbols dependency
-- Codebase: `src/tools/find-references.ts` -- no pagination, full result return via processNavigationLocations
-- Codebase: `src/tools/search-classes.ts` -- existing pagination pattern with offset/limit/total
-- Codebase: `src/tools/search-symbols.ts` -- existing pagination pattern, client-side slicing of JDT LS results
-- Codebase: `src/tools/locate-in-source.ts` -- existing `context` parameter pattern with linesBefore/linesAfter
-- Codebase: `src/tools/tool-helpers.ts` -- processNavigationLocations, resolveClassSource, sourceCache pattern
-- Codebase: `src/browsing/member-extractor.ts` -- line-number conventions (1-based to 0-based conversions)
-- Codebase: `src/browsing/types.ts` -- SourceResult, MemberResult, LocateResult contracts
-- Codebase: `src/jdtls/types.ts` -- NavigationResult, ContextSnippet contracts
-- Codebase: `src/jdtls/context-extractor.ts` -- semantic context extraction, enclosing-unit detection
-
----
-*Pitfalls research for: Adding context management controls to MinecraftDevMCP v1.3*
-*Researched: 2026-04-14*
+All findings derived from direct codebase analysis:
+- `src/project/types.ts` -- LoadedProject type definition, 9 fields, 57 field accesses across 20 tool files
+- `src/tools/tool-helpers.ts` -- getDependenciesForTool, resolveClassSource, processNavigationLocations (18 rootPath references)
+- `src/project/dependency-resolver.ts` -- getResolvedDependencies, getAllDependencies (flat Map merge pattern)
+- `src/browsing/source-adapter.ts` -- createSourceAdapter with hardcoded `dep.id === 'src'` check at line 63
+- `src/state/project-store.ts` -- resolveProject pattern (model for resolveChild), lines 74-113
+- `src/jdtls/workspace.ts` -- single .project/.classpath extraction, `mcp-sources` project name
+- `src/jdtls/workspace-sync.ts` -- incremental study jar sync (assumes single workspace tempDir)
+- `src/jdtls/types.ts` -- JdtLsSession type with single tempDir/dataDir
+- `src/project/study-jar.ts` -- validateStudyJarId collision detection at line 36
+- `src/project/loader.ts` -- loadProject returns monolithic LoadedProject, lines 20-128
+- `src/tools/load-project.ts` -- project initialization with JDT LS, single-mod assumptions
+- `tests/helpers/factories.ts` -- makeFakeProject factory used by 21 test files, 37 references

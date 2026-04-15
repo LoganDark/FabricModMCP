@@ -1,361 +1,434 @@
 # Architecture Patterns
 
-**Domain:** Context management features for MCP server (v1.3)
-**Researched:** 2026-04-14
-**Focus:** Line-range reading, context lines on read_member, verbosity audit, pagination gaps
+**Domain:** MCP server project rearchitecture -- composable named containers (v1.4)
+**Researched:** 2026-04-15
+**Focus:** Restructuring from monolithic LoadedProject into composable Project containers with FabricMod and StudyJar children
 
 ## Current Architecture Summary
 
-The codebase follows a strict **domain -> tool** layered pattern:
+The current architecture is a monolithic `LoadedProject` that conflates "project" with "single Fabric mod + its study jars." Every `LoadedProject` has exactly one `rootPath`, one `gradleConfig`, one `fabricMod`, one `dependencyJars` map, one `studyJars` map, one `filterConfig`, and one optional `jdtls` session. The `ProjectStore` is a flat `Map<string, LoadedProject>`.
 
-- **Domain layer** (`src/browsing/`, `src/jdtls/`, `src/project/`): Pure logic, I/O via injected adapters, no MCP awareness
-- **Tool layer** (`src/tools/`): Thin wiring -- Zod schemas, project resolution, error formatting, MCP response envelope
-- **Shared helpers** (`src/tools/tool-helpers.ts`): Cross-cutting utilities used by many tools -- `resolveClassSource`, `processNavigationLocations`, `getDependenciesForTool`, `returnError`
-- **Response envelope** (`src/types/envelope.ts`): `makeSuccess`/`makeError`/`makeDisambiguation` produce typed structures; tools return `{ content: [text], structuredContent: envelope }`
+**Key coupling points in the current code:**
 
-### Key Data Flow for Source Reading
+| Module | What it touches on LoadedProject | How |
+|--------|----------------------------------|-----|
+| `tool-helpers.resolveProjectSafely` | `projectStore.resolveProject(name)` | Returns `LoadedProject` directly |
+| `tool-helpers.getDependenciesForTool` | `project.dependencyJars`, `project.studyJars`, `project.filterConfig` | Merges deps + study jars, applies filter |
+| `tool-helpers.resolveClassSource` | `project.rootPath`, deps via `getAllDependencies` | Creates SourceAdapter per dep |
+| `tool-helpers.processNavigationLocations` | `project.jdtls` (via caller), deps via `getAllDependencies` | Reads extracted files, maps URIs to jars |
+| `dependency-resolver` | `project.dependencyJars`, `project.studyJars` | Merges into unified dep map |
+| `jar-registry` | `FilterConfig` | Applies include/exclude patterns |
+| `JarReader` | `projectHandles` keyed by project name | Ref-counted handles per project |
+| `loader.loadProject` | Reads gradle.properties, build.gradle.kts, fabric.mod.json, discovers deps | Returns complete LoadedProject |
+| `load-project tool` | Calls loader, registers jars, starts JDT LS | Orchestrates everything |
+| `workspace.extractSourcesToTemp` | `dependencies` map, `rootPath`, `jarReader` | Extracts all deps to one tmpdir |
+| `workspace-sync` | `studyJar`, `jdtls.tempDir`, `jdtls.jarIdToDirName` | Incrementally adds/removes from workspace |
+| `uri-mapper` | `jdtls.tempDir`, `jdtls.jarIdToDirName` | Maps file URIs back to jar IDs |
+| `source-adapter` | `dep.id === 'src'` special case uses `rootPath` | Filesystem vs jar adapter |
+
+## Recommended Architecture
+
+### New Type Hierarchy
 
 ```
-read_source tool
-  -> resolveClassSource (tool-helpers) finds sourceText from jars
-  -> returns full sourceText as SourceResult.source
-  -> wraps in envelope with lineCount
+Project (named container)
+  |-- name: string
+  |-- children: Map<string, ProjectChild>
+  |-- filterConfig: FilterConfig         (project-level, applies across all children)
+  |-- jdtls?: JdtLsSession              (single workspace for entire project)
 
-read_member tool
-  -> resolveClassSource -> sourceText
-  -> JDT LS documentSymbol -> transformSymbolResponse -> enrichSymbols
-  -> extractMemberSource (member-extractor) -> MemberExtraction with source, startLine, endLine
-  -> wraps as MemberResult in envelope
+ProjectChild = FabricModChild | StudyJarChild
+
+FabricModChild
+  |-- kind: 'fabric-mod'
+  |-- name: string                       (user-chosen or derived from dir basename)
+  |-- rootPath: string
+  |-- gradleConfig: GradleConfig
+  |-- sourcesJar: ResolvedJar
+  |-- fabricMod: FabricModJson
+  |-- dependencyJars: Map<string, DependencyEntry>
+
+StudyJarChild
+  |-- kind: 'study-jar'
+  |-- name: string
+  |-- studyJar: StudyJar                 (existing StudyJar type, unchanged)
 ```
 
-### Current Pagination State
+### Dependency Resolution Changes
 
-| Tool | Has limit/offset? | Default limit | Notes |
-|------|--------------------|---------------|-------|
-| search_classes | YES | 250 | Full pagination with total count |
-| search_symbols | YES | 50 (max 200) | Full pagination with total count |
-| find_references | NO | -- | Returns all results unbounded |
-| find_implementations | NO | -- | Returns all results unbounded |
-| find_definition | NO | -- | Usually 1 result, unbounded is fine |
-| list_members | NO | -- | Returns full symbol tree, no pagination |
-| list_classes | NO | -- | Returns all classes in package |
-| list_packages | NO | -- | Returns all packages |
-| read_source | NO | -- | Returns full source from all matching jars |
-| read_member | NO | -- | Returns full member source |
+**Current:** `getDependenciesForTool(project, jars?)` returns a flat merged map of `project.dependencyJars` + study jars.
 
-## Recommended Architecture for v1.3
+**New:** Dependencies are namespaced by child name. A fabric mod named `my-mod` produces deps like `my-mod/minecraft`, `my-mod/src`, `my-mod/fabric-api:fabric-networking-api-v1`. Study jars at project level use plain names (no namespace prefix).
 
-### Design Principle: Truncation Logic Lives in Domain Layer
+```
+getAllProjectDependencies(project: Project) -> Map<string, DependencyEntry>
+  For each FabricModChild:
+    prefix each dep ID with "{childName}/"
+  For each StudyJarChild:
+    keep plain name (same as today's study jar DependencyEntry)
+```
 
-Truncation, slicing, and pagination are **data transformation** -- they belong in the domain layer, not the tool layer. The tool layer's job is parameter validation and MCP envelope formatting. Putting slice logic in tools would violate the existing separation and make it untestable without MCP.
-
-**Exception:** When truncation is trivial (a single `Array.slice` on already-computed results), it can stay in the tool layer. The navigation tools (`find_references`, `find_implementations`) fall into this category -- the results are already computed by `processNavigationLocations`, and slicing is a one-liner.
+**Scoping:** When `scope` is provided, only return deps from that child. When omitted, return all children's deps merged (with namespacing to avoid collisions).
 
 ### Component Boundaries
 
-| Component | Responsibility | Changes Needed |
-|-----------|---------------|----------------|
-| `src/browsing/source-slicer.ts` | **NEW** -- Line-range slicing of source text | Pure function: takes source string + offset/limit, returns sliced text + metadata |
-| `src/browsing/member-extractor.ts` | Extract member source by FQN | **MODIFY** -- Add context lines support to `extractMemberSource` |
-| `src/browsing/types.ts` | Domain result types | **MODIFY** -- Add range metadata to SourceResult |
-| `src/tools/read-source.ts` | MCP tool wiring | **MODIFY** -- Add offset/limit params, disambiguation when multi-jar + range |
-| `src/tools/read-member.ts` | MCP tool wiring | **MODIFY** -- Add linesBefore/linesAfter params, pass through to extractor |
-| `src/tools/find-references.ts` | MCP tool wiring | **MODIFY** -- Add limit/offset params, slice results |
-| `src/tools/find-implementations.ts` | MCP tool wiring | **MODIFY** -- Add limit/offset params, slice results |
-| `src/tools/tool-helpers.ts` | Shared utilities | **MODIFY** -- Add `paginateResults` helper for navigation tools |
-| `src/tools/descriptions.ts` | Tool descriptions | **MODIFY** -- Update descriptions for changed tool signatures |
+| Component | Responsibility | Communicates With |
+|-----------|---------------|-------------------|
+| `Project` (new type) | Named container holding children, filter config, JDT LS session | ProjectStore, tools |
+| `ProjectChild` (new union type) | Discriminated union of FabricModChild and StudyJarChild | Project, dependency resolution |
+| `ProjectStore` (modified) | Stores `Map<string, Project>` instead of `Map<string, LoadedProject>` | Tools via resolveProjectSafely |
+| `FabricModLoader` (renamed from loader) | Loads a Fabric mod dir into `FabricModChild` (no JDT LS, no study jars) | Called by new add_fabric_mod tool |
+| `dependency-resolver` (modified) | Namespace-aware merging across children | Tools, jar-registry |
+| `JarReader` (unchanged key semantics) | Ref-counted handles keyed by project name | SourceAdapter, workspace extraction |
+| `JDT LS workspace` (modified) | Single workspace per project, containing all children's sources | load/unload lifecycle, add/remove child |
+| `UriMapper` (modified) | Maps namespaced jar IDs through directory names | Navigation tools |
+| `tool-helpers` (modified) | Resolves project + optional scope to dependency map | All tools |
 
-### New Module: source-slicer.ts
+### Data Flow
 
-```typescript
-// src/browsing/source-slicer.ts
-// Pure function. No I/O.
-
-export interface SlicedSource {
-	source: string;        // The sliced text
-	startLine: number;     // 1-based first line returned
-	endLine: number;       // 1-based last line returned
-	lineCount: number;     // Lines in the slice
-	totalLineCount: number; // Lines in the full source
-	truncated: boolean;    // Whether the result was truncated by limit
-}
-
-export function sliceSource(
-	sourceText: string,
-	offset?: number,   // 1-based line to start from (default: 1)
-	limit?: number,    // Max lines to return (default: all)
-): SlicedSource;
+**Loading a project (new):**
+```
+create_project(name) ->
+  ProjectStore.set(name, { name, children: new Map(), filterConfig: default, jdtls: undefined })
 ```
 
-This is a pure domain function -- takes text, returns sliced text with metadata. No MCP awareness.
-
-### Modified: member-extractor.ts
-
-`extractMemberSource` already returns `startLine`, `endLine`, and `source`. Context lines should be added here because:
-
-1. The extractor already knows the source text and line ranges
-2. `findDecorationsStart` already scans backward for Javadoc -- context lines are the same concept extended
-3. The locate-in-source tool has a local `extractContext` function that does exactly this pattern -- same approach, different scope
-
-```typescript
-// Add optional context parameter to extractMemberSource
-export function extractMemberSource(
-	sourceText: string,
-	enrichedSymbols: EnrichedSymbol[],
-	targetFqn: string,
-	context?: { linesBefore: number; linesAfter: number },
-): MemberExtraction[];
+**Adding a fabric mod:**
+```
+add_fabric_mod(project, path, name?) ->
+  1. FabricModLoader.load(path) -> FabricModChild
+  2. project.children.set(childName, child)
+  3. Register all child's jar paths with JarReader under project name
+  4. If project.jdtls exists: extract child's deps to workspace, update .classpath, notify JDT LS
+  5. If project.jdtls does not exist: attempt JDT LS init for the whole project
 ```
 
-When `context` is provided, each extraction expands its `startLine`/`endLine` range and `source` text to include surrounding lines beyond the Javadoc + member body. The `lineCount` reflects the expanded range.
-
-### Modified: types.ts (SourceResult)
-
-```typescript
-export interface SourceResult {
-	jar: string;
-	category: JarCategory;
-	provenanceChains: string[][];
-	source: string;
-	lineCount: number;
-	// NEW for v1.3:
-	totalLineCount: number;  // Full file line count (differs from lineCount when sliced)
-	startLine: number;       // 1-based first line in source (1 when not sliced)
-	endLine: number;         // 1-based last line in source
-	truncated: boolean;      // True when limit caused truncation
-}
+**Adding a study jar:**
+```
+add_study_jar(project, path, name?) ->
+  1. createStudyJar(path, name, project) -> StudyJarChild
+  2. project.children.set(childName, child)
+  3. Register jar path with JarReader
+  4. Sync to JDT LS workspace (same as today)
 ```
 
-### read_source: Disambiguation Requirement
-
-The milestone spec says: "error if multiple jars match without explicit jar" when offset/limit are used. This uses the existing `Disambiguation` envelope type from `envelope.ts`:
-
-```typescript
-// When offset or limit provided AND multiple jars contain the class:
-return {
-	content: [{ type: 'text', text: 'Multiple jars contain this class. Specify a jar for line-range reading.' }],
-	structuredContent: makeDisambiguation(
-		'Line-range reading requires a single jar. Specify the jar parameter.',
-		matchingJars.map(j => ({ value: j.id, label: j.id, description: j.category })),
-	),
-};
+**Tool dependency resolution (new flow):**
+```
+getDependenciesForTool(project, scope?, jars?) ->
+  1. If scope: get only that child's deps (namespaced for fabric-mod, plain for study-jar)
+  2. If no scope: merge all children's deps (namespaced)
+  3. Apply filter config
+  4. If jars param: apply glob pattern filtering
+  Return: Map<string, DependencyEntry>
 ```
 
-The `Disambiguation` type already exists in `envelope.ts` and is exactly for this purpose. It has never been used before -- this would be its first real use.
+**Jar ID resolution example:**
+```
+Project "dev"
+  FabricModChild "my-mod"
+    dependencyJars: minecraft, src, fabric-api:fabric-networking-api-v1
+  FabricModChild "my-lib"
+    dependencyJars: minecraft, src
+  StudyJarChild "sodium"
 
-### Navigation Tool Pagination Pattern
+Flat dependency map (no scope):
+  my-mod/minecraft -> ...
+  my-mod/src -> ...
+  my-mod/fabric-api:fabric-networking-api-v1 -> ...
+  my-lib/minecraft -> ...
+  my-lib/src -> ...
+  sodium -> ...
 
-`find_references` and `find_implementations` should add limit/offset following the same pattern as `search_symbols`:
-
-```typescript
-// In tool-helpers.ts -- shared by find_references and find_implementations
-export function paginateResults<T>(
-	results: T[],
-	offset: number,
-	limit: number,
-): { page: T[]; total: number; offset: number; limit: number } {
-	return {
-		page: results.slice(offset, offset + limit),
-		total: results.length,
-		offset,
-		limit,
-	};
-}
+With scope="my-mod":
+  my-mod/minecraft -> ...
+  my-mod/src -> ...
+  my-mod/fabric-api:fabric-networking-api-v1 -> ...
 ```
 
-This is simple enough to live in tool-helpers (it's a one-liner slice, not domain logic).
+## Components: Modify vs Replace vs New
 
-## Data Flow Changes
+### NEW components
 
-### read_source with Line Range
+| Component | Purpose |
+|-----------|---------|
+| `project/types.ts` additions | `Project`, `ProjectChild`, `FabricModChild`, `StudyJarChild` type definitions |
+| `tools/create-project.ts` | Create a named empty project container |
+| `tools/add-fabric-mod.ts` | Load a Fabric mod directory as a child of a project |
+| `tools/remove-child.ts` | Remove a child (fabric mod or study jar) from a project |
+| `tools/list-children.ts` | List children of a project with their types and metadata |
 
-```
-read_source(class, jar?, offset?, limit?)
-  |
-  v
-  offset or limit provided?
-  |
-  +-- YES --> Are multiple jars containing this class?
-  |           |
-  |           +-- YES (and no jar specified) --> makeDisambiguation with jar options
-  |           |
-  |           +-- NO (one jar, or jar specified) -->
-  |                 resolveClassSource (single jar)
-  |                 sliceSource(sourceText, offset, limit)
-  |                 SourceResult with truncated/startLine/endLine/totalLineCount
-  |
-  +-- NO  --> existing behavior (all jars, full source, backfill new fields trivially)
-```
+### MODIFIED components (adapt, not rewrite)
 
-The "are multiple jars" check requires a minor restructuring of the current read_source flow. Currently, when no `jar` is specified, it iterates all filtered jars and collects sources. For the disambiguation check, we need to first collect matching jar IDs, then either disambiguate or proceed.
+| Component | What Changes | Scope of Change |
+|-----------|-------------|-----------------|
+| `project/types.ts` | Add new types alongside existing. `LoadedProject` becomes internal/deprecated alias or removed. | Medium -- add types, update exports |
+| `state/project-store.ts` | Store `Project` instead of `LoadedProject`. `resolveProject` returns `Project`. | Small -- type change, same logic |
+| `project/loader.ts` | Rename to `fabric-mod-loader.ts`. Returns `FabricModChild` instead of `LoadedProject`. Strip JDT LS and study jar concerns. | Medium -- remove orchestration, keep parsing |
+| `project/dependency-resolver.ts` | Add namespace-aware functions: `getProjectDependencies(project)`, `getScopedDependencies(project, scope)`. Keep old functions internally for per-child resolution. | Medium -- new functions wrapping existing |
+| `project/jar-reader.ts` | No structural change. Project name key still works since we keep one JarReader registration per project. | Minimal -- possibly no changes |
+| `project/jar-registry.ts` | No change. Filtering operates on any `Map<string, DependencyEntry>`. | None |
+| `project/study-jar.ts` | `validateStudyJarId` checks against all children's names, not just `dependencyJars`. `createStudyJar` takes `Project` instead of `LoadedProject`. | Small |
+| `tools/tool-helpers.ts` | `resolveProjectSafely` returns `Project`. `getDependenciesForTool` gains `scope` parameter. `resolveClassSource` takes `Project` + scope. `processNavigationLocations` uses project-level jdtls. | Medium-large -- most helpers gain scope param |
+| `tools/load-project.ts` | Becomes `create-project` + `add-fabric-mod` composition, or replaced entirely. May keep as convenience wrapper. | Large -- split or replace |
+| `tools/unload-project.ts` | Iterates `project.children` to clean up all jar handles, then shuts down single JDT LS session. | Small |
+| `tools/add-study-jar.ts` | Adds to `project.children` instead of `project.studyJars`. Collision check against all children. | Small |
+| `tools/remove-study-jar.ts` | Removes from `project.children`. | Small |
+| `tools/list-study-jars.ts` | Filters `project.children` by kind. | Small |
+| `tools/get-project-metadata.ts` | Iterates children, shows namespaced deps. | Medium |
+| `tools/refresh-dependencies.ts` | Operates on fabric mod children only. | Small |
+| `tools/configure-filters.ts` | Operates on `project.filterConfig` (project-level, unchanged concept). | None |
+| `tools/configure-study-jar.ts` | Finds study jar in `project.children` by kind filter. | Small |
+| `jdtls/workspace.ts` | `extractSourcesToTemp` takes all children's deps (namespaced dir names). | Medium -- iterate children |
+| `jdtls/workspace-sync.ts` | Incremental add/remove for any child type (not just study jars). Generalize to `syncChildToWorkspace`. | Medium |
+| `jdtls/uri-mapper.ts` | `jarIdToDirName` must handle namespaced IDs (`my-mod/minecraft` -> `my-mod__minecraft`). The `/` -> `__` mapping works alongside existing `:` -> `__`. | Small -- update separator logic |
+| `browsing/source-adapter.ts` | `createSourceAdapter` for `dep.id` ending in `/src` needs the correct child's `rootPath`. Pass rootPath explicitly rather than assuming one project rootPath. | Small |
+| All browsing/navigation tools | Pass `scope` through to `getDependenciesForTool`. Add `scope` to input schemas. | Small per tool, many tools (~15 tools) |
 
-### read_member with Context Lines
+### UNCHANGED components
 
-```
-read_member(memberFqn, jar?, linesBefore?, linesAfter?)
-  |
-  v
-  resolveClassSource -> sourceText
-  JDT LS documentSymbol -> enrich
-  extractMemberSource(sourceText, enriched, fqn, { linesBefore, linesAfter })
-    |
-    v
-    For each matching symbol:
-      existing: startLine = decorationsStart, endLine = range.end.line
-      NEW: startLine = max(1, decorationsStart - linesBefore)
-           endLine = min(totalLines, range.end.line + linesAfter)
-      source includes the expanded range
-  -> MemberResult (same shape, wider range when context requested)
-```
-
-### find_references / find_implementations with Pagination
-
-```
-find_references(class, patterns, limit?, offset?)
-  |
-  v
-  existing flow -> NavigationResult[]
-  paginateResults(results, offset ?? 0, limit ?? 100)
-  -> envelope includes { results: page, total, offset, limit }
-```
+| Component | Why Unchanged |
+|-----------|--------------|
+| `browsing/cascading-regex.ts` | Operates on source text, no project awareness |
+| `browsing/entry-index.ts` | Operates on entry lists, no project awareness |
+| `browsing/entry-index-cache.ts` | Keyed by jar path, no project awareness |
+| `browsing/class-parser.ts` | Parses source text |
+| `browsing/member-extractor.ts` | Parses source text |
+| `browsing/member-enrichment.ts` | Enriches member data |
+| `browsing/member-fqn.ts` | FQN generation |
+| `browsing/symbol-transform.ts` | Symbol transformation |
+| `browsing/search.ts` | Search over entry index |
+| `browsing/import-resolver.ts` | Import resolution |
+| `browsing/line-slicer.ts` | Line range extraction |
+| `browsing/detail-parser.ts` | Detail flag parsing |
+| `jdtls/client.ts` | JDT LS process lifecycle (stateless helper functions) |
+| `jdtls/context-extractor.ts` | Parses source text |
+| `jdtls/symbol-kind.ts` | Enum mapping |
+| `errors/domain-error.ts` | Error type |
+| `types/envelope.ts` | Response envelope |
+| `logging/logger.ts` | Logging |
+| `tools/pagination.ts` | Pagination helpers |
+| `tools/echo.ts` | Diagnostic tool |
 
 ## Patterns to Follow
 
-### Pattern 1: Context Expansion (from locate_in_source)
-
-The `extractContext` function in `locate-in-source.ts` (lines 15-27) is the exact pattern for context lines:
+### Pattern 1: Discriminated Union for Children
+**What:** Use `kind` field discriminant on ProjectChild types.
+**When:** Any code that handles children generically.
+**Example:**
 ```typescript
-function extractContext(source: string, line: number, linesBefore: number, linesAfter: number): LocateResultContext {
-	const lines = source.split('\n');
-	const startLine = Math.max(1, line - linesBefore);
-	const endLine = Math.min(lines.length, line + linesAfter);
-	const text = lines.slice(startLine - 1, endLine).join('\n');
-	return { text, startLine, endLine };
+type ProjectChild = FabricModChild | StudyJarChild;
+
+interface FabricModChild {
+	kind: 'fabric-mod';
+	name: string;
+	rootPath: string;
+	gradleConfig: GradleConfig;
+	sourcesJar: ResolvedJar;
+	fabricMod: FabricModJson;
+	dependencyJars: Map<string, DependencyEntry>;
+}
+
+interface StudyJarChild {
+	kind: 'study-jar';
+	name: string;
+	studyJar: StudyJar;
+}
+
+function getChildDeps(child: ProjectChild): Map<string, DependencyEntry> {
+	switch (child.kind) {
+		case 'fabric-mod': return child.dependencyJars;
+		case 'study-jar': return new Map([[child.name, studyJarToDependencyEntry(child.studyJar)]]);
+	}
 }
 ```
-Apply this same clamping approach inside `extractMemberSource` to expand the member range by `linesBefore` above the decoration start and `linesAfter` below the range end.
 
-### Pattern 2: Optional Parameters with Backward Compatibility
-
-Existing tools use `z.number().optional()` for pagination. Follow the same convention:
+### Pattern 2: Namespace Prefixing for Dependency IDs
+**What:** Prefix dependency IDs with `{childName}/` for fabric mods. Study jars keep plain names.
+**When:** Building the flat dependency map for a project.
+**Why:** Avoids collisions when two fabric mods both have `minecraft` or `src` dependencies. Study jars do not need namespacing because their names are globally unique within a project (collision checked at add time).
+**Example:**
 ```typescript
-offset: z.number().int().min(1).optional().describe('Start reading from this line (1-based, default: 1)'),
-limit: z.number().int().min(1).optional().describe('Maximum number of lines to return'),
+function getProjectDependencies(project: Project): Map<string, DependencyEntry> {
+	const merged = new Map<string, DependencyEntry>();
+	for (const [childName, child] of project.children) {
+		if (child.kind === 'fabric-mod') {
+			for (const [depId, dep] of child.dependencyJars) {
+				merged.set(`${childName}/${depId}`, { ...dep, id: `${childName}/${depId}` });
+			}
+		} else {
+			const entry = studyJarToDependencyEntry(child.studyJar);
+			merged.set(entry.id, entry);
+		}
+	}
+	return merged;
+}
 ```
-When both are omitted, behavior is identical to current -- full source returned. No breaking changes.
 
-### Pattern 3: Total Count in Paginated Responses
-
-Both `search_classes` and `search_symbols` return `{ results, total, offset, limit }`. Navigation tools should follow the same shape for consistency. This lets the agent know whether more results exist.
-
-### Pattern 4: Backfill New Fields Trivially
-
-When adding `totalLineCount`, `startLine`, `endLine`, `truncated` to SourceResult, the non-sliced path sets them trivially:
+### Pattern 3: Scope Parameter Threading
+**What:** Add optional `scope` parameter to tool input schemas that threads down to dependency resolution.
+**When:** Any tool that currently accepts `project` and `jars` parameters.
+**Why:** Allows targeting a specific child without manually constructing jar glob patterns.
+**Example:**
 ```typescript
-totalLineCount: lineCount,
-startLine: 1,
-endLine: lineCount,
-truncated: false,
+// Tool schema addition (alongside existing project and jars params):
+scope: z.string().optional().describe('Limit to a specific child (fabric mod or study jar name)')
+
+// In tool handler:
+const deps = getDependenciesForTool(project, scope, jars);
 ```
-This keeps the type non-optional (always present) which is better for consumers than optional fields.
+
+### Pattern 4: Single JDT LS Workspace Per Project
+**What:** One JDT LS process per project, workspace contains all children's sources.
+**When:** Project creation/first child with sources triggers JDT LS init. Adding/removing children incrementally syncs.
+**Why:** JDT LS cross-references work best when all sources are in one workspace. Multiple JDT LS processes would waste memory and miss cross-child references.
+
+### Pattern 5: Default Project on Startup
+**What:** Create an empty default project automatically when the MCP server starts.
+**When:** Server initialization, before any tool calls.
+**Why:** Eliminates the "no projects loaded" error for the common single-project case. User can immediately `add_fabric_mod` without first calling `create_project`.
+**Example:**
+```typescript
+// In server.ts or index.ts initialization:
+const defaultProject: Project = {
+	name: 'default',
+	children: new Map(),
+	filterConfig: { mode: 'include-all', patterns: [] },
+};
+projectStore.set('default', defaultProject);
+projectStore.setDefault('default');
+```
+
+### Pattern 6: SourceAdapter rootPath Resolution
+**What:** When creating a SourceAdapter for a namespaced dep like `my-mod/src`, look up the fabric mod child to get its `rootPath`.
+**When:** Any code path that creates a filesystem source adapter.
+**Why:** The `src` dep ID is special-cased in `createSourceAdapter` to use filesystem reading. With multiple fabric mods, each has a different rootPath.
+**Example:**
+```typescript
+function resolveRootPath(project: Project, namespacedDepId: string): string | undefined {
+	const slashIndex = namespacedDepId.indexOf('/');
+	if (slashIndex === -1) return undefined; // study jar, no rootPath needed
+	const childName = namespacedDepId.slice(0, slashIndex);
+	const child = project.children.get(childName);
+	if (child?.kind === 'fabric-mod') return child.rootPath;
+	return undefined;
+}
+```
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Truncation in the Envelope Layer
-**What:** Adding slice/truncation logic inside `makeSuccess` or the envelope types.
-**Why bad:** The envelope is a pass-through wrapper. It should not transform data. Data shaping happens before envelope creation.
-**Instead:** Slice in domain functions, pass shaped data to `makeSuccess`.
+### Anti-Pattern 1: Keeping LoadedProject as Intermediate
+**What:** Converting LoadedProject to the new types at tool boundaries instead of replacing it.
+**Why bad:** Two representations of the same data. Conversion bugs. Stale data if one is updated but not the other.
+**Instead:** Replace LoadedProject with the new types throughout. The loader returns FabricModChild; the store holds Project. A temporary deprecated alias is fine during migration, but must be removed.
 
-### Anti-Pattern 2: Separate "Paged" Result Types
-**What:** Creating `PagedSourceResult`, `PagedMemberResult`, etc. alongside existing types.
-**Why bad:** Proliferates types. The existing types can accommodate the new fields.
-**Instead:** Extend existing `SourceResult` and `MemberResult` with the new fields. They're always present, just trivially set when not slicing.
+### Anti-Pattern 2: Deep Nesting for Scope Resolution
+**What:** Making tools navigate `project.children.get(scope).dependencyJars` directly.
+**Why bad:** Couples every tool to the container structure. If the structure changes, every tool changes.
+**Instead:** Funnel all scope resolution through `getDependenciesForTool(project, scope?, jars?)`. Tools never see children directly.
 
-### Anti-Pattern 3: Line-Range Logic in SourceAdapter
-**What:** Adding offset/limit to `SourceAdapter.readEntry()` signature.
-**Why bad:** SourceAdapter reads raw bytes from jars/filesystem. Line-range slicing operates on decoded text. Mixing byte-level I/O with text-level slicing couples concerns.
-**Instead:** SourceAdapter returns full Buffer. Caller decodes to string, then uses `sliceSource`.
+### Anti-Pattern 3: Multiple JDT LS Sessions Per Project
+**What:** One JDT LS per fabric mod child.
+**Why bad:** Cross-mod references broken. Memory multiplied. Startup time multiplied. Workspace sync complexity explosion.
+**Instead:** Single JDT LS per project. All children's sources in one workspace.
 
-### Anti-Pattern 4: Default Limits That Break Existing Behavior
-**What:** Adding a default limit to `find_references` that silently truncates results for existing users.
-**Why bad:** Agents using this tool expect all references. Silent truncation causes missed results.
-**Instead:** Default limit should be generous (100+) and the response MUST include `total` count so the agent knows to paginate. Document this clearly.
+### Anti-Pattern 4: Eager Namespace Stripping
+**What:** Stripping the `childName/` prefix from dep IDs before returning to tools/users.
+**Why bad:** Loses provenance information. Cannot tell which child a dependency came from.
+**Instead:** Keep namespaced IDs everywhere. Tools display them as-is. The namespace IS the identity.
 
-### Anti-Pattern 5: Context Lines as a Separate Response Field
-**What:** Adding a `contextBefore`/`contextAfter` alongside the member `source` field.
-**Why bad:** The member source already includes Javadoc via `findDecorationsStart`. Adding context lines is the same operation -- extending the extracted range. Having three separate text fields (contextBefore, source, contextAfter) complicates consumption.
-**Instead:** Expand the `source` field to include context lines. The `startLine`/`endLine` metadata tells the consumer where the member itself starts vs. context.
+### Anti-Pattern 5: Separate ProjectStore Per Child Type
+**What:** Having `fabricModStore` and `studyJarStore` alongside `projectStore`.
+**Why bad:** Splits project state across multiple stores. Invariants (like "child names are unique within a project") are unenforceable.
+**Instead:** Single ProjectStore holding Project containers. Children live inside Project.
 
-## Build Order (Suggested Phase Structure)
+## Build Order (Suggested Phase Sequence)
 
-Dependencies flow: types -> domain functions -> tool wiring -> descriptions.
+The rearchitecture has clear dependency layers. Build bottom-up:
 
-### Phase 1: Line-Range Reading on read_source
-**Depends on:** Nothing (new module + modifications to existing)
-1. Create `src/browsing/source-slicer.ts` with `sliceSource` (pure function, easy to unit test)
-2. Extend `SourceResult` in `types.ts` with `totalLineCount`, `startLine`, `endLine`, `truncated`
-3. Modify `read-source.ts`: add offset/limit params, disambiguation logic, call sliceSource
-4. Backfill new SourceResult fields in existing non-sliced path
-5. Update `descriptions.ts` for read_source
-6. Tests: sliceSource unit tests, read_source integration tests for sliced/non-sliced/disambiguation
+### Phase 1: Type Foundation + ProjectStore
+- Define new types (`Project`, `ProjectChild`, `FabricModChild`, `StudyJarChild`)
+- `ProjectStore` stores `Project` instead of `LoadedProject`
+- `loader.ts` refactored to return `FabricModChild` (renamed or new function)
+- `create_project` tool creates empty container
+- Default project created on startup
+- Existing `load_project` preserved as compatibility wrapper (creates project + adds fabric mod in one call)
+- All existing tools continue to work via compatibility layer
 
-**Why first:** Agents reading large Minecraft classes (1000+ lines) hit context limits immediately. This is the highest-value feature -- surgical line-range control.
+**Why first:** Everything depends on the type foundation. The compatibility wrapper means existing tests keep passing while migration proceeds.
 
-### Phase 2: Context Lines on read_member
-**Depends on:** Nothing (orthogonal to Phase 1, could run in parallel)
-1. Modify `extractMemberSource` in `member-extractor.ts` to accept optional context parameter
-2. Add `contextStartLine`/`contextEndLine` or similar to MemberResult if needed (or just let startLine/endLine reflect the expanded range)
-3. Modify `read-member.ts`: add linesBefore/linesAfter params, pass to extractor
-4. Update `descriptions.ts` for read_member
-5. Tests: member extraction with context lines, boundary conditions
+### Phase 2: Dependency Namespacing + Scope
+- `dependency-resolver` gains namespace-aware functions
+- `getDependenciesForTool` gains `scope` parameter
+- `uri-mapper` handles namespaced dir names (`/` -> `__`)
+- `source-adapter` takes explicit rootPath resolution
+- `resolveClassSource` updated for namespaced deps
+- Add `scope` parameter to all jar-aware tool schemas
 
-**Why second:** Small, self-contained change. Quick win that follows the locate-in-source pattern.
+**Why second:** Namespacing is the core semantic change. Once deps are namespaced, multiple fabric mods can coexist without collisions.
 
-### Phase 3: Navigation Tool Pagination
-**Depends on:** Nothing (orthogonal)
-1. Add `paginateResults` helper to `tool-helpers.ts`
-2. Modify `find-references.ts`: add limit/offset params, use paginateResults
-3. Modify `find-implementations.ts`: add limit/offset params, use paginateResults
-4. Update `descriptions.ts` for both tools
-5. Tests: pagination of navigation results
+### Phase 3: Child Management Tools
+- `add_fabric_mod` tool (loads a Fabric mod as a child)
+- Study jar tools operate on `project.children` instead of `project.studyJars`
+- `remove_child` tool (generic removal of any child type)
+- `list_children` tool (shows all children with types and metadata)
+- `get_project_metadata` shows children structure
+- `refresh_dependencies` operates per-fabric-mod child
 
-**Why third:** Prevents context explosion from `find_references` returning 200+ results.
+**Why third:** Depends on types (Phase 1) and namespacing (Phase 2) being in place. This is where the user-facing API changes.
 
-### Phase 4: Verbosity Audit
-**Depends on:** Phases 1-3 (audit after controls are in place to recommend defaults)
-1. Audit NavigationResult context snippets -- are they too large? Should `extractEnclosingContext` produce shorter snippets?
-2. Audit `search_symbols` output -- is `containerName` redundant with `memberFqn`? Can `location.uri` be omitted?
-3. Audit `list_members` enriched output -- does the full tree blow up context for large classes?
-4. Audit `search_classes` result shape -- are `provenanceChains` and `innerClasses` needed in search results?
-5. Recommend and implement defaults changes, document findings
+### Phase 4: JDT LS Workspace Unification
+- Single workspace per project containing all children's sources
+- `extractSourcesToTemp` iterates all children with namespaced dir names
+- Incremental sync generalized for any child type (not just study jars)
+- JDT LS init deferred until first child with sources is added
+- `processNavigationLocations` uses project-level jdtls and namespaced URI mapping
 
-**Why last:** The verbosity audit is informed by the controls added in Phases 1-3. With pagination and line-range controls in place, the audit can focus on per-result verbosity rather than total result count.
+**Why fourth:** JDT LS is the most complex integration. It benefits from stable types and namespacing. The workspace extraction must produce namespaced directory names that match the URI mapper.
 
-### Phase Ordering Rationale
-- Phases 1-3 are independent and could be developed in any order or in parallel
-- Phase 1 is highest-value (agents most frequently hit context limits reading full source files)
-- Phase 4 must come last because it's an analysis phase that benefits from the control mechanisms built in 1-3
+### Phase 5: Cleanup + Migration Completion
+- Remove `LoadedProject` type alias
+- Remove or finalize `load_project` wrapper (decide: keep as convenience or remove)
+- Remove `project.studyJars` field (study jars now live in `project.children`)
+- Update all test fixtures
+- Verify all 592+ tests pass with new types
+
+**Why last:** Cleanup depends on everything else being stable. Tests validate the full migration.
+
+**Phase ordering rationale:**
+- Types must exist before anything can use them (Phase 1 first)
+- Namespacing must work before tools can correctly address multi-child deps (Phase 2 before Phase 3)
+- Child management tools need both types and namespacing (Phase 3 after Phase 2)
+- JDT LS workspace changes are the riskiest and most isolated -- defer until the data model is stable (Phase 4)
+- Cleanup is always last
+
+**Key risk in ordering:** Phase 2 (namespacing) changes the shape of dependency IDs that all tools consume. If existing tools do exact-match on dep IDs like `minecraft`, those will break when IDs become `my-mod/minecraft`. The compatibility layer in Phase 1 must handle the single-child case (no namespace prefix when project has exactly one fabric mod child) OR Phase 2 must update all tool tests simultaneously.
 
 ## Integration Points Summary
 
 | Feature | Files Modified | Files Created | Key Integration Point |
 |---------|---------------|---------------|----------------------|
-| Line-range read_source | `read-source.ts`, `types.ts`, `descriptions.ts` | `source-slicer.ts` | `sliceSource` called after `readEntry` decode; disambiguation via existing `makeDisambiguation` |
-| Context lines read_member | `member-extractor.ts`, `read-member.ts`, `descriptions.ts` | None | `extractMemberSource` expanded with context param; same clamping pattern as locate-in-source |
-| Navigation pagination | `find-references.ts`, `find-implementations.ts`, `tool-helpers.ts`, `descriptions.ts` | None | `paginateResults` slices `processNavigationLocations` output |
-| Verbosity audit | Potentially `context-extractor.ts`, various tool files, `descriptions.ts` | None | Analysis-driven; specific changes TBD |
+| Type foundation | `project/types.ts`, `state/project-store.ts` | None | New types alongside existing |
+| Loader refactor | `project/loader.ts` | Possibly `project/fabric-mod-loader.ts` | Returns `FabricModChild` instead of `LoadedProject` |
+| Dependency namespacing | `project/dependency-resolver.ts`, `tools/tool-helpers.ts` | None | `getDependenciesForTool` gains scope param |
+| URI mapping | `jdtls/uri-mapper.ts` | None | `/` in jar IDs -> `__` in dir names |
+| Source adapter | `browsing/source-adapter.ts` | None | rootPath resolved from child, not project |
+| Child management | `tools/add-study-jar.ts`, `tools/remove-study-jar.ts`, `tools/list-study-jars.ts` | `tools/add-fabric-mod.ts`, `tools/create-project.ts`, `tools/remove-child.ts`, `tools/list-children.ts` | Children stored in `project.children` map |
+| JDT LS workspace | `jdtls/workspace.ts`, `jdtls/workspace-sync.ts` | None | Single workspace per project, namespaced extraction dirs |
+| Scope threading | ~15 tool files | None | Add `scope` param to input schemas |
 
 ## Scalability Considerations
 
-| Concern | Current | After v1.3 |
-|---------|---------|------------|
-| Large class source in context | Full 1000+ line files | Agent controls via offset/limit |
-| find_references explosion | All results returned (can be 200+) | Paginated with total count |
-| Member source size | Full member with Javadoc | Context lines add bounded expansion |
-| Per-result verbosity | NavigationResult includes full context snippet | Audit may reduce snippet size |
+| Concern | 1 fabric mod | 3 fabric mods | 10+ fabric mods |
+|---------|-------------|---------------|-----------------|
+| JDT LS memory | ~1GB (current) | ~2-3GB (more source files) | May need -Xmx tuning |
+| Jar handle count | ~20-30 | ~60-90 (shared jars ref-counted) | Verify OS file handle limits |
+| Workspace extraction time | ~5-10s | ~15-30s | Consider lazy extraction per child |
+| Dependency map size | ~30 entries | ~90 entries (namespaced) | Glob matching stays fast (picomatch) |
+| Entry index cache | ~30 entries | ~90 entries (keyed by jar path, shared across children) | Memory bounded by unique jar count |
+| URI mapper reverse lookup | ~30 dir-to-jar mappings | ~90 mappings | Map lookup is O(1), no concern |
 
 ## Sources
 
-- Direct codebase analysis of MinecraftDevMCP v1.2 (526 tests, 22 tools, 6,863 LOC)
-- Architecture patterns derived from existing code conventions (domain/tool separation, envelope pattern, pagination in search_classes/search_symbols, context extraction in locate-in-source)
-- Confidence: HIGH -- all findings are from direct source reading, no external references needed
+- Direct codebase analysis of MinecraftDevMCP v1.3 (592 tests, 25 tools, 7,281 LOC)
+- All source files in `src/project/`, `src/state/`, `src/tools/`, `src/jdtls/`, `src/browsing/` read and cross-referenced
+- Architecture patterns derived from existing code conventions (domain/tool separation, discriminated unions in types.ts, dependency resolution pipeline)
+- Confidence: HIGH -- all findings from direct source reading, no external references needed
