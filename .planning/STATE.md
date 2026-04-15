@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Project Rearchitecture
 status: unknown
-stopped_at: Completed 25-02-PLAN.md
-last_updated: "2026-04-15T21:19:21.613Z"
+stopped_at: Completed 25.1-01-PLAN.md
+last_updated: "2026-04-15T22:19:17.944Z"
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 3
-  total_plans: 9
-  completed_plans: 9
+  total_plans: 13
+  completed_plans: 10
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-15)
 
 **Core value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
-**Current focus:** Phase 25 — child-management-tools
+**Current focus:** Phase 25.1 — rework-tools-and-tests-for-native-architecture-without-compatibility-shims
 
 ## Current Position
 
-Phase: 26
-Plan: Not started
+Phase: 25.1 (rework-tools-and-tests-for-native-architecture-without-compatibility-shims) — EXECUTING
+Plan: 2 of 4
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Plan: Not started
 | Phase 24 P03 | 13min | 2 tasks | 25 files |
 | Phase 25-01 P01 | 4min | 2 tasks | 8 files |
 | Phase 25 P02 | 4min | 2 tasks | 6 files |
+| Phase 25.1 P01 | 5min | 2 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,11 @@ See PROJECT.md Key Decisions table for full decision log.
 - [Phase 25]: Scoped refresh uses removeProjectJar/addProjectJar per-jar, never closeProject/registerProject
 - [Phase 25]: Scoped collision check uses autoUnloadConflictingStudyJarsForDeps against refreshed child's deps only
 - [Phase 25]: Scoped unload rebuilds .classpath and notifies JDT LS after removing child workspace entries
+- [Phase 25.1]: LoadedProject alias removed entirely rather than deprecated -- no consumers outside this codebase
+
+### Roadmap Evolution
+
+- Phase 25.1 inserted after Phase 25: Rework tools and tests for native architecture without compatibility shims (URGENT)
 
 ### Pending Todos
 
@@ -94,6 +100,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-15T21:16:03.322Z
-Stopped at: Completed 25-02-PLAN.md
+Last session: 2026-04-15T22:19:17.942Z
+Stopped at: Completed 25.1-01-PLAN.md
 Resume file: None
