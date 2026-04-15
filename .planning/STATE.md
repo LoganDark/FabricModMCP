@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Project Rearchitecture
 status: unknown
-stopped_at: Completed 24-01-PLAN.md
-last_updated: "2026-04-15T17:56:43.923Z"
+stopped_at: Completed 24-02-PLAN.md
+last_updated: "2026-04-15T18:03:21.707Z"
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-04-15)
 ## Current Position
 
 Phase: 24 (dependency-namespacing) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 
 ## Performance Metrics
 
@@ -48,6 +48,7 @@ Plan: 2 of 3
 | Phase 23 P03 | 15min | 3 tasks | 30 files |
 | Phase 23 P04 | 1min | 1 tasks | 1 files |
 | Phase 24 P01 | 7min | 2 tasks | 13 files |
+| Phase 24 P02 | 5min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,8 @@ See PROJECT.md Key Decisions table for full decision log.
 - [Phase 23]: All tool files migrated to compat accessors; test factory split into makeFakeFabricMod + makeFakeProject
 - [Phase 24]: Namespace separator is '/' -- resolveJarId detects via includes('/') check
 - [Phase 24]: resolveJarId parameter order: (project, jarId, scope) -- project first for consistency
+- [Phase 24]: Fallback Fabric API entry also gets namespaced ID for consistency
+- [Phase 24]: autoIncludeIds parameter is optional -- existing callers keep working until Plan 03 wires them
 
 ### Pending Todos
 
@@ -81,6 +84,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-15T17:56:43.921Z
-Stopped at: Completed 24-01-PLAN.md
+Last session: 2026-04-15T18:03:21.705Z
+Stopped at: Completed 24-02-PLAN.md
 Resume file: None
