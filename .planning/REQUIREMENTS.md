@@ -9,12 +9,12 @@ Requirements for v1.4 Project Rearchitecture milestone. Each maps to roadmap pha
 
 ### Container Model
 
-- [ ] **CONT-01**: Projects are pure named containers with only a name, children (fabric mods + study jars), filter config, and JDT LS session
-- [ ] **CONT-02**: Fabric mods are named children loaded from a root directory, each owning its own Gradle config, sources jar, dependencies, and fabric.mod.json
-- [ ] **CONT-03**: Study jars are named children at project level, not under any fabric mod
+- [x] **CONT-01**: Projects are pure named containers with only a name, children (fabric mods + study jars), filter config, and JDT LS session
+- [x] **CONT-02**: Fabric mods are named children loaded from a root directory, each owning its own Gradle config, sources jar, dependencies, and fabric.mod.json
+- [x] **CONT-03**: Study jars are named children at project level, not under any fabric mod
 - [ ] **CONT-04**: A project can hold multiple fabric mods simultaneously
 - [ ] **CONT-05**: A default project named "default" is created at server startup
-- [ ] **CONT-06**: Each child (fabric mod or study jar) is responsible for serving requests about its own contents — the project delegates, not aggregates
+- [x] **CONT-06**: Each child (fabric mod or study jar) is responsible for serving requests about its own contents — the project delegates, not aggregates
 
 ### Dependency Resolution
 
@@ -72,12 +72,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CONT-01 | Phase 23 | Pending |
-| CONT-02 | Phase 23 | Pending |
-| CONT-03 | Phase 23 | Pending |
+| CONT-01 | Phase 23 | Complete |
+| CONT-02 | Phase 23 | Complete |
+| CONT-03 | Phase 23 | Complete |
 | CONT-04 | Phase 25 | Pending |
 | CONT-05 | Phase 23 | Pending |
-| CONT-06 | Phase 23 | Pending |
+| CONT-06 | Phase 23 | Complete |
 | DEP-01 | Phase 24 | Pending |
 | DEP-02 | Phase 24 | Pending |
 | DEP-03 | Phase 24 | Pending |
