@@ -46,13 +46,14 @@ async function findPomInModules2(
 
 async function addDependencyEntry(
 	deps: Map<string, DependencyEntry>,
+	modName: string,
 	group: string,
 	artifact: string,
 	version: string,
 	category: DependencyEntry['category'],
 	chain: string[] = [],
 ): Promise<void> {
-	const id = `${group}:${artifact}`;
+	const id = `${modName}/${group}:${artifact}`;
 	const existing = deps.get(id);
 	if (existing) {
 		if (chain.length > 0) {
@@ -76,6 +77,7 @@ async function addDependencyEntry(
 
 async function followTransitiveDeps(
 	deps: Map<string, DependencyEntry>,
+	modName: string,
 	group: string,
 	artifact: string,
 	version: string,
@@ -102,8 +104,8 @@ async function followTransitiveDeps(
 
 			const depId = `${dep.groupId}:${dep.artifactId}`;
 			const newChain = [...chain, depId];
-			await addDependencyEntry(deps, dep.groupId, dep.artifactId, dep.version, 'library', newChain);
-			await followTransitiveDeps(deps, dep.groupId, dep.artifactId, dep.version, visited, depth + 1, newChain);
+			await addDependencyEntry(deps, modName, dep.groupId, dep.artifactId, dep.version, 'library', newChain);
+			await followTransitiveDeps(deps, modName, dep.groupId, dep.artifactId, dep.version, visited, depth + 1, newChain);
 		}
 	} catch {
 		// Malformed POM or read error -- skip
@@ -114,12 +116,13 @@ export async function discoverDependencies(
 	config: GradleConfig,
 	sourcesJarPath: string,
 	projectRootPath: string,
+	modName: string,
 ): Promise<DiscoveryResult> {
 	const deps = new Map<string, DependencyEntry>();
 
 	// Step 0: Seed entries
-	deps.set('minecraft', {
-		id: 'minecraft',
+	deps.set(`${modName}/minecraft`, {
+		id: `${modName}/minecraft`,
 		group: 'com.mojang',
 		artifact: 'minecraft',
 		version: config.minecraftVersion,
@@ -129,8 +132,8 @@ export async function discoverDependencies(
 		provenanceChains: [],
 	});
 
-	deps.set('src', {
-		id: 'src',
+	deps.set(modName, {
+		id: modName,
 		group: '',
 		artifact: '',
 		version: '',
@@ -154,7 +157,7 @@ export async function discoverDependencies(
 			for (const lib of mojangInfo.libraries) {
 				const parts = (lib.name as string).split(':');
 				if (parts.length >= 3) {
-					await addDependencyEntry(deps, parts[0], parts[1], parts[2], 'library', ['minecraft']);
+					await addDependencyEntry(deps, modName, parts[0], parts[1], parts[2], 'library', ['minecraft']);
 				}
 			}
 		}
@@ -192,12 +195,12 @@ export async function discoverDependencies(
 			const fabricDeps = parsePomDependencies(fabricPomContent);
 			for (const dep of fabricDeps) {
 				if (dep.scope !== 'compile') continue;
-				await addDependencyEntry(deps, dep.groupId, dep.artifactId, dep.version, 'fabric-api', ['net.fabricmc.fabric-api:fabric-api']);
+				await addDependencyEntry(deps, modName, dep.groupId, dep.artifactId, dep.version, 'fabric-api', ['net.fabricmc.fabric-api:fabric-api']);
 			}
 		} else {
 			// Could not find Fabric API POM -- add single entry
-			deps.set('net.fabricmc.fabric-api:fabric-api', {
-				id: 'net.fabricmc.fabric-api:fabric-api',
+			deps.set(`${modName}/net.fabricmc.fabric-api:fabric-api`, {
+				id: `${modName}/net.fabricmc.fabric-api:fabric-api`,
 				group: 'net.fabricmc.fabric-api',
 				artifact: 'fabric-api',
 				version: config.fabricApiVersion,
@@ -220,15 +223,15 @@ export async function discoverDependencies(
 		if (skipArtifacts.has(dep.artifact)) continue;
 
 		const depId = `${dep.group}:${dep.artifact}`;
-		await addDependencyEntry(deps, dep.group, dep.artifact, dep.version, 'library', [depId]);
-		await followTransitiveDeps(deps, dep.group, dep.artifact, dep.version, visited, 1, [depId]);
+		await addDependencyEntry(deps, modName, dep.group, dep.artifact, dep.version, 'library', [depId]);
+		await followTransitiveDeps(deps, modName, dep.group, dep.artifact, dep.version, visited, 1, [depId]);
 	}
 
-	// Calculate summary (excluding minecraft and src)
+	// Calculate summary (excluding minecraft and mod-source)
 	let withSources = 0;
 	let withoutSources = 0;
 	for (const [id, entry] of deps) {
-		if (id === 'minecraft' || id === 'src') continue;
+		if (entry.category === 'minecraft' || entry.category === 'mod-source') continue;
 		if (entry.available) {
 			withSources++;
 		} else {

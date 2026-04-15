@@ -60,7 +60,7 @@ export function createSourceAdapter(
 	dep: DependencyEntry,
 	rootPath: string,
 ): SourceAdapter {
-	if (dep.id === 'src') {
+	if (dep.category === 'mod-source') {
 		return createFsAdapter(rootPath);
 	}
 

@@ -42,6 +42,7 @@ function makeConfig(overrides: Partial<GradleConfig> = {}): GradleConfig {
 }
 
 const FAKE_MC_SOURCES = '/fake/minecraft-sources.jar';
+const MOD_NAME = 'testmod';
 
 beforeEach(() => {
 	vi.resetAllMocks();
@@ -53,11 +54,11 @@ beforeEach(() => {
 });
 
 describe('discoverDependencies', () => {
-	it('always includes "minecraft" entry with category="minecraft" and correct stable ID', async () => {
-		const result = await discoverDependencies(makeConfig(), FAKE_MC_SOURCES, '/fake/project');
-		const mc = result.dependencies.get('minecraft');
+	it('always includes namespaced minecraft entry with category="minecraft"', async () => {
+		const result = await discoverDependencies(makeConfig(), FAKE_MC_SOURCES, '/fake/project', MOD_NAME);
+		const mc = result.dependencies.get('testmod/minecraft');
 		expect(mc).toBeDefined();
-		expect(mc!.id).toBe('minecraft');
+		expect(mc!.id).toBe('testmod/minecraft');
 		expect(mc!.category).toBe('minecraft');
 		expect(mc!.group).toBe('com.mojang');
 		expect(mc!.artifact).toBe('minecraft');
@@ -66,14 +67,20 @@ describe('discoverDependencies', () => {
 		expect(mc!.available).toBe(true);
 	});
 
-	it('always includes "src" entry with category="mod-source"', async () => {
-		const result = await discoverDependencies(makeConfig(), FAKE_MC_SOURCES, '/fake/project');
-		const src = result.dependencies.get('src');
+	it('always includes mod-source entry keyed by modName with category="mod-source"', async () => {
+		const result = await discoverDependencies(makeConfig(), FAKE_MC_SOURCES, '/fake/project', MOD_NAME);
+		const src = result.dependencies.get('testmod');
 		expect(src).toBeDefined();
-		expect(src!.id).toBe('src');
+		expect(src!.id).toBe('testmod');
 		expect(src!.category).toBe('mod-source');
 		expect(src!.available).toBe(true);
 		expect(src!.sourcesJarPath).toBeNull();
+	});
+
+	it('does not contain bare "minecraft" or "src" keys', async () => {
+		const result = await discoverDependencies(makeConfig(), FAKE_MC_SOURCES, '/fake/project', MOD_NAME);
+		expect(result.dependencies.has('minecraft')).toBe(false);
+		expect(result.dependencies.has('src')).toBe(false);
 	});
 
 	it('discovers Fabric API modules from mock POM with compile-scope filtering', async () => {
@@ -109,20 +116,20 @@ describe('discoverDependencies', () => {
 
 		mockedFindSourcesJar.mockResolvedValue('/fake/sources.jar');
 
-		const result = await discoverDependencies(makeConfig(), FAKE_MC_SOURCES, '/fake/project');
+		const result = await discoverDependencies(makeConfig(), FAKE_MC_SOURCES, '/fake/project', MOD_NAME);
 
 		// Should have networking and rendering (compile scope), NOT gametest (test scope)
-		const networking = result.dependencies.get('net.fabricmc.fabric-api:fabric-networking-api-v1');
+		const networking = result.dependencies.get('testmod/net.fabricmc.fabric-api:fabric-networking-api-v1');
 		expect(networking).toBeDefined();
 		expect(networking!.category).toBe('fabric-api');
 		expect(networking!.available).toBe(true);
 
-		const rendering = result.dependencies.get('net.fabricmc.fabric-api:fabric-rendering-v1');
+		const rendering = result.dependencies.get('testmod/net.fabricmc.fabric-api:fabric-rendering-v1');
 		expect(rendering).toBeDefined();
 		expect(rendering!.category).toBe('fabric-api');
 
 		// Test scope should be excluded
-		const gametest = result.dependencies.get('net.fabricmc.fabric-api:fabric-gametest-api-v1');
+		const gametest = result.dependencies.get('testmod/net.fabricmc.fabric-api:fabric-gametest-api-v1');
 		expect(gametest).toBeUndefined();
 	});
 
@@ -173,18 +180,18 @@ describe('discoverDependencies', () => {
 			throw new Error('File not found');
 		});
 
-		const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project');
+		const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project', MOD_NAME);
 
-		const myLib = result.dependencies.get('com.example:my-lib');
+		const myLib = result.dependencies.get('testmod/com.example:my-lib');
 		expect(myLib).toBeDefined();
 		expect(myLib!.category).toBe('library');
 
-		const transitive = result.dependencies.get('com.example:transitive-lib');
+		const transitive = result.dependencies.get('testmod/com.example:transitive-lib');
 		expect(transitive).toBeDefined();
 		expect(transitive!.category).toBe('library');
 
 		// Test-scope dependency should NOT be followed
-		const testOnly = result.dependencies.get('com.example:test-only');
+		const testOnly = result.dependencies.get('testmod/com.example:test-only');
 		expect(testOnly).toBeUndefined();
 	});
 
@@ -237,9 +244,9 @@ describe('discoverDependencies', () => {
 		mockedFindSourcesJar.mockResolvedValue(null);
 
 		// Should not throw / infinite loop
-		const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project');
-		expect(result.dependencies.has('circle:a')).toBe(true);
-		expect(result.dependencies.has('circle:b')).toBe(true);
+		const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project', MOD_NAME);
+		expect(result.dependencies.has('testmod/circle:a')).toBe(true);
+		expect(result.dependencies.has('testmod/circle:b')).toBe(true);
 	});
 
 	it('respects depth limit of 5 levels', async () => {
@@ -282,13 +289,13 @@ describe('discoverDependencies', () => {
 
 		mockedFindSourcesJar.mockResolvedValue(null);
 
-		const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project');
+		const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project', MOD_NAME);
 
 		// Should have level-0 through level-5 (depth limit 5 means 5 levels of transitive)
-		expect(result.dependencies.has('deep:level-0')).toBe(true);
-		expect(result.dependencies.has('deep:level-5')).toBe(true);
+		expect(result.dependencies.has('testmod/deep:level-0')).toBe(true);
+		expect(result.dependencies.has('testmod/deep:level-5')).toBe(true);
 		// level-6 should NOT be discovered (beyond depth limit)
-		expect(result.dependencies.has('deep:level-6')).toBe(false);
+		expect(result.dependencies.has('testmod/deep:level-6')).toBe(false);
 	});
 
 	it('marks dependencies without source jars as available=false', async () => {
@@ -302,20 +309,20 @@ describe('discoverDependencies', () => {
 
 		mockedFindSourcesJar.mockResolvedValue(null);
 
-		const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project');
+		const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project', MOD_NAME);
 
-		const lib = result.dependencies.get('no.sources:lib');
+		const lib = result.dependencies.get('testmod/no.sources:lib');
 		expect(lib).toBeDefined();
 		expect(lib!.available).toBe(false);
 		expect(lib!.sourcesJarPath).toBeNull();
 	});
 
 	describe('provenance chains', () => {
-		it('seed entries (minecraft, src) have empty provenanceChains', async () => {
-			const result = await discoverDependencies(makeConfig(), FAKE_MC_SOURCES, '/fake/project');
-			const mc = result.dependencies.get('minecraft');
+		it('seed entries (minecraft, mod-source) have empty provenanceChains', async () => {
+			const result = await discoverDependencies(makeConfig(), FAKE_MC_SOURCES, '/fake/project', MOD_NAME);
+			const mc = result.dependencies.get('testmod/minecraft');
 			expect(mc!.provenanceChains).toEqual([]);
-			const src = result.dependencies.get('src');
+			const src = result.dependencies.get('testmod');
 			expect(src!.provenanceChains).toEqual([]);
 		});
 
@@ -339,8 +346,8 @@ describe('discoverDependencies', () => {
 			});
 			mockedFindSourcesJar.mockResolvedValue('/fake/sources.jar');
 
-			const result = await discoverDependencies(makeConfig(), FAKE_MC_SOURCES, '/fake/project');
-			const networking = result.dependencies.get('net.fabricmc.fabric-api:fabric-networking-api-v1');
+			const result = await discoverDependencies(makeConfig(), FAKE_MC_SOURCES, '/fake/project', MOD_NAME);
+			const networking = result.dependencies.get('testmod/net.fabricmc.fabric-api:fabric-networking-api-v1');
 			expect(networking!.provenanceChains).toEqual([['net.fabricmc.fabric-api:fabric-api']]);
 		});
 
@@ -384,12 +391,12 @@ describe('discoverDependencies', () => {
 
 			mockedFindSourcesJar.mockResolvedValue('/fake/sources.jar');
 
-			const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project');
+			const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project', MOD_NAME);
 
-			const myLib = result.dependencies.get('com.example:my-lib');
+			const myLib = result.dependencies.get('testmod/com.example:my-lib');
 			expect(myLib!.provenanceChains).toEqual([['com.example:my-lib']]);
 
-			const transitive = result.dependencies.get('com.example:transitive-lib');
+			const transitive = result.dependencies.get('testmod/com.example:transitive-lib');
 			expect(transitive!.provenanceChains).toEqual([['com.example:my-lib', 'com.example:transitive-lib']]);
 		});
 
@@ -444,9 +451,9 @@ describe('discoverDependencies', () => {
 
 			mockedFindSourcesJar.mockResolvedValue(null);
 
-			const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project');
+			const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project', MOD_NAME);
 
-			const common = result.dependencies.get('shared:common');
+			const common = result.dependencies.get('testmod/shared:common');
 			expect(common).toBeDefined();
 			expect(common!.provenanceChains).toHaveLength(2);
 			expect(common!.provenanceChains).toContainEqual(['path:a', 'shared:common']);
@@ -504,9 +511,9 @@ describe('discoverDependencies', () => {
 
 			mockedFindSourcesJar.mockResolvedValue(null);
 
-			const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project');
+			const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project', MOD_NAME);
 
-			const target = result.dependencies.get('shared:target');
+			const target = result.dependencies.get('testmod/shared:target');
 			expect(target).toBeDefined();
 			// First discovery adds one chain, second discovery appends another
 			expect(target!.provenanceChains).toHaveLength(2);
@@ -515,7 +522,7 @@ describe('discoverDependencies', () => {
 		});
 	});
 
-	it('provides correct summary excluding minecraft and src', async () => {
+	it('provides correct summary excluding minecraft and mod-source', async () => {
 		const config = makeConfig({
 			dependencies: [
 				{ configuration: 'minecraft', group: 'com.mojang', artifact: 'minecraft', version: '1.21.11', raw: 'com.mojang:minecraft:1.21.11' },
@@ -530,9 +537,9 @@ describe('discoverDependencies', () => {
 			return null;
 		});
 
-		const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project');
+		const result = await discoverDependencies(config, FAKE_MC_SOURCES, '/fake/project', MOD_NAME);
 
-		expect(result.summary.total).toBe(2); // lib-a and lib-b, not minecraft/src
+		expect(result.summary.total).toBe(2); // lib-a and lib-b, not minecraft/mod-source
 		expect(result.summary.withSources).toBe(1);
 		expect(result.summary.withoutSources).toBe(1);
 	});

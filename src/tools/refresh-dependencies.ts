@@ -36,6 +36,7 @@ export function registerRefreshDependenciesTool(server: McpServer): void {
 				mod.gradleConfig,
 				mod.sourcesJar.path,
 				mod.rootPath,
+				mod.name,
 			);
 
 			mod.dependencyJars = result.dependencies;

@@ -111,7 +111,7 @@ export async function loadFabricMod(projectPath: string): Promise<FabricModChild
 	const fabricMod = parseFabricMod(fabricModContent);
 
 	// Discover dependencies
-	const discovery = await discoverDependencies(gradleConfig, sourcesJarPath, absolutePath);
+	const discovery = await discoverDependencies(gradleConfig, sourcesJarPath, absolutePath, fabricMod.id);
 	logger.info(`Dependency discovery: ${discovery.summary.total} dependencies found (${discovery.summary.withSources} with sources, ${discovery.summary.withoutSources} without)`);
 
 	return {
