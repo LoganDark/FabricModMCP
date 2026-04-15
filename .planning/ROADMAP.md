@@ -68,7 +68,7 @@
 
 **Milestone Goal:** Restructure projects from monolithic Fabric-only containers into composable named containers that hold any mix of fabric mods and study jars, with namespaced dependency resolution and flexible scoping.
 
-- [ ] **Phase 23: Type Foundation and ProjectStore** - New container types, compatibility layer, default project at startup
+- [x] **Phase 23: Type Foundation and ProjectStore** - New container types, compatibility layer, default project at startup (completed 2026-04-15)
 - [ ] **Phase 24: Dependency Namespacing** - Per-child dependency resolution with mod-name prefixes and scope parameter
 - [ ] **Phase 25: Child Management Tools** - Multi-mod support, load/add/refresh tools, namespaced jar IDs in results
 - [ ] **Phase 26: JDT LS Workspace Unification** - Single workspace covering all children with cross-mod navigation
@@ -86,11 +86,11 @@
   3. Study jars exist at project level, not nested under any fabric mod child
   4. A default project named "default" exists immediately at server startup without any explicit creation
   5. All existing tools and tests continue passing through a compatibility layer (no regressions)
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 23-01-PLAN.md — Define new type hierarchy (Project, FabricModChild, StudyJarChild) and compat accessor layer
 - [x] 23-02-PLAN.md — Update core modules (ProjectStore, loader, CLI, dependency-resolver, study-jar) and their tests
-- [ ] 23-03-PLAN.md — Migrate all tool files and test factories to use compat accessors, verify full suite
+- [x] 23-03-PLAN.md — Migrate all tool files and test factories to use compat accessors, verify full suite
 
 ### Phase 24: Dependency Namespacing
 **Goal**: Each child resolves its own dependencies independently, with mod-name prefixes preventing ID collisions across children
@@ -146,7 +146,7 @@ Phases execute in numeric order: 23 -> 24 -> 25 -> 26 -> 27
 | 11-14 | v1.1 | 8/8 | Complete | 2026-04-14 |
 | 15-18 | v1.2 | 7/7 | Complete | 2026-04-14 |
 | 19-22 | v1.3 | 9/9 | Complete | 2026-04-15 |
-| 23. Type Foundation | v1.4 | 2/3 | In Progress|  |
+| 23. Type Foundation | v1.4 | 3/3 | Complete   | 2026-04-15 |
 | 24. Dep Namespacing | v1.4 | 0/? | Not started | - |
 | 25. Child Mgmt Tools | v1.4 | 0/? | Not started | - |
 | 26. JDT LS Unification | v1.4 | 0/? | Not started | - |

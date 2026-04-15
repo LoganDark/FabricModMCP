@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Project Rearchitecture
 status: unknown
-stopped_at: Completed 23-02-PLAN.md
-last_updated: "2026-04-15T16:14:36.873Z"
+stopped_at: Completed 23-03-PLAN.md
+last_updated: "2026-04-15T16:33:21.316Z"
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -45,6 +45,7 @@ Plan: 3 of 3
 **Total:** 9 plans, 34min, 17 tasks, 49 files
 | Phase 23 P01 | 2min | 3 tasks | 4 files |
 | Phase 23 P02 | 7min | 2 tasks | 11 files |
+| Phase 23 P03 | 15min | 3 tasks | 30 files |
 
 ## Accumulated Context
 
@@ -57,6 +58,7 @@ See PROJECT.md Key Decisions table for full decision log.
 - v1.4: LoadedProject kept as compat alias during migration, removed only in Phase 27
 - [Phase 23]: StudyJar interface kept alongside StudyJarChild -- StudyJar is internal, StudyJarChild adds kind discriminant
 - [Phase 23]: load-project tool updated inline (Rule 3) to wrap FabricModChild into Project
+- [Phase 23]: All tool files migrated to compat accessors; test factory split into makeFakeFabricMod + makeFakeProject
 
 ### Pending Todos
 
@@ -75,6 +77,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-15T16:14:36.871Z
-Stopped at: Completed 23-02-PLAN.md
+Last session: 2026-04-15T16:33:21.314Z
+Stopped at: Completed 23-03-PLAN.md
 Resume file: None
