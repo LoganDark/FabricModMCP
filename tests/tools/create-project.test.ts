@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
 import { parseEnvelope } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
+import type { Project } from '../../src/project/types.js';
 
 vi.mock('../../src/jdtls/startup.js', () => ({
 	initJdtLsSession: vi.fn().mockResolvedValue({
@@ -81,5 +82,25 @@ describe('create_project tool', () => {
 		expect(envelope.success).toBe(true);
 		expect(envelope.data.jdtlsAvailable).toBe(false);
 		expect(envelope.data.jdtlsWarning).toBe('Java not found');
+	});
+});
+
+describe('default project JDT LS', () => {
+	it('default project gets a JDT LS session at startup', async () => {
+		const { initJdtLsSession } = await import('../../src/jdtls/startup.js');
+
+		// Replicate the startup sequence from index.ts
+		projectStore.clear();
+		const initialProject: Project = {
+			name: 'default',
+			children: new Map(),
+		};
+		projectStore.set('default', initialProject);
+		initialProject.jdtls = await initJdtLsSession();
+
+		const project = projectStore.get('default')!;
+		expect(project.jdtls).toBeDefined();
+		expect(project.jdtls!.available).toBe(false);
+		expect(project.jdtls!.failureReason).toBe('Java not found');
 	});
 });

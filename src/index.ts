@@ -5,6 +5,7 @@ import { parseCli } from './cli/args.js';
 import { logger } from './logging/logger.js';
 import { projectStore } from './state/project-store.js';
 import type { Project } from './project/types.js';
+import { initJdtLsSession } from './jdtls/startup.js';
 
 const args = parseCli(process.argv.slice(2));
 logger.setLevel(args.logLevel);
@@ -14,7 +15,8 @@ const initialProject: Project = {
 	children: new Map(),
 };
 projectStore.set('default', initialProject);
-logger.info('Default project created');
+initialProject.jdtls = await initJdtLsSession();
+logger.info('Default project created', { jdtlsAvailable: initialProject.jdtls.available });
 
 const server = createServer();
 registerAllTools(server);
