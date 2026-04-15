@@ -6,6 +6,7 @@ import type { Project } from '../project/types.js';
 import { logger } from '../logging/logger.js';
 import { returnError } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS } from './descriptions.js';
+import { initJdtLsSession } from '../jdtls/startup.js';
 
 export function registerCreateProjectTool(server: McpServer): void {
 	server.registerTool(
@@ -26,15 +27,18 @@ export function registerCreateProjectTool(server: McpServer): void {
 					children: new Map(),
 				};
 				projectStore.set(name, project);
+				project.jdtls = await initJdtLsSession();
 
 				const envelope = makeSuccess({
 					name,
+					jdtlsAvailable: project.jdtls.available,
+					...(project.jdtls.failureReason ? { jdtlsWarning: project.jdtls.failureReason } : {}),
 				}, {
 					provenance: { tool: 'create_project', project: name },
 				});
 
 				return {
-					content: [{ type: 'text' as const, text: `Created project '${name}'` }],
+					content: [{ type: 'text' as const, text: `Created project '${name}'${project.jdtls.available ? ' (JDT LS ready)' : ' (JDT LS unavailable: ' + (project.jdtls.failureReason ?? 'unknown') + ')'}` }],
 					structuredContent: envelope,
 				};
 			} catch (error) {

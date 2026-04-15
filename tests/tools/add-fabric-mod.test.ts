@@ -8,6 +8,10 @@ vi.mock('../../src/project/loader.js', () => ({
 	loadFabricMod: vi.fn(),
 }));
 
+vi.mock('../../src/jdtls/workspace-sync.js', () => ({
+	syncFabricModToWorkspace: vi.fn().mockResolvedValue({ synced: false, warning: 'JDT LS unavailable' }),
+}));
+
 function makeFakeProject(name: string): Project {
 	return makeFakeProjectBase({ name });
 }
@@ -84,5 +88,48 @@ describe('add_fabric_mod tool', () => {
 		expect(envelope.data.originalName).toBe('testmod');
 		expect(project.children.has('testmod')).toBe(true);
 		expect(project.children.has('testmod-2')).toBe(true);
+	});
+
+	it('calls syncFabricModToWorkspace', async () => {
+		const { loadFabricMod } = await import('../../src/project/loader.js');
+		const { syncFabricModToWorkspace } = await import('../../src/jdtls/workspace-sync.js');
+		const fakeMod = makeFakeFabricMod({ rootPath: '/home/user/my-mod', name: 'my-mod' });
+		fakeMod.fabricMod = { ...fakeMod.fabricMod, id: 'my-mod' };
+		vi.mocked(loadFabricMod).mockResolvedValue(fakeMod);
+
+		const project: Project = { name: 'sync-test', children: new Map() };
+		projectStore.set('sync-test', project);
+		projectStore.setActive('sync-test');
+
+		await pair.client.callTool({
+			name: 'add_fabric_mod',
+			arguments: { project: 'sync-test', path: '/home/user/my-mod' },
+		});
+
+		expect(syncFabricModToWorkspace).toHaveBeenCalledWith(
+			expect.objectContaining({ name: 'my-mod' }),
+			undefined,
+			expect.anything(),
+		);
+	});
+
+	it('includes workspaceSynced in response', async () => {
+		const { loadFabricMod } = await import('../../src/project/loader.js');
+		const fakeMod = makeFakeFabricMod({ rootPath: '/home/user/my-mod', name: 'my-mod' });
+		fakeMod.fabricMod = { ...fakeMod.fabricMod, id: 'my-mod' };
+		vi.mocked(loadFabricMod).mockResolvedValue(fakeMod);
+
+		const project: Project = { name: 'ws-test', children: new Map() };
+		projectStore.set('ws-test', project);
+		projectStore.setActive('ws-test');
+
+		const result = await pair.client.callTool({
+			name: 'add_fabric_mod',
+			arguments: { project: 'ws-test', path: '/home/user/my-mod' },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		expect(envelope.data.workspaceSynced).toBe(false);
 	});
 });

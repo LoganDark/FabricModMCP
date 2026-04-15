@@ -7,6 +7,7 @@ import { loadFabricMod } from '../project/loader.js';
 import { jarReader } from './shared-jar-reader.js';
 import { logger } from '../logging/logger.js';
 import { renameChildNamespace } from '../project/namespace-resolver.js';
+import { syncFabricModToWorkspace } from '../jdtls/workspace-sync.js';
 
 export function registerAddFabricModTool(server: McpServer): void {
 	server.registerTool(
@@ -68,9 +69,9 @@ export function registerAddFabricModTool(server: McpServer): void {
 					jarReader.addProjectJar(loadedProject.name, fabricMod.sourcesJar.path);
 				}
 
-				// JDT LS workspace sync deferred to Phase 26
-				if (loadedProject.jdtls?.available) {
-					logger.info(`Child '${fabricMod.name}' added to project '${loadedProject.name}' — JDT LS workspace sync deferred to Phase 26`);
+				const syncResult = await syncFabricModToWorkspace(fabricMod, loadedProject.jdtls, jarReader);
+				if (syncResult.warning) {
+					logger.warn(`Workspace sync for '${fabricMod.name}': ${syncResult.warning}`);
 				}
 
 				const envelope = makeSuccess({
@@ -81,6 +82,7 @@ export function registerAddFabricModTool(server: McpServer): void {
 					mappingEra: fabricMod.gradleConfig.mappingEra,
 					dependencyCount: fabricMod.dependencyJars.size,
 					jdtlsAvailable: loadedProject.jdtls?.available ?? false,
+					workspaceSynced: syncResult.synced,
 					...(wasRenamed ? { autoSuffixed: true, originalName: fabricMod.fabricMod.id } : {}),
 				}, {
 					provenance: { tool: 'add_fabric_mod', project: loadedProject.name, child: fabricMod.name },

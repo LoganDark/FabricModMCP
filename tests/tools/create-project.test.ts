@@ -1,7 +1,17 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
 import { parseEnvelope } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
+
+vi.mock('../../src/jdtls/startup.js', () => ({
+	initJdtLsSession: vi.fn().mockResolvedValue({
+		available: false,
+		failureReason: 'Java not found',
+		tempDir: '',
+		dataDir: '',
+		jarIdToDirName: new Map(),
+	}),
+}));
 
 describe('create_project tool', () => {
 	let pair: TestPair;
@@ -47,5 +57,29 @@ describe('create_project tool', () => {
 		const envelope = parseEnvelope(result);
 		expect(envelope.success).toBe(false);
 		expect(envelope.error.code).toBe('PROJECT_NAME_COLLISION');
+	});
+
+	it('stores jdtls session on project', async () => {
+		await pair.client.callTool({
+			name: 'create_project',
+			arguments: { name: 'jdtls-test' },
+		});
+
+		const project = projectStore.get('jdtls-test')!;
+		expect(project.jdtls).toBeDefined();
+		expect(project.jdtls!.available).toBe(false);
+		expect(project.jdtls!.failureReason).toBe('Java not found');
+	});
+
+	it('includes jdtlsAvailable in response', async () => {
+		const result = await pair.client.callTool({
+			name: 'create_project',
+			arguments: { name: 'jdtls-response' },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		expect(envelope.data.jdtlsAvailable).toBe(false);
+		expect(envelope.data.jdtlsWarning).toBe('Java not found');
 	});
 });
