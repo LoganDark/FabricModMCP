@@ -23,7 +23,7 @@ Requirements for v1.3 Context Management milestone. Each maps to roadmap phases.
 
 ### Verbosity Audit
 
-- [ ] **VERB-01**: Audit all search and navigation tool outputs with real Minecraft project data to measure response sizes
+- [x] **VERB-01**: Audit all search and navigation tool outputs with real Minecraft project data to measure response sizes
 - [x] **VERB-02**: Reduce default verbosity where safe (no breaking changes to structuredContent shape)
 - [x] **VERB-03**: Add compact/verbose mode controls to tools identified as worst offenders in the audit
 
@@ -59,7 +59,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NAV-02 | Phase 21 | Complete |
 | NAV-03 | Phase 21 | Complete |
 | NAV-04 | Phase 21 | Complete |
-| VERB-01 | Phase 22 | Pending |
+| VERB-01 | Phase 22 | Complete |
 | VERB-02 | Phase 22 | Complete |
 | VERB-03 | Phase 22 | Complete |
 
