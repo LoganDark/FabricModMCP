@@ -156,7 +156,7 @@ export const TOOL_DESCRIPTIONS = {
 		'Echo back the input. For testing and debugging only.',
 
 	load_project:
-		'Load a Fabric/Loom Gradle project. Parses gradle.properties and build.gradle.kts to detect Minecraft version, Yarn mappings, and dependencies. Locates the Minecraft merged sources jar and all dependency source jars in the Gradle cache. Run this before using any other tools.',
+		'Load a Fabric/Loom Gradle project. Adds the fabric mod as a child to the specified project (defaults to "default"). If the project does not exist, creates it. The child name is derived from fabric.mod.json id. Parses gradle.properties and build.gradle.kts to detect Minecraft version, Yarn mappings, and dependencies. Locates source jars in the Gradle cache.',
 
 	unload_project:
 		'Unload a project by name. Closes jar handles and frees resources. Clears the default project if this was it.',
