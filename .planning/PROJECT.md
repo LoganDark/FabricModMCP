@@ -38,13 +38,16 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - ✓ Navigation pagination (limit/offset) on find_references, find_implementations, find_definition — v1.3
 - ✓ Compact-by-default output with category-based DETAIL_PARAMS and opt-in detail flags — v1.3
 - ✓ Project type hierarchy with FabricModChild and StudyJarChild discriminated union — Validated in Phase 23
-- ✓ Compat accessor layer bridging old field access to new child-based structure — Validated in Phase 23
+- ✓ ~~Compat accessor layer bridging old field access to new child-based structure~~ — Added Phase 23, removed Phase 25.1
 - ✓ Default project created at startup — Validated in Phase 23
 - ✓ Dependencies namespaced by fabric mod name (e.g., `testmod/minecraft`) — Validated in Phase 24
 - ✓ Tools work across whole project or scoped to a single child via `scope` parameter — Validated in Phase 24
 - ✓ Multiple fabric mods per project with auto-suffix collision handling — Validated in Phase 25
-- ✓ `load_project` adds children to existing projects (defaults to default project) — Validated in Phase 25
-- ✓ Scoped `refresh_dependencies` targets specific children, unscoped refreshes all — Validated in Phase 25
+- ✓ `load_project` adds children to existing projects (defaults to default project) — Validated in Phase 25, replaced by `create_project` + `add_fabric_mod` in Phase 25.1
+- ✓ Scoped `refresh_dependencies` targets specific children, unscoped refreshes all — Validated in Phase 25, replaced by `refresh_project` + `refresh_project_members` in Phase 25.1
+- ✓ Clean tool separation: project lifecycle, member lifecycle, info/refresh, and browsing tools — Validated in Phase 25.1
+- ✓ `activeProject`/`activeChild` naming (renamed from `defaultProject`/`defaultChild`) — Validated in Phase 25.1
+- ✓ All compat shims removed, tools use native Project/FabricModChild/StudyJarChild types — Validated in Phase 25.1
 
 ### Active
 
@@ -79,6 +82,7 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - **Shipped:** v1.1 Study Jars on 2026-04-14 — 6,030 LOC TypeScript, 25 MCP tools, 423 tests (+96 tests, +4 tools)
 - **Shipped:** v1.2 Symbol Resolution on 2026-04-14 — 6,863 LOC TypeScript, 22 MCP tools, 526 tests (+103 tests, +1 tool)
 - **Shipped:** v1.3 Context Management on 2026-04-15 — 7,281 LOC TypeScript, 25 MCP tools, 592 tests (+66 tests)
+- **v1.4 in progress:** Phase 25.1 complete — 28 MCP tools (reworked from 25), 642 tests, compat layer removed
 - **Tech stack:** TypeScript 5.7+, Node.js 22 LTS, official MCP SDK 1.29.x, Zod 4, node-stream-zip, JDT LS via ts-lsp-client
 - **Architecture:** Layered domain → tool pattern. Domain modules handle logic; tool layer wires Zod schemas and MCP registration. Shared abstractions: ProjectStore, JarReader, EntryIndex, SourceAdapter, cascadeRegex, resolveSymbolPosition, dependency-resolver, member-enrichment, member-extractor, symbol-transform
 - **Ecosystem:** Fabric mod development uses Gradle with Fabric Loom. Loom's genSources decompiles Minecraft into a sources jar (~6,600 .java files) in `~/.gradle/caches/fabric-loom/minecraftMaven/`
@@ -141,4 +145,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-15 after Phase 25 completion*
+*Last updated: 2026-04-15 after Phase 25.1 completion*
