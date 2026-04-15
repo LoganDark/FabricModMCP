@@ -167,8 +167,26 @@ export const TOOL_DESCRIPTIONS = {
 	set_default_project:
 		'Set the default project used when the project parameter is omitted in other tools.',
 
+	set_active_project:
+		'Set the active project used when the project parameter is omitted in other tools.',
+
+	get_project_info:
+		'Get project overview: member list with name, kind, and basic metadata per child (Minecraft version for fabric mods, jar path for study jars). Enough info to know which member to inspect with get_member_info.',
+
+	get_member_info:
+		'Get detailed info for a specific project member. For fabric mods: Minecraft version, Yarn mappings, loader version, Fabric API version, mapping era, fabric.mod.json contents, and jar inventory with Maven coordinates, category, availability, and file size. For study jars: jar path, auto-include status, and stats.',
+
 	get_project_metadata:
 		'Get structured project metadata in three toggleable sections: projectInfo (Minecraft version, Yarn mappings, loader version, Fabric API version, mapping era), modInfo (everything from fabric.mod.json — id, name, authors, mixins, dependencies, etc.), and jarInventory (all source jars with Maven coordinates, category, availability, and file size). Omitting all flags returns all sections.',
+
+	create_project:
+		'Create a new empty project container. Projects hold fabric mods and study jars as members. The project name must be unique. Use add_fabric_mod or add_study_jar to populate it.',
+
+	remove_project:
+		'Remove an entire project and all its members. Closes all jar handles, cleans up JDT LS workspace, and frees resources. Clears the active project if this was it.',
+
+	set_active_child:
+		'Set the active child (fabric mod) on a project. When set, bare jar IDs like "minecraft" resolve within that child\'s namespace without requiring the scope parameter.',
 
 	// -- Configuration -------------------------------------------------------
 

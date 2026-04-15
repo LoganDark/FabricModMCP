@@ -25,6 +25,12 @@ import { registerRemoveStudyJarTool } from './remove-study-jar.js';
 import { registerListStudyJarsTool } from './list-study-jars.js';
 import { registerConfigureStudyJarTool } from './configure-study-jar.js';
 import { registerReadMemberTool } from './read-member.js';
+import { registerCreateProjectTool } from './create-project.js';
+import { registerRemoveProjectTool } from './remove-project.js';
+import { registerSetActiveChildTool } from './set-active-child.js';
+import { registerSetActiveProjectTool } from './set-active-project.js';
+import { registerGetProjectInfoTool } from './get-project-info.js';
+import { registerGetMemberInfoTool } from './get-member-info.js';
 
 export function registerAllTools(server: McpServer): void {
 	registerEchoTool(server);
@@ -53,4 +59,10 @@ export function registerAllTools(server: McpServer): void {
 	registerListStudyJarsTool(server);
 	registerConfigureStudyJarTool(server);
 	registerReadMemberTool(server);
+	registerCreateProjectTool(server);
+	registerRemoveProjectTool(server);
+	registerSetActiveChildTool(server);
+	registerSetActiveProjectTool(server);
+	registerGetProjectInfoTool(server);
+	registerGetMemberInfoTool(server);
 }
