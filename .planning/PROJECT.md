@@ -37,15 +37,16 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - ✓ read_member context expansion with linesBefore/linesAfter and member position metadata — v1.3
 - ✓ Navigation pagination (limit/offset) on find_references, find_implementations, find_definition — v1.3
 - ✓ Compact-by-default output with category-based DETAIL_PARAMS and opt-in detail flags — v1.3
+- ✓ Project type hierarchy with FabricModChild and StudyJarChild discriminated union — Validated in Phase 23
+- ✓ Compat accessor layer bridging old field access to new child-based structure — Validated in Phase 23
+- ✓ Default project created at startup — Validated in Phase 23
 
 ### Active
 
-- [ ] Projects are pure named containers; children are fabric mods or study jars
 - [ ] Fabric mods loaded by root dir, dependencies namespaced by mod name within project
 - [ ] Study jars live at project level, not under fabric mods
 - [ ] Multiple fabric mods per project
 - [ ] Tools work across whole project or scoped to a single child
-- [ ] Default project created at startup
 - [ ] Investigate JDT LS in-memory file support (avoid tmpdir extraction)
 
 ### Out of Scope
@@ -132,4 +133,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-15 after v1.4 milestone start*
+*Last updated: 2026-04-15 after Phase 23 completion*
