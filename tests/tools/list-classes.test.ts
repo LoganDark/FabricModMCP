@@ -105,7 +105,7 @@ describe('list_classes tool', () => {
 		projectStore.clear();
 	});
 
-	it('returns classes in a package with metadata', async () => {
+	it('returns classes in a package with compact metadata by default', async () => {
 		const fake = makeFakeProject();
 		projectStore.set('test', fake);
 
@@ -120,18 +120,21 @@ describe('list_classes tool', () => {
 		const mc = envelope.data.classes[0];
 		expect(mc.name).toBe('MinecraftClient');
 		expect(mc.fqn).toBe('net.minecraft.client.MinecraftClient');
-		expect(mc.access).toBe('public');
+		// Compact by default: access, modifiers, innerClasses are stripped
+		expect(mc.access).toBeUndefined();
+		expect(mc.modifiers).toBeUndefined();
+		expect(mc.innerClasses).toBeUndefined();
 		expect(mc.kind).toBe('class');
 		expect(mc.jars).toEqual([{ id: 'minecraft', category: 'minecraft' }]);
 	});
 
-	it('inner classes are nested in parent, not top-level', async () => {
+	it('inner classes are nested in parent with details flag', async () => {
 		const fake = makeFakeProject();
 		projectStore.set('test', fake);
 
 		const result = await pair.client.callTool({
 			name: 'list_classes',
-			arguments: { project: 'test', package: 'net.minecraft.client' },
+			arguments: { project: 'test', package: 'net.minecraft.client', details: { modifiers: true } },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -149,7 +152,7 @@ describe('list_classes tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'list_classes',
-			arguments: { project: 'test', package: 'net.minecraft.client' },
+			arguments: { project: 'test', package: 'net.minecraft.client', details: { modifiers: true } },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -159,13 +162,13 @@ describe('list_classes tool', () => {
 		expect(anon).toBeUndefined();
 	});
 
-	it('class metadata includes access, modifiers, and type', async () => {
+	it('class metadata includes access, modifiers, and type with details flag', async () => {
 		const fake = makeFakeProject();
 		projectStore.set('test', fake);
 
 		const result = await pair.client.callTool({
 			name: 'list_classes',
-			arguments: { project: 'test', package: 'net.minecraft.server' },
+			arguments: { project: 'test', package: 'net.minecraft.server', details: { modifiers: true } },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -182,7 +185,7 @@ describe('list_classes tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'list_classes',
-			arguments: { project: 'test', package: 'net.minecraft.util' },
+			arguments: { project: 'test', package: 'net.minecraft.util', details: { modifiers: true } },
 		});
 
 		const envelope = parseEnvelope(result);

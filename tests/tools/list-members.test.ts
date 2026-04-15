@@ -168,9 +168,11 @@ describe('list_members', () => {
 			const field = cls.children[0];
 			expect(field.name).toBe('running');
 			expect(field.kind).toBe('field');
-			expect(field.detail).toBe('boolean');
-			// Ranges should be 1-based
+			// Compact by default: detail, parameters, returnType, fieldType, selectionRange stripped
+			expect(field.detail).toBeUndefined();
+			// Ranges should be 1-based, compact range has lines only (no character)
 			expect(field.range.start.line).toBe(4); // 0-based 3 + 1
+			expect(field.range.start.character).toBeUndefined();
 
 			const method = cls.children[1];
 			expect(method.name).toBe('run()');
@@ -185,7 +187,7 @@ describe('list_members', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('enriched method members have memberFqn, parameters, returnType', async () => {
+	test.skipIf(!toolModuleAvailable)('enriched method members have memberFqn, parameters, returnType with details flag', async () => {
 		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
 		mockDocumentSymbol.mockResolvedValue([
 			{
@@ -217,6 +219,7 @@ describe('list_members', () => {
 					project: 'test',
 					jar: 'minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
+					details: { signatures: true },
 				},
 			});
 
@@ -229,15 +232,19 @@ describe('list_members', () => {
 			expect(method.memberFqn).toBe('net.minecraft.client.MinecraftClient#run()');
 			expect(method.parameters).toEqual([]);
 			expect(method.returnType).toEqual({ kind: 'void' });
-			// detail string still present for backward compat
+			// detail string present with signatures flag
 			expect(method.detail).toBe('void');
+			// selectionRange present with signatures flag
+			expect(method.selectionRange).toBeDefined();
+			// full range with characters present
+			expect(method.range.start.character).toBeDefined();
 		} finally {
 			await pair.cleanup();
 			projectStore.clear();
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('enriched field members have memberFqn and fieldType', async () => {
+	test.skipIf(!toolModuleAvailable)('enriched field members have memberFqn and fieldType with details flag', async () => {
 		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
 		mockDocumentSymbol.mockResolvedValue([
 			{
@@ -269,6 +276,7 @@ describe('list_members', () => {
 					project: 'test',
 					jar: 'minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
+					details: { signatures: true },
 				},
 			});
 
@@ -280,7 +288,7 @@ describe('list_members', () => {
 			expect(field.name).toBe('running');
 			expect(field.memberFqn).toBe('net.minecraft.client.MinecraftClient#running:');
 			expect(field.fieldType).toEqual({ kind: 'primitive', name: 'boolean' });
-			// detail string still present
+			// detail string present with signatures flag
 			expect(field.detail).toBe('boolean');
 		} finally {
 			await pair.cleanup();
@@ -335,7 +343,7 @@ describe('list_members', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('enriched constructor has memberFqn with class simple name and ()', async () => {
+	test.skipIf(!toolModuleAvailable)('enriched constructor has memberFqn with class simple name and () with details flag', async () => {
 		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
 		mockDocumentSymbol.mockResolvedValue([
 			{
@@ -367,6 +375,7 @@ describe('list_members', () => {
 					project: 'test',
 					jar: 'minecraft',
 					class: 'net.minecraft.client.MinecraftClient',
+					details: { signatures: true },
 				},
 			});
 
@@ -416,6 +425,78 @@ describe('list_members', () => {
 			expect(envelope.success).toBe(true);
 			expect(envelope.data.members[0].kind).toBe('field');
 			expect(envelope.data.members[1].kind).toBe('method');
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
+
+	test.skipIf(!toolModuleAvailable)('returns compact results by default (no detail fields)', async () => {
+		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
+		mockDocumentSymbol.mockResolvedValue([
+			{
+				name: 'MinecraftClient',
+				kind: 5,
+				detail: '',
+				range: { start: { line: 2, character: 0 }, end: { line: 12, character: 1 } },
+				selectionRange: { start: { line: 2, character: 13 }, end: { line: 2, character: 28 } },
+				children: [
+					{
+						name: 'run()',
+						kind: 6,
+						detail: 'void',
+						range: { start: { line: 5, character: 1 }, end: { line: 7, character: 2 } },
+						selectionRange: { start: { line: 5, character: 13 }, end: { line: 5, character: 16 } },
+					},
+					{
+						name: 'running',
+						kind: 8,
+						detail: 'boolean',
+						range: { start: { line: 3, character: 1 }, end: { line: 3, character: 25 } },
+						selectionRange: { start: { line: 3, character: 17 }, end: { line: 3, character: 24 } },
+					},
+				],
+			},
+		]);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'list_members',
+				arguments: {
+					project: 'test',
+					jar: 'minecraft',
+					class: 'net.minecraft.client.MinecraftClient',
+				},
+			});
+
+			const envelope = parseEnvelope(result);
+			expect(envelope.success).toBe(true);
+
+			const cls = envelope.data.members[0];
+			const method = cls.children[0];
+			// Compact: no detail, parameters, returnType, selectionRange
+			expect(method.detail).toBeUndefined();
+			expect(method.parameters).toBeUndefined();
+			expect(method.returnType).toBeUndefined();
+			expect(method.selectionRange).toBeUndefined();
+			// Compact range: lines only, no character
+			expect(method.range.start.line).toBeDefined();
+			expect(method.range.start.character).toBeUndefined();
+			// But name, kind, memberFqn still present
+			expect(method.name).toBe('run()');
+			expect(method.kind).toBe('method');
+			expect(method.memberFqn).toBeDefined();
+
+			const field = cls.children[1];
+			expect(field.detail).toBeUndefined();
+			expect(field.fieldType).toBeUndefined();
+			expect(field.selectionRange).toBeUndefined();
+			expect(field.name).toBe('running');
+			expect(field.memberFqn).toBeDefined();
 		} finally {
 			await pair.cleanup();
 			projectStore.clear();

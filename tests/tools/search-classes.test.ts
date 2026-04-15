@@ -181,13 +181,34 @@ describe('search_classes tool', () => {
 		expect(envelope.data.limit).toBe(10);
 	});
 
-	it('results include type and access fields', async () => {
+	it('results are compact by default (no access/modifiers)', async () => {
 		const fake = makeFakeProject();
 		projectStore.set('test', fake);
 
 		const result = await pair.client.callTool({
 			name: 'search_classes',
 			arguments: { project: 'test', pattern: '*Client' },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		const match = envelope.data.results.find((r: any) => r.fqn.includes('MinecraftClient'));
+		expect(match).toBeDefined();
+		expect(match.kind).toBeDefined();
+		expect(match.jars).toBeDefined();
+		expect(Array.isArray(match.jars)).toBe(true);
+		// Compact by default: access, modifiers, innerClasses stripped
+		expect(match.access).toBeUndefined();
+		expect(match.modifiers).toBeUndefined();
+	});
+
+	it('results include access and modifiers with details flag', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'search_classes',
+			arguments: { project: 'test', pattern: '*Client', details: { modifiers: true } },
 		});
 
 		const envelope = parseEnvelope(result);
