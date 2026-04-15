@@ -40,13 +40,13 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - ✓ Project type hierarchy with FabricModChild and StudyJarChild discriminated union — Validated in Phase 23
 - ✓ Compat accessor layer bridging old field access to new child-based structure — Validated in Phase 23
 - ✓ Default project created at startup — Validated in Phase 23
+- ✓ Dependencies namespaced by fabric mod name (e.g., `testmod/minecraft`) — Validated in Phase 24
+- ✓ Tools work across whole project or scoped to a single child via `scope` parameter — Validated in Phase 24
 
 ### Active
 
-- [ ] Fabric mods loaded by root dir, dependencies namespaced by mod name within project
 - [ ] Study jars live at project level, not under fabric mods
 - [ ] Multiple fabric mods per project
-- [ ] Tools work across whole project or scoped to a single child
 - [ ] Investigate JDT LS in-memory file support (avoid tmpdir extraction)
 
 ### Out of Scope
@@ -107,6 +107,9 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 | Incremental workspace sync | Extract/remove study jars individually, not full rebuild | ✓ Good — fast add/remove, no full project reload |
 | Remove readiness probe entirely | Async notification sufficient; probe caused result explosion with method declarations | ✓ Good — simpler, no blocking |
 | Study jar plain name IDs (no prefix) | Simpler API; collision detected at add time, auto-unload on refresh | ✓ Good |
+| Namespace dep IDs at creation (`modName/depId`) | Resolves ambiguity with multi-mod projects; bare IDs resolve via scope/defaultChild/sole-child inference | ✓ Good — clean API with backward compat for single-mod case |
+| Category-based source adapter dispatch | `dep.category === 'mod-source'` instead of `dep.id === 'src'` magic string | ✓ Good — works with any mod name |
+| Parameterized filter auto-include | `autoIncludeIds` set replaces hardcoded `'minecraft'`/`'src'` in jar-registry | ✓ Good — per-child filtering |
 | `#` separator for member FQNs | Javadoc convention (`Class#method()`), familiar to Java developers | ✓ Good — matches existing tooling ecosystem |
 | Multi-jar resolvePackage inline | createResolvePackage handles single EntryIndex; tools need all jars | ✓ Good — correct for multi-jar case |
 | Shared symbol-transform module | Extracted from list-members to avoid duplication with read_member | ✓ Good — DRY, both tools share transform logic |
@@ -133,4 +136,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-15 after Phase 23 completion*
+*Last updated: 2026-04-15 after Phase 24 completion*
