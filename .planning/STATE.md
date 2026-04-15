@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Project Rearchitecture
 status: unknown
-stopped_at: Completed 25.1-01-PLAN.md
-last_updated: "2026-04-15T22:19:17.944Z"
+stopped_at: Completed 25.1-03-PLAN.md
+last_updated: "2026-04-15T22:26:10.234Z"
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 13
-  completed_plans: 10
+  completed_plans: 11
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-04-15)
 ## Current Position
 
 Phase: 25.1 (rework-tools-and-tests-for-native-architecture-without-compatibility-shims) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Plan: 2 of 4
 | Phase 25-01 P01 | 4min | 2 tasks | 8 files |
 | Phase 25 P02 | 4min | 2 tasks | 6 files |
 | Phase 25.1 P01 | 5min | 2 tasks | 19 files |
+| Phase 25.1 P03 | 5min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,8 @@ See PROJECT.md Key Decisions table for full decision log.
 - [Phase 25]: Scoped collision check uses autoUnloadConflictingStudyJarsForDeps against refreshed child's deps only
 - [Phase 25]: Scoped unload rebuilds .classpath and notifies JDT LS after removing child workspace entries
 - [Phase 25.1]: LoadedProject alias removed entirely rather than deprecated -- no consumers outside this codebase
+- [Phase 25.1]: get_project_info always returns full member list, no toggle flags
+- [Phase 25.1]: list_projects simplified to name/memberCount/activeChild/isActive -- use get_project_info for details
 
 ### Roadmap Evolution
 
@@ -100,6 +103,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-15T22:19:17.942Z
-Stopped at: Completed 25.1-01-PLAN.md
+Last session: 2026-04-15T22:26:10.232Z
+Stopped at: Completed 25.1-03-PLAN.md
 Resume file: None
