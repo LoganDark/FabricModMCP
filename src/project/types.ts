@@ -70,7 +70,8 @@ export interface StudyJar {
 	stats: StudyJarStats;
 }
 
-export interface LoadedProject {
+export interface FabricModChild {
+	kind: 'fabric-mod';
 	name: string;
 	rootPath: string;
 	gradleConfig: GradleConfig;
@@ -78,6 +79,24 @@ export interface LoadedProject {
 	fabricMod: FabricModJson;
 	dependencyJars: Map<string, DependencyEntry>;
 	filterConfig: FilterConfig;
-	studyJars: Map<string, StudyJar>;
+}
+
+export interface StudyJarChild {
+	kind: 'study-jar';
+	name: string;
+	jarPath: string;
+	mtime: number;
+	size: number;
+	autoInclude: boolean;
+	stats: StudyJarStats;
+}
+
+export type ProjectChild = FabricModChild | StudyJarChild;
+
+export interface Project {
+	name: string;
+	children: Map<string, ProjectChild>;
 	jdtls?: JdtLsSession;
 }
+
+export type LoadedProject = Project;
