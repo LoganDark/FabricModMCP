@@ -51,6 +51,9 @@ export function registerLoadProjectTool(server: McpServer): void {
 				}
 				jarReader.registerProject(projectName, jarPaths);
 
+				// Note: Fresh projects have no study jars. Auto-unload of conflicting
+				// study jars happens in refresh_dependencies.
+
 				// Initialize JDT LS (eager, per user decision)
 				const javaResult = detectJava();
 				const jdtlsResult = findJdtLs();

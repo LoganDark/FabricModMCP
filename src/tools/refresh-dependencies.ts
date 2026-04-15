@@ -3,7 +3,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { discoverDependencies } from '../project/dependency-discovery.js';
 import { clearEntryIndexCache, evictEntryIndex } from '../browsing/entry-index-cache.js';
-import { checkAndReopenIfStale } from '../project/study-jar.js';
+import { checkAndReopenIfStale, autoUnloadConflictingStudyJars } from '../project/study-jar.js';
 import { jarReader } from './shared-jar-reader.js';
 import { logger } from '../logging/logger.js';
 import { resolveProjectSafely } from './tool-helpers.js';
@@ -36,6 +36,13 @@ export function registerRefreshDependenciesTool(server: McpServer): void {
 			);
 
 			loadedProject.dependencyJars = result.dependencies;
+
+			// Auto-unload study jars whose name now collides with a real dependency
+			const unloadedNames = await autoUnloadConflictingStudyJars(
+				loadedProject,
+				jarReader,
+				loadedProject.jdtls,
+			);
 
 			// Re-register jar paths with the jar reader
 			const jarPaths = new Set<string>();
@@ -75,6 +82,7 @@ export function registerRefreshDependenciesTool(server: McpServer): void {
 				{
 					summary: result.summary,
 					suggestions,
+					...(unloadedNames.length > 0 ? { autoUnloaded: unloadedNames } : {}),
 				},
 				{
 					provenance: {
@@ -84,8 +92,13 @@ export function registerRefreshDependenciesTool(server: McpServer): void {
 				},
 			);
 
+			let text = `Refreshed dependencies: ${result.summary.total} total, ${result.summary.withSources} with sources, ${result.summary.withoutSources} without sources`;
+			if (unloadedNames.length > 0) {
+				text += `\nAuto-unloaded ${unloadedNames.length} study jar(s) that now match real dependencies: ${unloadedNames.join(', ')}`;
+			}
+
 			return {
-				content: [{ type: 'text' as const, text: `Refreshed dependencies: ${result.summary.total} total, ${result.summary.withSources} with sources, ${result.summary.withoutSources} without sources` }],
+				content: [{ type: 'text' as const, text }],
 				structuredContent: envelope,
 			};
 		},
