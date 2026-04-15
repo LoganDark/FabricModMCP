@@ -85,14 +85,14 @@ const SAMPLE_SYMBOLS = [
 	},
 ];
 
-describe('search_symbols', () => {
+describe.skipIf(!toolModuleAvailable)('search_symbols', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		projectStore.clear();
 		mockReadEntry.mockResolvedValue(Buffer.from(''));
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns error when JDT LS not available', async () => {
+	test('returns error when JDT LS not available', async () => {
 		const pair = await createTestPair();
 		try {
 			const fake = makeFakeProject(); // no jdtls property
@@ -115,7 +115,7 @@ describe('search_symbols', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns symbol results with name, kind, containerName, location', async () => {
+	test('returns symbol results with name, kind, containerName, location', async () => {
 		mockEndpointSend.mockResolvedValue(SAMPLE_SYMBOLS);
 
 		const pair = await createTestPair();
@@ -153,7 +153,7 @@ describe('search_symbols', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('method results include containerName identifying declaring class', async () => {
+	test('method results include containerName identifying declaring class', async () => {
 		mockEndpointSend.mockResolvedValue(SAMPLE_SYMBOLS);
 
 		const pair = await createTestPair();
@@ -184,7 +184,7 @@ describe('search_symbols', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('filters by kind', async () => {
+	test('filters by kind', async () => {
 		mockEndpointSend.mockResolvedValue(SAMPLE_SYMBOLS);
 
 		const pair = await createTestPair();
@@ -213,7 +213,7 @@ describe('search_symbols', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('paginates with limit and offset', async () => {
+	test('paginates with limit and offset', async () => {
 		mockEndpointSend.mockResolvedValue(SAMPLE_SYMBOLS);
 
 		const pair = await createTestPair();
@@ -245,7 +245,7 @@ describe('search_symbols', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('method results include memberFqn with # separator', async () => {
+	test('method results include memberFqn with # separator', async () => {
 		mockEndpointSend.mockResolvedValue(SAMPLE_SYMBOLS);
 
 		const pair = await createTestPair();
@@ -281,7 +281,7 @@ describe('search_symbols', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('memberFqn is null when containerName is missing', async () => {
+	test('memberFqn is null when containerName is missing', async () => {
 		mockEndpointSend.mockResolvedValue([
 			{
 				name: 'SomeClass',
@@ -317,7 +317,7 @@ describe('search_symbols', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('constructor results get memberFqn with class name and ()', async () => {
+	test('constructor results get memberFqn with class name and ()', async () => {
 		mockEndpointSend.mockResolvedValue([
 			{
 				name: 'MinecraftClient()',
@@ -353,7 +353,7 @@ describe('search_symbols', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('interface results have null memberFqn', async () => {
+	test('interface results have null memberFqn', async () => {
 		mockEndpointSend.mockResolvedValue([
 			{
 				name: 'Tickable',
@@ -389,7 +389,7 @@ describe('search_symbols', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('field results have memberFqn with colon suffix', async () => {
+	test('field results have memberFqn with colon suffix', async () => {
 		mockEndpointSend.mockResolvedValue([
 			{
 				name: 'width',
@@ -425,7 +425,7 @@ describe('search_symbols', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns empty results for no matches', async () => {
+	test('returns empty results for no matches', async () => {
 		mockEndpointSend.mockResolvedValue([]);
 
 		const pair = await createTestPair();

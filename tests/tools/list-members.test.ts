@@ -58,14 +58,14 @@ function makeMockClient() {
 }
 
 
-describe('list_members', () => {
+describe.skipIf(!toolModuleAvailable)('list_members', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		projectStore.clear();
 		mockReadEntry.mockResolvedValue(Buffer.from(FAKE_SOURCE));
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns error when JDT LS not available', async () => {
+	test('returns error when JDT LS not available', async () => {
 		const pair = await createTestPair();
 		try {
 			const fake = makeFakeProject(); // no jdtls property
@@ -88,7 +88,7 @@ describe('list_members', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns error when class not found in jar', async () => {
+	test('returns error when class not found in jar', async () => {
 		mockReadEntry.mockRejectedValue(new Error('Entry not found'));
 
 		const pair = await createTestPair();
@@ -114,7 +114,7 @@ describe('list_members', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns tree of members from DocumentSymbol response', async () => {
+	test('returns tree of members from DocumentSymbol response', async () => {
 		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
 		mockDocumentSymbol.mockResolvedValue([
 			{
@@ -187,7 +187,7 @@ describe('list_members', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('enriched method members have memberFqn, parameters, returnType with details flag', async () => {
+	test('enriched method members have memberFqn, parameters, returnType with details flag', async () => {
 		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
 		mockDocumentSymbol.mockResolvedValue([
 			{
@@ -244,7 +244,7 @@ describe('list_members', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('enriched field members have memberFqn and fieldType with details flag', async () => {
+	test('enriched field members have memberFqn and fieldType with details flag', async () => {
 		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
 		mockDocumentSymbol.mockResolvedValue([
 			{
@@ -296,7 +296,7 @@ describe('list_members', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('enriched class container has no memberFqn, children are enriched', async () => {
+	test('enriched class container has no memberFqn, children are enriched', async () => {
 		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
 		mockDocumentSymbol.mockResolvedValue([
 			{
@@ -343,7 +343,7 @@ describe('list_members', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('enriched constructor has memberFqn with class simple name and () with details flag', async () => {
+	test('enriched constructor has memberFqn with class simple name and () with details flag', async () => {
 		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
 		mockDocumentSymbol.mockResolvedValue([
 			{
@@ -391,7 +391,7 @@ describe('list_members', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('maps SymbolKind numeric to human-readable string', async () => {
+	test('maps SymbolKind numeric to human-readable string', async () => {
 		mockDocumentSymbol.mockResolvedValue([
 			{
 				name: 'TestField',
@@ -431,7 +431,7 @@ describe('list_members', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns compact results by default (no detail fields)', async () => {
+	test('returns compact results by default (no detail fields)', async () => {
 		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
 		mockDocumentSymbol.mockResolvedValue([
 			{
@@ -503,7 +503,7 @@ describe('list_members', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns empty members array when documentSymbol returns null', async () => {
+	test('returns empty members array when documentSymbol returns null', async () => {
 		mockDocumentSymbol.mockResolvedValue(null);
 
 		const pair = await createTestPair();

@@ -71,7 +71,7 @@ function makeMockClient() {
 	};
 }
 
-describe('find_implementations', () => {
+describe.skipIf(!toolModuleAvailable)('find_implementations', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		projectStore.clear();
@@ -79,7 +79,7 @@ describe('find_implementations', () => {
 		mockReadFile.mockResolvedValue(FAKE_SOURCE);
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns error when JDT LS not available', async () => {
+	test('returns error when JDT LS not available', async () => {
 		const pair = await createTestPair();
 		try {
 			const fake = makeFakeProject(); // no jdtls property
@@ -104,7 +104,7 @@ describe('find_implementations', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns NavigationResult array with provenance and context', async () => {
+	test('returns NavigationResult array with provenance and context', async () => {
 		// Mock endpoint.send for textDocument/implementation
 		mockEndpointSend.mockResolvedValue([
 			{
@@ -151,7 +151,7 @@ describe('find_implementations', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns full results with context when details: { lineContent: true } is passed', async () => {
+	test('returns full results with context when details: { lineContent: true } is passed', async () => {
 		mockEndpointSend.mockResolvedValue([
 			{
 				uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/render/GameRenderer.java',
@@ -193,7 +193,7 @@ describe('find_implementations', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns empty results when implementation returns null', async () => {
+	test('returns empty results when implementation returns null', async () => {
 		mockEndpointSend.mockResolvedValue(null);
 
 		const pair = await createTestPair();
@@ -224,7 +224,7 @@ describe('find_implementations', () => {
 	});
 
 	describe('pagination', () => {
-		test.skipIf(!toolModuleAvailable)('no pagination params returns all results with hasMore=false', async () => {
+		test('no pagination params returns all results with hasMore=false', async () => {
 			mockEndpointSend.mockResolvedValue([
 				{
 					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/render/GameRenderer.java',
@@ -263,7 +263,7 @@ describe('find_implementations', () => {
 			}
 		});
 
-		test.skipIf(!toolModuleAvailable)('limit returns a subset with correct metadata', async () => {
+		test('limit returns a subset with correct metadata', async () => {
 			mockEndpointSend.mockResolvedValue([
 				{
 					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/render/GameRenderer.java',
@@ -304,7 +304,7 @@ describe('find_implementations', () => {
 			}
 		});
 
-		test.skipIf(!toolModuleAvailable)('offset skips results', async () => {
+		test('offset skips results', async () => {
 			mockEndpointSend.mockResolvedValue([
 				{
 					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/render/GameRenderer.java',
@@ -345,7 +345,7 @@ describe('find_implementations', () => {
 			}
 		});
 
-		test.skipIf(!toolModuleAvailable)('text summary reflects pagination state', async () => {
+		test('text summary reflects pagination state', async () => {
 			mockEndpointSend.mockResolvedValue([
 				{
 					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/render/GameRenderer.java',
@@ -394,7 +394,7 @@ describe('find_implementations', () => {
 		});
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns cascade failure when patterns do not match', async () => {
+	test('returns cascade failure when patterns do not match', async () => {
 		const pair = await createTestPair();
 		try {
 			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });

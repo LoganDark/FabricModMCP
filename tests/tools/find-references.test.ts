@@ -94,7 +94,7 @@ function makeFakeProject(overrides: Partial<LoadedProject> = {}): LoadedProject 
 	return makeFakeProjectBase({ dependencyJars: deps, ...overrides });
 }
 
-describe('find_references', () => {
+describe.skipIf(!toolModuleAvailable)('find_references', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		projectStore.clear();
@@ -102,7 +102,7 @@ describe('find_references', () => {
 		mockReadFile.mockResolvedValue(FAKE_SOURCE);
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns error when JDT LS not available', async () => {
+	test('returns error when JDT LS not available', async () => {
 		const pair = await createTestPair();
 		try {
 			const fake = makeFakeProject(); // no jdtls property
@@ -127,7 +127,7 @@ describe('find_references', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns reference locations with context snippets', async () => {
+	test('returns reference locations with context snippets', async () => {
 		// Mock references returns locations in two different files
 		mockReferences.mockResolvedValue([
 			{
@@ -183,7 +183,7 @@ describe('find_references', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns full results with context when details: { lineContent: true } is passed', async () => {
+	test('returns full results with context when details: { lineContent: true } is passed', async () => {
 		mockReferences.mockResolvedValue([
 			{
 				uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
@@ -238,7 +238,7 @@ describe('find_references', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns empty results when no references found', async () => {
+	test('returns empty results when no references found', async () => {
 		mockReferences.mockResolvedValue([]);
 
 		const pair = await createTestPair();
@@ -265,7 +265,7 @@ describe('find_references', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns error on cascading regex failure', async () => {
+	test('returns error on cascading regex failure', async () => {
 		const pair = await createTestPair();
 		try {
 			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['minecraft', 'minecraft'], ['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1']]) }) });
@@ -292,7 +292,7 @@ describe('find_references', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns references across different jars', async () => {
+	test('returns references across different jars', async () => {
 		// References from both minecraft and fabric-api jars
 		mockReferences.mockResolvedValue([
 			{
@@ -342,7 +342,7 @@ describe('find_references', () => {
 	});
 
 	describe('pagination', () => {
-		test.skipIf(!toolModuleAvailable)('no pagination params returns all results with hasMore=false', async () => {
+		test('no pagination params returns all results with hasMore=false', async () => {
 			mockReferences.mockResolvedValue([
 				{
 					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
@@ -384,7 +384,7 @@ describe('find_references', () => {
 			}
 		});
 
-		test.skipIf(!toolModuleAvailable)('limit returns a subset with correct metadata', async () => {
+		test('limit returns a subset with correct metadata', async () => {
 			mockReferences.mockResolvedValue([
 				{
 					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
@@ -428,7 +428,7 @@ describe('find_references', () => {
 			}
 		});
 
-		test.skipIf(!toolModuleAvailable)('offset skips results', async () => {
+		test('offset skips results', async () => {
 			mockReferences.mockResolvedValue([
 				{
 					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
@@ -472,7 +472,7 @@ describe('find_references', () => {
 			}
 		});
 
-		test.skipIf(!toolModuleAvailable)('text summary reflects pagination state', async () => {
+		test('text summary reflects pagination state', async () => {
 			mockReferences.mockResolvedValue([
 				{
 					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
@@ -526,7 +526,7 @@ describe('find_references', () => {
 		});
 	});
 
-	test.skipIf(!toolModuleAvailable)('includes includeDeclaration in references request', async () => {
+	test('includes includeDeclaration in references request', async () => {
 		mockReferences.mockResolvedValue([]);
 
 		const pair = await createTestPair();

@@ -63,7 +63,7 @@ function makeMockClient() {
 	};
 }
 
-describe('get_symbol_info', () => {
+describe.skipIf(!toolModuleAvailable)('get_symbol_info', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		projectStore.clear();
@@ -71,7 +71,7 @@ describe('get_symbol_info', () => {
 		mockReadFile.mockResolvedValue(FAKE_SOURCE);
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns error when JDT LS not available', async () => {
+	test('returns error when JDT LS not available', async () => {
 		const pair = await createTestPair();
 		try {
 			const fake = makeFakeProject(); // no jdtls property
@@ -96,7 +96,7 @@ describe('get_symbol_info', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns markdown hover content for a valid symbol', async () => {
+	test('returns markdown hover content for a valid symbol', async () => {
 		mockHover.mockResolvedValue({
 			contents: {
 				kind: 'markdown',
@@ -134,7 +134,7 @@ describe('get_symbol_info', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns all hover results when multiple are returned', async () => {
+	test('returns all hover results when multiple are returned', async () => {
 		mockHover.mockResolvedValue({
 			contents: [
 				{ language: 'java', value: 'public void run()' },
@@ -167,7 +167,7 @@ describe('get_symbol_info', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns empty result when hover lands on import declaration', async () => {
+	test('returns empty result when hover lands on import declaration', async () => {
 		mockHover.mockResolvedValue({
 			contents: {
 				kind: 'markdown',
@@ -202,7 +202,7 @@ describe('get_symbol_info', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns cascade failure when patterns do not match', async () => {
+	test('returns cascade failure when patterns do not match', async () => {
 		const pair = await createTestPair();
 		try {
 			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
@@ -228,7 +228,7 @@ describe('get_symbol_info', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns null hover when LSP returns null', async () => {
+	test('returns null hover when LSP returns null', async () => {
 		mockHover.mockResolvedValue(null);
 
 		const pair = await createTestPair();

@@ -53,14 +53,14 @@ function makeMockClient() {
 	};
 }
 
-describe('type_hierarchy', () => {
+describe.skipIf(!toolModuleAvailable)('type_hierarchy', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		projectStore.clear();
 		mockReadEntry.mockResolvedValue(Buffer.from(FAKE_SOURCE));
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns error when JDT LS not available', async () => {
+	test('returns error when JDT LS not available', async () => {
 		const pair = await createTestPair();
 		try {
 			const fake = makeFakeProject(); // no jdtls property
@@ -83,7 +83,7 @@ describe('type_hierarchy', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns error when class not found', async () => {
+	test('returns error when class not found', async () => {
 		mockReadEntry.mockRejectedValue(new Error('Entry not found'));
 
 		const pair = await createTestPair();
@@ -109,7 +109,7 @@ describe('type_hierarchy', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns supertype chain with extends and implements separated', async () => {
+	test('returns supertype chain with extends and implements separated', async () => {
 		// prepareTypeHierarchy returns the target class
 		mockEndpointSend.mockImplementation(async (method: string, params: any) => {
 			if (method === 'textDocument/prepareTypeHierarchy') {
@@ -203,7 +203,7 @@ describe('type_hierarchy', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns subtypes list from prepareTypeHierarchy + subtypes', async () => {
+	test('returns subtypes list from prepareTypeHierarchy + subtypes', async () => {
 		mockEndpointSend.mockImplementation(async (method: string, params: any) => {
 			if (method === 'textDocument/prepareTypeHierarchy') {
 				return [{
@@ -259,7 +259,7 @@ describe('type_hierarchy', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('JDK types produce entries with java provenance', async () => {
+	test('JDK types produce entries with java provenance', async () => {
 		mockEndpointSend.mockImplementation(async (method: string, params: any) => {
 			if (method === 'textDocument/prepareTypeHierarchy') {
 				return [{
@@ -317,7 +317,7 @@ describe('type_hierarchy', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns empty hierarchy when prepareTypeHierarchy returns null', async () => {
+	test('returns empty hierarchy when prepareTypeHierarchy returns null', async () => {
 		mockEndpointSend.mockImplementation(async (method: string) => {
 			if (method === 'textDocument/prepareTypeHierarchy') {
 				return null;

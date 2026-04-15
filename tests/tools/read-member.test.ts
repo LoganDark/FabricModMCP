@@ -55,14 +55,14 @@ function makeMockClient() {
 }
 
 
-describe('read_member', () => {
+describe.skipIf(!toolModuleAvailable)('read_member', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		projectStore.clear();
 		mockReadEntry.mockResolvedValue(Buffer.from(FAKE_SOURCE));
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns INVALID_FQN for malformed FQN (no #)', async () => {
+	test('returns INVALID_FQN for malformed FQN (no #)', async () => {
 		const pair = await createTestPair();
 		try {
 			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
@@ -85,7 +85,7 @@ describe('read_member', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns INVALID_FQN for malformed FQN (no () or : suffix)', async () => {
+	test('returns INVALID_FQN for malformed FQN (no () or : suffix)', async () => {
 		const pair = await createTestPair();
 		try {
 			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
@@ -108,7 +108,7 @@ describe('read_member', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns JDTLS_NOT_AVAILABLE when JDT LS not initialized', async () => {
+	test('returns JDTLS_NOT_AVAILABLE when JDT LS not initialized', async () => {
 		const pair = await createTestPair();
 		try {
 			const fake = makeFakeProject(); // no jdtls
@@ -131,7 +131,7 @@ describe('read_member', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns CLASS_NOT_FOUND when class not in jar', async () => {
+	test('returns CLASS_NOT_FOUND when class not in jar', async () => {
 		mockReadEntry.mockRejectedValue(new Error('Entry not found'));
 
 		const pair = await createTestPair();
@@ -157,7 +157,7 @@ describe('read_member', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns method source with Javadoc for valid method FQN', async () => {
+	test('returns method source with Javadoc for valid method FQN', async () => {
 		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
 		mockDocumentSymbol.mockResolvedValue([
 			{
@@ -210,7 +210,7 @@ describe('read_member', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns field source for valid field FQN', async () => {
+	test('returns field source for valid field FQN', async () => {
 		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
 		mockDocumentSymbol.mockResolvedValue([
 			{
@@ -260,7 +260,7 @@ describe('read_member', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns MEMBER_NOT_FOUND when member does not exist in class', async () => {
+	test('returns MEMBER_NOT_FOUND when member does not exist in class', async () => {
 		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
 		mockDocumentSymbol.mockResolvedValue([
 			{
@@ -327,7 +327,7 @@ describe('read_member', () => {
 			mockDocumentSymbol.mockResolvedValue([tickSymbol]);
 		}
 
-		test.skipIf(!toolModuleAvailable)('returns memberStartLine/memberEndLine without context params', async () => {
+		test('returns memberStartLine/memberEndLine without context params', async () => {
 			setupMocks();
 			const pair = await createTestPair();
 			try {
@@ -354,7 +354,7 @@ describe('read_member', () => {
 			}
 		});
 
-		test.skipIf(!toolModuleAvailable)('expands source with linesBefore', async () => {
+		test('expands source with linesBefore', async () => {
 			setupMocks();
 			const pair = await createTestPair();
 			try {
@@ -383,7 +383,7 @@ describe('read_member', () => {
 			}
 		});
 
-		test.skipIf(!toolModuleAvailable)('expands source with linesAfter', async () => {
+		test('expands source with linesAfter', async () => {
 			setupMocks();
 			const pair = await createTestPair();
 			try {
@@ -412,7 +412,7 @@ describe('read_member', () => {
 			}
 		});
 
-		test.skipIf(!toolModuleAvailable)('expands source with both linesBefore and linesAfter', async () => {
+		test('expands source with both linesBefore and linesAfter', async () => {
 			setupMocks();
 			const pair = await createTestPair();
 			try {
@@ -445,7 +445,7 @@ describe('read_member', () => {
 	});
 
 	describe('provenance detail flag', () => {
-		test.skipIf(!toolModuleAvailable)('omits provenanceChains by default', async () => {
+		test('omits provenanceChains by default', async () => {
 			mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
 			mockDocumentSymbol.mockResolvedValue([
 				{
@@ -488,7 +488,7 @@ describe('read_member', () => {
 			}
 		});
 
-		test.skipIf(!toolModuleAvailable)('includes provenanceChains when details: { provenance: true }', async () => {
+		test('includes provenanceChains when details: { provenance: true }', async () => {
 			mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
 			mockDocumentSymbol.mockResolvedValue([
 				{

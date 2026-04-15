@@ -59,7 +59,7 @@ function makeMockClient() {
 }
 
 
-describe('find_definition', () => {
+describe.skipIf(!toolModuleAvailable)('find_definition', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		projectStore.clear();
@@ -69,7 +69,7 @@ describe('find_definition', () => {
 		mockReadFile.mockResolvedValue(FAKE_SOURCE);
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns error when JDT LS not available', async () => {
+	test('returns error when JDT LS not available', async () => {
 		const pair = await createTestPair();
 		try {
 			const fake = makeFakeProject(); // no jdtls property
@@ -94,7 +94,7 @@ describe('find_definition', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns definition with context snippet', async () => {
+	test('returns definition with context snippet', async () => {
 		// Mock definition returns a location in the same file
 		mockDefinition.mockResolvedValue({
 			uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
@@ -138,7 +138,7 @@ describe('find_definition', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns full results with context when details: { lineContent: true } is passed', async () => {
+	test('returns full results with context when details: { lineContent: true } is passed', async () => {
 		mockDefinition.mockResolvedValue({
 			uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
 			range: {
@@ -177,7 +177,7 @@ describe('find_definition', () => {
 		}
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns empty results when no definition found', async () => {
+	test('returns empty results when no definition found', async () => {
 		// Mock definition returns null
 		mockDefinition.mockResolvedValue(null);
 
@@ -206,7 +206,7 @@ describe('find_definition', () => {
 	});
 
 	describe('pagination', () => {
-		test.skipIf(!toolModuleAvailable)('no pagination params returns all results with hasMore=false', async () => {
+		test('no pagination params returns all results with hasMore=false', async () => {
 			mockDefinition.mockResolvedValue([
 				{
 					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
@@ -244,7 +244,7 @@ describe('find_definition', () => {
 			}
 		});
 
-		test.skipIf(!toolModuleAvailable)('limit returns a subset with correct metadata', async () => {
+		test('limit returns a subset with correct metadata', async () => {
 			mockDefinition.mockResolvedValue([
 				{
 					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
@@ -284,7 +284,7 @@ describe('find_definition', () => {
 			}
 		});
 
-		test.skipIf(!toolModuleAvailable)('offset skips results', async () => {
+		test('offset skips results', async () => {
 			mockDefinition.mockResolvedValue([
 				{
 					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
@@ -324,7 +324,7 @@ describe('find_definition', () => {
 			}
 		});
 
-		test.skipIf(!toolModuleAvailable)('text summary reflects pagination state', async () => {
+		test('text summary reflects pagination state', async () => {
 			mockDefinition.mockResolvedValue([
 				{
 					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
@@ -372,7 +372,7 @@ describe('find_definition', () => {
 		});
 	});
 
-	test.skipIf(!toolModuleAvailable)('returns cascade failure when patterns do not match', async () => {
+	test('returns cascade failure when patterns do not match', async () => {
 		const pair = await createTestPair();
 		try {
 			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
