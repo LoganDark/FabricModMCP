@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Project Rearchitecture
-status: defining_requirements
-stopped_at: Milestone v1.4 started
-last_updated: "2026-04-15T13:30:00.000Z"
+status: ready_to_plan
+stopped_at: Roadmap created for v1.4
+last_updated: "2026-04-15T14:00:00.000Z"
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -19,13 +19,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-15)
 
 **Core value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
-**Current focus:** v1.4 Project Rearchitecture — defining requirements
+**Current focus:** Phase 23 — Type Foundation and ProjectStore
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
+Phase: 23 (1 of 5 in v1.4)
+Plan: 0 of ? in current phase
+Status: Ready to plan
+Last activity: 2026-04-15 — Roadmap created for v1.4 Project Rearchitecture
+
+Progress: [░░░░░░░░░░] 0% (v1.4)
 
 ## Performance Metrics
 
@@ -51,13 +54,17 @@ Status: Defining requirements
 
 See PROJECT.md Key Decisions table for full decision log.
 
+- v1.4: Dependencies resolve per-child, NOT merged at project level — project delegates to children
+- v1.4: JDT LS in-memory files rejected (Issue #1815) — tmpdir extraction remains
+- v1.4: LoadedProject kept as compat alias during migration, removed only in Phase 27
+
 ### Pending Todos
 
 None.
 
 ### Blockers/Concerns
 
-None.
+- Phase 26 (JDT LS): Multi-mod workspace with overlapping classes (different MC versions) unvalidated — needs research spike before implementation
 
 ### Quick Tasks Completed
 
@@ -69,5 +76,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-04-15
-Stopped at: Milestone v1.3 completed
+Stopped at: Roadmap created for v1.4
 Resume file: None

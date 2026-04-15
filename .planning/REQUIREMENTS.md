@@ -72,27 +72,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CONT-01 | — | Pending |
-| CONT-02 | — | Pending |
-| CONT-03 | — | Pending |
-| CONT-04 | — | Pending |
-| CONT-05 | — | Pending |
-| CONT-06 | — | Pending |
-| DEP-01 | — | Pending |
-| DEP-02 | — | Pending |
-| DEP-03 | — | Pending |
-| DEP-04 | — | Pending |
-| TOOL-01 | — | Pending |
-| TOOL-02 | — | Pending |
-| TOOL-03 | — | Pending |
-| LSP-01 | — | Pending |
-| LSP-02 | — | Pending |
+| CONT-01 | Phase 23 | Pending |
+| CONT-02 | Phase 23 | Pending |
+| CONT-03 | Phase 23 | Pending |
+| CONT-04 | Phase 25 | Pending |
+| CONT-05 | Phase 23 | Pending |
+| CONT-06 | Phase 23 | Pending |
+| DEP-01 | Phase 24 | Pending |
+| DEP-02 | Phase 24 | Pending |
+| DEP-03 | Phase 24 | Pending |
+| DEP-04 | Phase 25 | Pending |
+| TOOL-01 | Phase 25 | Pending |
+| TOOL-02 | Phase 25 | Pending |
+| TOOL-03 | Phase 25 | Pending |
+| LSP-01 | Phase 26 | Pending |
+| LSP-02 | Phase 26 | Pending |
 
 **Coverage:**
 - v1.4 requirements: 15 total
-- Mapped to phases: 0
-- Unmapped: 15
+- Mapped to phases: 15
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-15*
-*Last updated: 2026-04-15 after initial definition*
+*Last updated: 2026-04-15 after roadmap creation*
