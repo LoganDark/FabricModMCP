@@ -86,10 +86,10 @@
   3. Study jars exist at project level, not nested under any fabric mod child
   4. A default project named "default" exists immediately at server startup without any explicit creation
   5. All existing tools and tests continue passing through a compatibility layer (no regressions)
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 Plans:
 - [x] 23-01-PLAN.md — Define new type hierarchy (Project, FabricModChild, StudyJarChild) and compat accessor layer
-- [ ] 23-02-PLAN.md — Update core modules (ProjectStore, loader, CLI, dependency-resolver, study-jar) and their tests
+- [x] 23-02-PLAN.md — Update core modules (ProjectStore, loader, CLI, dependency-resolver, study-jar) and their tests
 - [ ] 23-03-PLAN.md — Migrate all tool files and test factories to use compat accessors, verify full suite
 
 ### Phase 24: Dependency Namespacing
@@ -146,7 +146,7 @@ Phases execute in numeric order: 23 -> 24 -> 25 -> 26 -> 27
 | 11-14 | v1.1 | 8/8 | Complete | 2026-04-14 |
 | 15-18 | v1.2 | 7/7 | Complete | 2026-04-14 |
 | 19-22 | v1.3 | 9/9 | Complete | 2026-04-15 |
-| 23. Type Foundation | v1.4 | 1/3 | In Progress|  |
+| 23. Type Foundation | v1.4 | 2/3 | In Progress|  |
 | 24. Dep Namespacing | v1.4 | 0/? | Not started | - |
 | 25. Child Mgmt Tools | v1.4 | 0/? | Not started | - |
 | 26. JDT LS Unification | v1.4 | 0/? | Not started | - |
