@@ -4,7 +4,7 @@ milestone: v1.4
 milestone_name: Project Rearchitecture
 status: unknown
 stopped_at: Completed 25.1-04-PLAN.md
-last_updated: "2026-04-15T22:36:42.995Z"
+last_updated: "2026-04-15T22:40:11.371Z"
 progress:
   total_phases: 6
   completed_phases: 4
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-04-15)
 
 ## Current Position
 
-Phase: 25.1 (rework-tools-and-tests-for-native-architecture-without-compatibility-shims) — EXECUTING
-Plan: 4 of 4
+Phase: 26
+Plan: Not started
 
 ## Performance Metrics
 
