@@ -20,7 +20,7 @@ export function registerSetDefaultProjectTool(server: McpServer): void {
 			logger.debug('set_default_project called', { project });
 
 			try {
-				projectStore.setDefault(project);
+				projectStore.setActive(project);
 
 				const envelope = makeSuccess({
 					defaultProject: project,

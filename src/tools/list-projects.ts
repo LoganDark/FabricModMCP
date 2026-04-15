@@ -17,7 +17,7 @@ export function registerListProjectsTool(server: McpServer): void {
 		async () => {
 			logger.debug('list_projects called');
 
-			const defaultName = projectStore.getDefault();
+			const defaultName = projectStore.getActive();
 			const projects = projectStore.list().map((p) => {
 				const gc = getGradleConfig(p);
 				return {

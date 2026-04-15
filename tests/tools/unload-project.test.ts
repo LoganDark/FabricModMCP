@@ -63,7 +63,7 @@ describe('unload_project tool', () => {
 	it('scoped unload removes child jar registrations', async () => {
 		const project = makeFakeMultiModProject(['mod-a', 'mod-b']);
 		projectStore.set('test', project);
-		projectStore.setDefault('test');
+		projectStore.setActive('test');
 
 		// Register project jars (mod-a uses minecraft-sources.jar, mod-b uses it too)
 		jarReader.registerProject('test', new Set([
@@ -110,7 +110,7 @@ describe('unload_project tool', () => {
 		const studyJar = makeStudyJarChild('my-study', '/fake/study.jar');
 		project.children.set('my-study', studyJar);
 		projectStore.set('test', project);
-		projectStore.setDefault('test');
+		projectStore.setActive('test');
 
 		// Register jar paths including the study jar
 		jarReader.registerProject('test', new Set([

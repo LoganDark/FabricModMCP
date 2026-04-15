@@ -74,7 +74,7 @@ describe('refresh_dependencies tool', () => {
 
 		const project = makeFakeMultiModProject(['mod-a', 'mod-b']);
 		projectStore.set('test', project);
-		projectStore.setDefault('test');
+		projectStore.setActive('test');
 		// Register project jars so removeProjectJar doesn't fail
 		jarReader.registerProject('test', new Set(['/fake/minecraft-sources.jar']));
 
@@ -127,7 +127,7 @@ describe('refresh_dependencies tool', () => {
 			children: new Map([['solo-mod', mod]]),
 		};
 		projectStore.set('test', project);
-		projectStore.setDefault('test');
+		projectStore.setActive('test');
 		jarReader.registerProject('test', new Set(['/fake/minecraft-sources.jar']));
 
 		vi.mocked(discoverDependencies).mockResolvedValue(makeDiscoveryResult('solo-mod'));
@@ -147,7 +147,7 @@ describe('refresh_dependencies tool', () => {
 
 		const project = makeFakeMultiModProject(['mod-a', 'mod-b']);
 		projectStore.set('test', project);
-		projectStore.setDefault('test');
+		projectStore.setActive('test');
 		jarReader.registerProject('test', new Set(['/fake/minecraft-sources.jar']));
 
 		vi.mocked(discoverDependencies)
@@ -168,7 +168,7 @@ describe('refresh_dependencies tool', () => {
 	it('scope pointing to non-existent child returns error', async () => {
 		const project = makeFakeMultiModProject(['mod-a']);
 		projectStore.set('test', project);
-		projectStore.setDefault('test');
+		projectStore.setActive('test');
 
 		const result = await pair.client.callTool({
 			name: 'refresh_dependencies',
@@ -185,7 +185,7 @@ describe('refresh_dependencies tool', () => {
 
 		const project = makeFakeMultiModProject(['mod-a', 'mod-b']);
 		projectStore.set('test', project);
-		projectStore.setDefault('test');
+		projectStore.setActive('test');
 		// Register both mods' jars
 		jarReader.registerProject('test', new Set(['/fake/minecraft-sources.jar']));
 
@@ -230,7 +230,7 @@ describe('refresh_dependencies tool', () => {
 			]),
 		};
 		projectStore.set('test', project);
-		projectStore.setDefault('test');
+		projectStore.setActive('test');
 		jarReader.registerProject('test', new Set([
 			'/fake/minecraft-sources.jar',
 			'/fake/conflicting-sources.jar',

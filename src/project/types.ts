@@ -95,9 +95,7 @@ export type ProjectChild = FabricModChild | StudyJarChild;
 
 export interface Project {
 	name: string;
-	defaultChild?: string;
+	activeChild?: string;
 	children: Map<string, ProjectChild>;
 	jdtls?: JdtLsSession;
 }
-
-export type LoadedProject = Project;

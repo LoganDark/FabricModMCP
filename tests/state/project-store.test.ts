@@ -102,7 +102,7 @@ describe('ProjectStore', () => {
 			const p2 = makeMockProject('b');
 			store.set('a', p1);
 			store.set('b', p2);
-			store.setDefault('b');
+			store.setActive('b');
 			expect(store.resolveProject()).toBe(p2);
 		});
 
@@ -127,46 +127,42 @@ describe('ProjectStore', () => {
 		});
 
 		it('resolveProject with only default empty project returns it (single project fallback)', () => {
-			const defaultProject: Project = { name: 'default', children: new Map() };
-			store.set('default', defaultProject);
-			expect(store.resolveProject()).toBe(defaultProject);
+			const emptyProject: Project = { name: 'default', children: new Map() };
+			store.set('default', emptyProject);
+			expect(store.resolveProject()).toBe(emptyProject);
 		});
 	});
 
-	describe('default', () => {
-		it('setDefault sets and getDefault returns', () => {
+	describe('active project', () => {
+		it('setActive sets and getActive returns', () => {
 			store.set('foo', makeMockProject('foo'));
-			store.setDefault('foo');
-			expect(store.getDefault()).toBe('foo');
+			store.setActive('foo');
+			expect(store.getActive()).toBe('foo');
 		});
 
 		it('delete clears default if deleted project was default', () => {
 			const p1 = makeMockProject('a');
 			store.set('a', p1);
-			store.setDefault('a');
+			store.setActive('a');
 			store.delete('a');
-			expect(store.getDefault()).toBeUndefined();
+			expect(store.getActive()).toBeUndefined();
 		});
 
 		it('delete does not clear default if different project deleted', () => {
 			store.set('a', makeMockProject('a'));
 			store.set('b', makeMockProject('b'));
-			store.setDefault('a');
+			store.setActive('a');
 			store.delete('b');
-			expect(store.getDefault()).toBe('a');
+			expect(store.getActive()).toBe('a');
 		});
 	});
 
-	describe('default project protection', () => {
-		it('delete("default") throws DomainError with code CANNOT_DELETE_DEFAULT', () => {
-			const defaultProject: Project = { name: 'default', children: new Map() };
-			store.set('default', defaultProject);
-			expect(() => store.delete('default')).toThrow(DomainError);
-			try {
-				store.delete('default');
-			} catch (e) {
-				expect((e as DomainError).code).toBe('CANNOT_DELETE_DEFAULT');
-			}
+	describe('delete', () => {
+		it('allows deleting any project including default', () => {
+			const project: Project = { name: 'default', children: new Map() };
+			store.set('default', project);
+			expect(store.delete('default')).toBe(true);
+			expect(store.has('default')).toBe(false);
 		});
 
 		it('delete("other-name") succeeds normally', () => {

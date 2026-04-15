@@ -4,7 +4,7 @@ import { DomainError } from '../errors/domain-error.js';
 
 export class ProjectStore {
 	private projects = new Map<string, Project>();
-	private defaultProject: string | undefined;
+	private activeProject: string | undefined;
 
 	static generateProjectName(projectPath: string, existingNames: Set<string>): string {
 		const base = basename(projectPath);
@@ -25,7 +25,7 @@ export class ProjectStore {
 				'PROJECT_NAME_COLLISION',
 				`Project name '${name}' is already in use`,
 				[name],
-				['Choose a different name or unload the existing project'],
+				['Choose a different name or use remove_project to remove the existing one'],
 			);
 		}
 		this.projects.set(name, project);
@@ -40,17 +40,9 @@ export class ProjectStore {
 	}
 
 	delete(name: string): boolean {
-		if (name === 'default') {
-			throw new DomainError(
-				'CANNOT_DELETE_DEFAULT',
-				"Cannot delete the 'default' project during compatibility mode",
-				['default'],
-				['The default project is required during the v1.4 migration'],
-			);
-		}
 		const result = this.projects.delete(name);
-		if (this.defaultProject === name) {
-			this.defaultProject = undefined;
+		if (this.activeProject === name) {
+			this.activeProject = undefined;
 		}
 		return result;
 	}
@@ -59,7 +51,7 @@ export class ProjectStore {
 		return this.projects.size;
 	}
 
-	setDefault(name: string): void {
+	setActive(name: string): void {
 		if (!this.projects.has(name)) {
 			throw new DomainError(
 				'PROJECT_NOT_FOUND',
@@ -68,11 +60,11 @@ export class ProjectStore {
 				['Check available projects with list_projects'],
 			);
 		}
-		this.defaultProject = name;
+		this.activeProject = name;
 	}
 
-	getDefault(): string | undefined {
-		return this.defaultProject;
+	getActive(): string | undefined {
+		return this.activeProject;
 	}
 
 	names(): Set<string> {
@@ -93,11 +85,11 @@ export class ProjectStore {
 			return p;
 		}
 
-		if (this.defaultProject) {
-			const p = this.projects.get(this.defaultProject);
+		if (this.activeProject) {
+			const p = this.projects.get(this.activeProject);
 			if (p) return p;
 			// Stale default cleanup
-			this.defaultProject = undefined;
+			this.activeProject = undefined;
 		}
 
 		if (this.projects.size === 1) {
@@ -109,7 +101,7 @@ export class ProjectStore {
 				'NO_PROJECTS_LOADED',
 				'No projects are loaded',
 				[],
-				['Load a project first using the load_project tool'],
+				['Create a project with create_project, then add a fabric mod with add_fabric_mod'],
 			);
 		}
 
@@ -117,13 +109,13 @@ export class ProjectStore {
 			'AMBIGUOUS_PROJECT',
 			'Multiple projects loaded — specify which project to use',
 			[...this.projects.keys()],
-			['Provide the project name or use set_default_project to set a default'],
+			['Provide the project name or use set_active_project to set the active project'],
 		);
 	}
 
 	clear(): void {
 		this.projects.clear();
-		this.defaultProject = undefined;
+		this.activeProject = undefined;
 	}
 }
 

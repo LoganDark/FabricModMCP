@@ -9,11 +9,11 @@ import type { Project } from './project/types.js';
 const args = parseCli(process.argv.slice(2));
 logger.setLevel(args.logLevel);
 
-const defaultProject: Project = {
+const initialProject: Project = {
 	name: 'default',
 	children: new Map(),
 };
-projectStore.set('default', defaultProject);
+projectStore.set('default', initialProject);
 logger.info('Default project created');
 
 const server = createServer();

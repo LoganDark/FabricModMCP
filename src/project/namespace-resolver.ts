@@ -26,14 +26,14 @@ export function resolveJarId(project: Project, jarId: string, scope?: string): s
 	}
 
 	// Bare dependency ID — need to prefix with a child name
-	const targetChild = scope ?? project.defaultChild ?? inferSoleChildName(project);
+	const targetChild = scope ?? project.activeChild ?? inferSoleChildName(project);
 
 	if (targetChild === null) {
 		throw new DomainError(
 			'AMBIGUOUS_JAR_ID',
 			`Bare jar ID '${jarId}' is ambiguous — multiple fabric mods loaded, specify scope or set a default child`,
 			[jarId],
-			[`Use a namespaced ID like "modName/${jarId}"`, 'Set a default child with set_default_project'],
+			[`Use a namespaced ID like "modName/${jarId}"`, 'Set the active child with set_active_child'],
 		);
 	}
 

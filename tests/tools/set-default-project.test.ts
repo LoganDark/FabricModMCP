@@ -32,7 +32,7 @@ describe('set_default_project tool', () => {
 		const envelope = parseEnvelope(result);
 		expect(envelope.success).toBe(true);
 		expect(envelope.data.defaultProject).toBe('my-mod');
-		expect(projectStore.getDefault()).toBe('my-mod');
+		expect(projectStore.getActive()).toBe('my-mod');
 	});
 
 	it('nonexistent project returns error', async () => {

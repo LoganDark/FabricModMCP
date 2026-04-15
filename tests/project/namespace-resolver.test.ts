@@ -110,7 +110,7 @@ describe('resolveJarId', () => {
 		expect(resolveJarId(project, 'minecraft')).toBe('testmod/minecraft');
 	});
 
-	it('throws AMBIGUOUS_JAR_ID when multiple fabric mods and no scope or defaultChild', () => {
+	it('throws AMBIGUOUS_JAR_ID when multiple fabric mods and no scope or activeChild', () => {
 		const project = makeProject([
 			['modA', makeMod('modA', ['modA/minecraft'])],
 			['modB', makeMod('modB', ['modB/minecraft'])],
@@ -131,21 +131,21 @@ describe('resolveJarId', () => {
 		expect(resolveJarId(project, 'minecraft', 'modA')).toBe('modA/minecraft');
 	});
 
-	it('uses defaultChild when no scope provided', () => {
+	it('uses activeChild when no scope provided', () => {
 		const project = makeProject([
 			['modA', makeMod('modA')],
 			['modB', makeMod('modB')],
 		]);
-		project.defaultChild = 'modA';
+		project.activeChild = 'modA';
 		expect(resolveJarId(project, 'minecraft')).toBe('modA/minecraft');
 	});
 
-	it('scope wins over defaultChild', () => {
+	it('scope wins over activeChild', () => {
 		const project = makeProject([
 			['modA', makeMod('modA')],
 			['modB', makeMod('modB')],
 		]);
-		project.defaultChild = 'modA';
+		project.activeChild = 'modA';
 		expect(resolveJarId(project, 'minecraft', 'modB')).toBe('modB/minecraft');
 	});
 });

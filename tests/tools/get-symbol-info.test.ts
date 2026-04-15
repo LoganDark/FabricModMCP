@@ -2,7 +2,6 @@ import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createTestPair, type TestPair } from '../helpers/client.js';
 import { parseEnvelope, makeFakeProject, makeJdtlsSession } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
-import type { LoadedProject } from '../../src/project/types.js';
 
 const toolModuleAvailable = await import('../../src/tools/get-symbol-info.js').then(() => true).catch(() => false);
 

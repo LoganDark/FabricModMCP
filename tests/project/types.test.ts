@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type {
 	Project,
-	LoadedProject,
 	FabricModChild,
 	StudyJarChild,
 	ProjectChild,
@@ -108,18 +107,6 @@ describe('type hierarchy', () => {
 		expect(project.children.size).toBe(2);
 		expect(project.children.get('mod')!.kind).toBe('fabric-mod');
 		expect(project.children.get('jar')!.kind).toBe('study-jar');
-	});
-
-	it('LoadedProject is assignable to/from Project', () => {
-		const project: Project = {
-			name: 'test',
-			children: new Map(),
-		};
-		const loaded: LoadedProject = project;
-		const back: Project = loaded;
-		expect(loaded.name).toBe('test');
-		expect(back.name).toBe('test');
-		expect(loaded).toBe(back);
 	});
 
 	it('empty Project with no children is valid', () => {

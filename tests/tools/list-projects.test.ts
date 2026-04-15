@@ -40,7 +40,7 @@ describe('list_projects tool', () => {
 	it('returns all loaded projects with metadata', async () => {
 		projectStore.set('mod-a', makeFakeProject('mod-a', '1.21.11'));
 		projectStore.set('mod-b', makeFakeProject('mod-b', '1.20.4'));
-		projectStore.setDefault('mod-a');
+		projectStore.setActive('mod-a');
 
 		const result = await pair.client.callTool({
 			name: 'list_projects',
