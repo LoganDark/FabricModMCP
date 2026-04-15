@@ -2,7 +2,7 @@
  * Centralized tool descriptions, server instructions, and shared parameter schemas.
  *
  * All MCP-facing text lives here so it's easy to review, refactor,
- * and keep consistent across the 21 tools.
+ * and keep consistent across the 25 tools.
  */
 
 import { z } from 'zod';
@@ -31,6 +31,7 @@ Browse decompiled source, navigate dependencies, and use semantic Java analysis 
 
 **Jar IDs** identify source jars. Special IDs: \`"minecraft"\` (merged Minecraft sources), \`"src"\` (the mod's own source). \
 Dependencies use Maven coordinates: \`"net.fabricmc.fabric-api:fabric-resource-loader-v0"\`. \
+Study jars use their given name (or auto-derived from filename). \
 Use get_project_metadata with include_jar_inventory to see all available jars.
 
 **Cascading regex patterns**: Several tools locate a symbol position using an array of regex patterns that narrow progressively. \
@@ -47,6 +48,12 @@ More examples:
 - Find \`getBlockState\` in a method call: \`["getBlockState\\\\(pos\\\\)", "getBlockState"]\`
 - Find the class declaration itself: \`["class MinecraftClient", "MinecraftClient"]\`
 - Find an import: \`["import net\\\\.minecraft\\\\.world\\\\.World;", "World"]\`
+
+**details parameter**: Many tools return compact output by default to save context. \
+Pass a \`details\` object with boolean flags to opt into richer output: \
+navigation tools accept \`{ lineContent: true }\`, list_members accepts \`{ signatures: true }\`, \
+list_classes/search_classes accept \`{ modifiers: true }\`, locate_in_source accepts \`{ steps: true }\`, \
+and read_source/read_member accept \`{ provenance: true }\`.
 
 **Mapping eras**: Projects are either \`mapped\` (Yarn-deobfuscated names like MinecraftClient, getBlockState) \
 or \`unmapped\` (Mojang's unobfuscated names in newer versions). This affects which source jar format is used.`;
@@ -158,7 +165,7 @@ export const TOOL_DESCRIPTIONS = {
 		'Filter which dependency jars appear in browsing and search results. In include-all mode (default), glob patterns define jars to EXCLUDE. In exclude-all mode, patterns define jars to INCLUDE. The "minecraft" and "src" jars are always included. Patterns match jar IDs (e.g., "net.fabricmc.*" to match all Fabric API modules).',
 
 	refresh_dependencies:
-		'Re-scan for dependency source jars in the Gradle cache. Use after running ./gradlew downloadSources or changing build.gradle dependencies. Does not re-parse the Gradle config — use unload_project + load_project for that.',
+		'Re-scan for dependency source jars in the Gradle cache. Use after running ./gradlew downloadSources or changing build.gradle dependencies. Does not re-parse the Gradle config — use unload_project + load_project for that. Automatically unloads any study jars whose names now conflict with real dependencies.',
 
 	// -- Browsing ------------------------------------------------------------
 
@@ -166,19 +173,19 @@ export const TOOL_DESCRIPTIONS = {
 		'List Java packages across source jars. Drill into a parent package with the `package` parameter, control nesting depth, and filter by jar. Returns package names with class counts. Start here to explore unfamiliar code top-down.',
 
 	list_classes:
-		'List classes in a package with metadata: simple name, FQN, kind (class/interface/enum/record/@interface), access level, modifiers (abstract/final/static/sealed), which jars contain it, and inner classes. Filter by jar or include sub-packages with depth.',
+		'List classes in a package with metadata: simple name, FQN, kind (class/interface/enum/record/@interface), and which jars contain it. Pass details: { modifiers: true } to include access level, modifiers (abstract/final/static/sealed), and inner classes. Filter by jar or include sub-packages with depth.',
 
 	search_classes:
-		'Search for classes by glob pattern against fully-qualified names. Use * for one name segment, ** to cross package boundaries. Case-insensitive by default. Examples: "*Client" finds MinecraftClient, "net.minecraft.block.*" lists that package, "**.*Registry" finds registries anywhere. Filterable by kind and jar. Paginated.',
+		'Search for classes by glob pattern against fully-qualified names. Use * for one name segment, ** to cross package boundaries. Case-insensitive by default. Examples: "*Client" finds MinecraftClient, "net.minecraft.block.*" lists that package, "**.*Registry" finds registries anywhere. Filterable by kind and jar. Paginated. Pass details: { modifiers: true } to include access level, modifiers, and inner classes.',
 
 	list_members:
-		'List all members of a Java class as a structured tree: fields (with types), methods (with full parameter and return type signatures), constructors, enum constants, and inner classes. Each member includes its kind, line range, and nested children. Use this to understand a class\'s API before reading its source — especially useful for identifying Mixin targets.',
+		'List all members of a Java class as a structured tree: fields, methods, constructors, enum constants, and inner classes. Each member includes its name, kind, line range, member FQN, and nested children. Pass details: { signatures: true } to include parameter types, return types, field types, and LSP detail strings. Use this to understand a class\'s API before reading its source — especially useful for identifying Mixin targets.',
 
 	read_source:
-		'Read Java source of a class by FQN. When no jar is specified, returns source from every jar containing the class, with provenance labels. Supports optional startLine and lineCount parameters to read a specific line range (requires specifying a jar). Every response includes metadata: startLine, endLine, totalLineCount, and truncated. Use list_members first to understand structure, then read_source for implementation details.',
+		'Read Java source of a class by FQN. When no jar is specified, returns source from every jar containing the class. Supports optional startLine and lineCount parameters to read a specific line range (requires specifying a jar). Every response includes metadata: startLine, endLine, totalLineCount, and truncated. Pass details: { provenance: true } to include dependency provenance chains. Use list_members first to understand structure, then read_source for implementation details.',
 
 	read_member:
-		'Read the source of a specific method, constructor, or field by its member FQN (e.g., net.minecraft.client.MinecraftClient#tick()). Returns the full declaration including Javadoc, annotations, signature, and body. When multiple overloads share the same FQN, returns all of them as separate entries. Get FQNs from list_members or search_symbols output. Use linesBefore and linesAfter to include surrounding source context without a separate read_source call.',
+		'Read the source of a specific method, constructor, or field by its member FQN (e.g., net.minecraft.client.MinecraftClient#tick()). Returns the full declaration including Javadoc, annotations, signature, and body. When multiple overloads share the same FQN, returns all of them as separate entries. Get FQNs from list_members or search_symbols output. Use linesBefore and linesAfter to include surrounding source context without a separate read_source call. Pass details: { provenance: true } to include dependency provenance chains.',
 
 	read_jar_entry:
 		'Read any file from a source jar by its internal path (slash-separated, e.g. "net/minecraft/client/MinecraftClient.java"). Unlike read_source which takes a class FQN, this takes a raw entry path — useful for non-Java files or when you know the exact path.',
@@ -186,18 +193,18 @@ export const TOOL_DESCRIPTIONS = {
 	// -- Position ------------------------------------------------------------
 
 	locate_in_source:
-		'Find a precise character position in Java source using cascading regex patterns. Returns offset, line, column, and matched text. Searches all jars containing the class unless a specific jar is given. This is the building block used by the LSP navigation tools — use it directly only when you need raw position data. Optionally include surrounding context lines with the context parameter — useful for seeing the matched line in context without reading the full source.',
+		'Find a precise character position in Java source using cascading regex patterns. Returns offset, line, column, and matched text. Searches all jars containing the class unless a specific jar is given. This is the building block used by the LSP navigation tools — use it directly only when you need raw position data. Optionally include surrounding context lines with the context parameter. Pass details: { steps: true } to include cascade step details and provenance chains.',
 
 	// -- LSP navigation ------------------------------------------------------
 
 	find_definition:
-		'Go-to-definition for a symbol located by cascading regex patterns. Returns definition location(s) with source jar provenance and a code snippet showing surrounding context. Works across jar boundaries — e.g., navigate from a method call in mod source to its definition in Minecraft source.',
+		'Go-to-definition for a symbol located by cascading regex patterns. Returns definition location(s) with jar ID, class name, line, and column. Works across jar boundaries — e.g., navigate from a method call in mod source to its definition in Minecraft source. Paginated with limit/offset. Pass details: { lineContent: true } to include context snippets, entry paths, and provenance chains.',
 
 	find_references:
-		'Find all usages of a symbol located by cascading regex patterns across all source jars. Each result includes jar provenance and a context code snippet. Use to understand how a method/field/class is used — critical for assessing impact before writing Mixins.',
+		'Find all usages of a symbol located by cascading regex patterns across all source jars. Each result includes jar ID, class name, line, and column. Use to understand how a method/field/class is used — critical for assessing impact before writing Mixins. Paginated with limit/offset. Pass details: { lineContent: true } to include context snippets, entry paths, and provenance chains.',
 
 	find_implementations:
-		'Find implementations of an interface method, abstract method, or type located by cascading regex patterns. Returns implementing locations with provenance and code snippets. Use to find concrete implementations — e.g., "what classes implement Inventory?" or "who overrides tick()?".',
+		'Find implementations of an interface method, abstract method, or type located by cascading regex patterns. Returns implementing locations with jar ID, class name, line, and column. Use to find concrete implementations — e.g., "what classes implement Inventory?" or "who overrides tick()?". Paginated with limit/offset. Pass details: { lineContent: true } to include context snippets, entry paths, and provenance chains.',
 
 	get_symbol_info:
 		'Get hover information (type signature, Javadoc, metadata) for a symbol located by cascading regex patterns. Returns raw markdown from JDT LS. Use to check a symbol\'s type or read its documentation without navigating to its definition.',
@@ -211,7 +218,7 @@ export const TOOL_DESCRIPTIONS = {
 	// -- Study jar management -----------------------------------------------
 
 	add_study_jar:
-		'Add a source jar to a project for study. Provide a file path to a sources JAR and an optional name (auto-derived from filename if omitted). The jar becomes available to all browsing and search tools. Use configure_study_jar to enable auto-include if you want it in default results.',
+		'Add a source jar to a project for study. Provide a file path to a sources JAR and an optional name (auto-derived from filename if omitted). The name is used as the jar ID — it must not conflict with an existing dependency ID. The jar becomes available to all browsing and search tools. Use configure_study_jar to enable auto-include if you want it in default results.',
 
 	remove_study_jar:
 		'Remove one or more study jars from a project by name. Closes jar handles and evicts cached data. Accepts an array of names; fails on the first nonexistent name with no partial removal. Use list_study_jars to see current names.',
