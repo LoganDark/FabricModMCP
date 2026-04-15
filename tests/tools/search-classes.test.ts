@@ -202,7 +202,7 @@ describe('search_classes tool', () => {
 		expect(match.modifiers).toBeUndefined();
 	});
 
-	it('results include access and modifiers with details flag', async () => {
+	it('results include access and modifiers with details flag but NOT innerClasses', async () => {
 		const fake = makeFakeProject();
 		projectStore.set('test', fake);
 
@@ -219,5 +219,7 @@ describe('search_classes tool', () => {
 		expect(match.access).toBeDefined();
 		expect(match.jars).toBeDefined();
 		expect(Array.isArray(match.jars)).toBe(true);
+		// modifiers: true alone should NOT include innerClasses
+		expect(match.innerClasses).toBeUndefined();
 	});
 });

@@ -128,13 +128,13 @@ describe('list_classes tool', () => {
 		expect(mc.jars).toEqual([{ id: 'minecraft', category: 'minecraft' }]);
 	});
 
-	it('inner classes are nested in parent with details flag', async () => {
+	it('inner classes are nested in parent with innerClasses detail flag', async () => {
 		const fake = makeFakeProject();
 		projectStore.set('test', fake);
 
 		const result = await pair.client.callTool({
 			name: 'list_classes',
-			arguments: { project: 'test', package: 'net.minecraft.client', details: { modifiers: true } },
+			arguments: { project: 'test', package: 'net.minecraft.client', details: { innerClasses: true } },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -144,6 +144,29 @@ describe('list_classes tool', () => {
 		const opts = mc.innerClasses.find((ic: any) => ic.name === 'MinecraftClient$Options');
 		expect(opts).toBeDefined();
 		expect(opts.kind).toBe('class');
+		// innerClasses: true without modifiers: true => compact inner classes (no access/modifiers)
+		expect(opts.access).toBeUndefined();
+		expect(opts.modifiers).toBeUndefined();
+	});
+
+	it('inner classes with both innerClasses and modifiers flags include access/modifiers', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'list_classes',
+			arguments: { project: 'test', package: 'net.minecraft.client', details: { innerClasses: true, modifiers: true } },
+		});
+
+		const envelope = parseEnvelope(result);
+		const mc = envelope.data.classes[0];
+		expect(mc.innerClasses).toBeDefined();
+		expect(mc.innerClasses.length).toBeGreaterThanOrEqual(1);
+		const opts = mc.innerClasses.find((ic: any) => ic.name === 'MinecraftClient$Options');
+		expect(opts).toBeDefined();
+		expect(opts.kind).toBe('class');
+		expect(opts.access).toBeDefined();
+		expect(opts.modifiers).toBeDefined();
 	});
 
 	it('anonymous inner classes are filtered from listing', async () => {
@@ -152,7 +175,7 @@ describe('list_classes tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'list_classes',
-			arguments: { project: 'test', package: 'net.minecraft.client', details: { modifiers: true } },
+			arguments: { project: 'test', package: 'net.minecraft.client', details: { innerClasses: true } },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -162,7 +185,7 @@ describe('list_classes tool', () => {
 		expect(anon).toBeUndefined();
 	});
 
-	it('class metadata includes access, modifiers, and type with details flag', async () => {
+	it('class metadata includes access, modifiers, but NOT innerClasses with only modifiers flag', async () => {
 		const fake = makeFakeProject();
 		projectStore.set('test', fake);
 
@@ -177,6 +200,8 @@ describe('list_classes tool', () => {
 		expect(server.access).toBe('public');
 		expect(server.modifiers).toContain('abstract');
 		expect(server.kind).toBe('class');
+		// modifiers: true alone should NOT include innerClasses
+		expect(server.innerClasses).toBeUndefined();
 	});
 
 	it('class entries include jars array', async () => {
