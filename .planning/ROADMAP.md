@@ -144,7 +144,11 @@ Plans:
   1. One JDT LS workspace per project covers all fabric mods' and study jars' sources
   2. find_definition from one fabric mod's source correctly navigates into another fabric mod's dependencies
   3. Extraction directories use namespace-aware naming (e.g., `my-mod__minecraft`) to avoid collisions
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 26-01-PLAN.md — Fabric mod workspace sync functions and JDT LS session initialization helper
+- [ ] 26-02-PLAN.md — Wire JDT LS lifecycle into create_project, add_fabric_mod, and refresh tools
 
 ### Phase 27: Migration Cleanup
 **Goal**: The codebase is fully migrated to the new container model with no legacy compatibility shims remaining
@@ -171,5 +175,5 @@ Phases execute in numeric order: 23 -> 24 -> 25 -> 25.1 -> 26 -> 27
 | 24. Dep Namespacing | v1.4 | 3/3 | Complete    | 2026-04-15 |
 | 25. Child Mgmt Tools | v1.4 | 2/2 | Complete    | 2026-04-15 |
 | 25.1. Tool Rework | v1.4 | 4/4 | Complete    | 2026-04-15 |
-| 26. JDT LS Unification | v1.4 | 0/? | Not started | - |
+| 26. JDT LS Unification | v1.4 | 0/2 | Not started | - |
 | 27. Migration Cleanup | v1.4 | 0/? | Not started | - |
