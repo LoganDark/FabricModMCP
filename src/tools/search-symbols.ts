@@ -106,7 +106,7 @@ export function registerSearchSymbolsTool(server: McpServer): void {
 					memberFqn,
 					deprecated: sym.tags?.includes(1) ?? false,
 					location: {
-						uri: sym.location.uri,
+						uri: mapping?.entryPath ?? sym.location.uri,
 						jar: mapping?.jar ?? null,
 						line: sym.location.range.start.line + 1,
 						column: sym.location.range.start.character + 1,
