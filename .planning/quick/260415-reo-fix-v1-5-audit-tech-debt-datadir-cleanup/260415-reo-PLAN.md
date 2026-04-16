@@ -88,7 +88,7 @@ import { getAllDependencies } from '../project/dependency-resolver.js';
 This matches the actual behavior (build file re-parsing was added in Phase 33) and aligns with the `refresh_project` description which already mentions build.gradle.kts.
   </action>
   <verify>
-    <automated>cd /Users/LoganDark/Documents/Projects/MinecraftDevMCP && npx vitest run --reporter=verbose 2>&1 | tail -5</automated>
+    <automated>cd /Users/LoganDark/Documents/Projects/FabricModMCP && npx vitest run --reporter=verbose 2>&1 | tail -5</automated>
   </verify>
   <done>
 - remove-project.ts cleans dataDir after tempDir (grep confirms cleanupTempDir called twice)

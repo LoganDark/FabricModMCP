@@ -115,7 +115,7 @@ Output: Updated types, source files, tools, and passing tests.
   - Remove the `ClassMetadata` import since it no longer exists.
   </action>
   <verify>
-    <automated>cd /Users/LoganDark/Documents/Projects/MinecraftDevMCP && npx tsc --noEmit src/browsing/types.ts src/browsing/class-parser.ts 2>&1 | head -20</automated>
+    <automated>cd /Users/LoganDark/Documents/Projects/FabricModMCP && npx tsc --noEmit src/browsing/types.ts src/browsing/class-parser.ts 2>&1 | head -20</automated>
   </verify>
   <done>New types ClassReference, ClassInfo, InnerClassInfo exported from types.ts. Old types ClassMetadata, ClassEntry, InnerClassEntry removed. class-parser returns `kind` instead of `type`.</done>
 </task>
@@ -166,7 +166,7 @@ Output: Updated types, source files, tools, and passing tests.
   6. Update result envelope: `extends`, `implements`, `subtypes` now contain `ClassReference[]`.
   </action>
   <verify>
-    <automated>cd /Users/LoganDark/Documents/Projects/MinecraftDevMCP && npx tsc --noEmit 2>&1 | head -30</automated>
+    <automated>cd /Users/LoganDark/Documents/Projects/FabricModMCP && npx tsc --noEmit 2>&1 | head -30</automated>
   </verify>
   <done>All source files compile with new types. SearchClassResult and HierarchyEntry removed. Tools produce ClassInfo/ClassReference shaped output.</done>
 </task>
@@ -219,7 +219,7 @@ Output: Updated types, source files, tools, and passing tests.
     - `expect(envelope.data.extends[0].jar).toBeNull()` in JDK test -- remove
   </action>
   <verify>
-    <automated>cd /Users/LoganDark/Documents/Projects/MinecraftDevMCP && npx vitest run tests/browsing/class-parser.test.ts tests/browsing/search.test.ts tests/tools/list-classes.test.ts tests/tools/search-classes.test.ts tests/tools/type-hierarchy.test.ts 2>&1 | tail -30</automated>
+    <automated>cd /Users/LoganDark/Documents/Projects/FabricModMCP && npx vitest run tests/browsing/class-parser.test.ts tests/browsing/search.test.ts tests/tools/list-classes.test.ts tests/tools/search-classes.test.ts tests/tools/type-hierarchy.test.ts 2>&1 | tail -30</automated>
   </verify>
   <done>All 5 test files pass. Assertions use `kind` not `type`, `fqn` not `qualifiedName`, flattened fields not nested `metadata`, and `{id, category}` jar objects. No references to removed types remain.</done>
 </task>

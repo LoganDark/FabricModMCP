@@ -428,7 +428,7 @@ The rearchitecture has clear dependency layers. Build bottom-up:
 
 ## Sources
 
-- Direct codebase analysis of MinecraftDevMCP v1.3 (592 tests, 25 tools, 7,281 LOC)
+- Direct codebase analysis of FabricModMCP v1.3 (592 tests, 25 tools, 7,281 LOC)
 - All source files in `src/project/`, `src/state/`, `src/tools/`, `src/jdtls/`, `src/browsing/` read and cross-referenced
 - Architecture patterns derived from existing code conventions (domain/tool separation, discriminated unions in types.ts, dependency resolution pipeline)
 - Confidence: HIGH -- all findings from direct source reading, no external references needed

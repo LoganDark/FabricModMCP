@@ -454,7 +454,7 @@ The `{hash}` directory is unpredictable -- need to glob for it. This is Phase 3 
 - Real POM files confirming artifactId and version strings
 - Real `build.gradle.kts` and `gradle.properties` from two test projects
 - Real `fabric.mod.json` from both test projects
-- Existing Phase 1 codebase at `/Users/LoganDark/Documents/Projects/MinecraftDevMCP/src/`
+- Existing Phase 1 codebase at `/Users/LoganDark/Documents/Projects/FabricModMCP/src/`
 
 ### Secondary (MEDIUM confidence)
 - None needed -- all findings verified against real filesystem

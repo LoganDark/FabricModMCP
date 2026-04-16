@@ -1,4 +1,4 @@
-# MinecraftDevMCP
+# FabricModMCP
 
 ## What This Is
 

@@ -111,7 +111,7 @@ Create src/tools/tool-helpers.ts exporting:
 Also update src/tools/list-packages.ts to export `getOrBuildIndex` and `entryIndexCache` so list-classes.ts can reuse them instead of duplicating. The `clearEntryIndexCache` export already exists -- just add exports for the other two. Keep the existing function signatures identical.
   </action>
   <verify>
-    <automated>cd /Users/LoganDark/Documents/Projects/MinecraftDevMCP && npx tsx --eval "import { classNameToEntryPath, CATEGORY_PRIORITY, sortByPriority, normalizeLocations } from './src/tools/tool-helpers.js'; console.log(classNameToEntryPath('net.minecraft.client.MinecraftClient')); console.log(Object.keys(CATEGORY_PRIORITY).length === 4 ? 'OK' : 'FAIL')"</automated>
+    <automated>cd /Users/LoganDark/Documents/Projects/FabricModMCP && npx tsx --eval "import { classNameToEntryPath, CATEGORY_PRIORITY, sortByPriority, normalizeLocations } from './src/tools/tool-helpers.js'; console.log(classNameToEntryPath('net.minecraft.client.MinecraftClient')); console.log(Object.keys(CATEGORY_PRIORITY).length === 4 ? 'OK' : 'FAIL')"</automated>
   </verify>
   <done>tool-helpers.ts exists with all 5 exports. list-packages.ts exports getOrBuildIndex and entryIndexCache.</done>
 </task>
@@ -147,7 +147,7 @@ IMPORTANT: For each file, verify that removing type imports (JarCategory, Depend
 Use tab indentation consistently per project convention.
   </action>
   <verify>
-    <automated>cd /Users/LoganDark/Documents/Projects/MinecraftDevMCP && npx vitest run 2>&1 | tail -20</automated>
+    <automated>cd /Users/LoganDark/Documents/Projects/FabricModMCP && npx vitest run 2>&1 | tail -20</automated>
   </verify>
   <done>All local duplicates removed. All files import from tool-helpers.ts or list-packages.ts. All tests pass. Zero behavior changes.</done>
 </task>

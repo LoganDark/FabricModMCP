@@ -131,7 +131,7 @@ From src/state/project-store.ts:
    IMPORTANT: Tab indentation throughout, per project conventions.
   </action>
   <verify>
-    <automated>cd /Users/LoganDark/Documents/Projects/MinecraftDevMCP && npx vitest run 2>&1 | tail -5</automated>
+    <automated>cd /Users/LoganDark/Documents/Projects/FabricModMCP && npx vitest run 2>&1 | tail -5</automated>
   </verify>
   <done>All 327 tests pass. No tool file contains the inline resolveProject try/catch pattern. All makeError+return patterns replaced with returnError() calls.</done>
 </task>
@@ -162,7 +162,7 @@ The `uriMapper` creation can also be removed from this file since resolveSymbolP
 Match error messages exactly to current behavior so tests pass unchanged.
   </action>
   <verify>
-    <automated>cd /Users/LoganDark/Documents/Projects/MinecraftDevMCP && npx vitest run 2>&1 | tail -5</automated>
+    <automated>cd /Users/LoganDark/Documents/Projects/FabricModMCP && npx vitest run 2>&1 | tail -5</automated>
   </verify>
   <done>find-definition.ts uses resolveSymbolPosition(). No inline cascade/jar resolution logic remains. All tests pass.</done>
 </task>
@@ -188,7 +188,7 @@ Keep uriMapper creation for processing LSP results (fromFileUri calls).
 Match error messages exactly to current behavior.
   </action>
   <verify>
-    <automated>cd /Users/LoganDark/Documents/Projects/MinecraftDevMCP && npx vitest run 2>&1 | tail -5</automated>
+    <automated>cd /Users/LoganDark/Documents/Projects/FabricModMCP && npx vitest run 2>&1 | tail -5</automated>
   </verify>
   <done>find-references.ts uses resolveSymbolPosition(). No inline cascade/jar resolution logic remains. All 327 tests pass.</done>
 </task>

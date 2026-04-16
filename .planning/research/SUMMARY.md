@@ -1,6 +1,6 @@
 # Project Research Summary
 
-**Project:** MinecraftDevMCP — v1.4 Rearchitecture
+**Project:** FabricModMCP — v1.4 Rearchitecture
 **Domain:** MCP server internal rearchitecture — monolithic project model to composable named containers
 **Researched:** 2026-04-15
 **Confidence:** HIGH
@@ -158,7 +158,7 @@ Phases with standard patterns (skip research-phase):
 ## Sources
 
 ### Primary (HIGH confidence)
-- Direct codebase analysis: `src/project/types.ts`, `src/state/project-store.ts`, `src/project/loader.ts`, `src/project/dependency-resolver.ts`, `src/tools/tool-helpers.ts`, `src/browsing/source-adapter.ts`, `src/project/study-jar.ts`, `src/project/jar-registry.ts`, `src/jdtls/workspace.ts`, `src/jdtls/workspace-sync.ts`, `src/jdtls/uri-mapper.ts`, `src/jdtls/client.ts`, `tests/helpers/factories.ts` — MinecraftDevMCP v1.3 (592 tests, 25 tools, 7,281 LOC)
+- Direct codebase analysis: `src/project/types.ts`, `src/state/project-store.ts`, `src/project/loader.ts`, `src/project/dependency-resolver.ts`, `src/tools/tool-helpers.ts`, `src/browsing/source-adapter.ts`, `src/project/study-jar.ts`, `src/project/jar-registry.ts`, `src/jdtls/workspace.ts`, `src/jdtls/workspace-sync.ts`, `src/jdtls/uri-mapper.ts`, `src/jdtls/client.ts`, `tests/helpers/factories.ts` — FabricModMCP v1.3 (592 tests, 25 tools, 7,281 LOC)
 - [JDT LS Issue #1815](https://github.com/eclipse-jdtls/eclipse.jdt.ls/issues/1815) — JDT LS requires files on disk for indexing; rules out in-memory file approach
 - [Eclipse classpath entry kinds](https://help.eclipse.org/latest/topic/org.eclipse.jdt.doc.isv/guide/jdt_api_classpath.htm) — kind=src vs kind=lib semantic differences (src is indexed, lib sourcepath is view-only)
 

@@ -12,7 +12,7 @@ import { z } from 'zod';
 // ---------------------------------------------------------------------------
 
 export const SERVER_INSTRUCTIONS = `\
-MinecraftDevMCP — deep access to Minecraft mod development internals for Fabric/Loom projects. \
+FabricModMCP — deep access to Minecraft mod development internals for Fabric/Loom projects. \
 Browse decompiled source, navigate dependencies, and use semantic Java analysis \
 (go-to-definition, find-references, type hierarchy) to understand Minecraft internals and write Mixins.
 

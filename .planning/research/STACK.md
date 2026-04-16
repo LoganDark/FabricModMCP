@@ -1,6 +1,6 @@
 # Technology Stack — v1.4 Project Rearchitecture
 
-**Project:** MinecraftDevMCP
+**Project:** FabricModMCP
 **Researched:** 2026-04-15
 **Scope:** Stack additions/changes for composable project containers and JDT LS in-memory file support
 
