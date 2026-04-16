@@ -18,10 +18,10 @@ Browse decompiled source, navigate dependencies, and use semantic Java analysis 
 
 ## Workflow
 
-1. Create a project with create_project (or use the "default" project)
+1. Create a project with create_project (a "default" project is pre-created at startup)
 2. Add a fabric mod with add_fabric_mod (path to a Fabric mod's root directory)
 3. Browse: list_packages -> list_classes -> list_members -> read_member (single member) or read_source (full class)
-4. Search: search_classes (by name pattern) or search_symbols (by any symbol name) -> read_member
+4. Search: search_classes (by name pattern) or search_symbols (by symbol name) -> list_members -> read_member
 5. Navigate: find_definition, find_references, find_implementations, get_symbol_info, type_hierarchy
 
 ## Shared Concepts
@@ -38,7 +38,8 @@ Use get_project_info to see members, then get_member_info with a member name to 
 
 **scope parameter**: Most tools accept an optional \`scope\` to target a specific member (fabric mod). \
 When scoped, bare jar IDs like "minecraft" resolve within that member's namespace. \
-When omitted, bare IDs resolve automatically if only one fabric mod exists, or error if ambiguous.
+When omitted, bare IDs resolve automatically if only one fabric mod exists, or error if ambiguous. \
+When scoped, only that child's own jars (after its filters) are searched. When unscoped, all children's jars are searched (each with its own filter applied).
 
 **Cascading regex patterns**: Several tools locate a symbol position using an array of regex patterns that narrow progressively. \
 The first pattern searches the entire source file; each subsequent pattern searches only within the previous match. \
@@ -62,7 +63,40 @@ list_classes/search_classes accept \`{ modifiers: true, innerClasses: true }\`, 
 and read_source/read_member accept \`{ provenance: true }\`.
 
 **Mapping eras**: Projects are either \`mapped\` (Yarn-deobfuscated names like MinecraftClient, getBlockState) \
-or \`unmapped\` (Mojang's unobfuscated names in newer versions). This affects which source jar format is used.`;
+or \`unmapped\` (Mojang's unobfuscated names in newer versions). This affects which source jar format is used.
+
+## JDT LS (Java Language Server)
+
+JDT LS (Eclipse Java Development Tools Language Server) provides semantic Java analysis — go-to-definition, \
+find-references, type hierarchy, workspace symbol search, and hover info. It requires Java 21+ and the \
+JDTLS_HOME environment variable pointing to the JDT LS installation directory. \
+If JDT LS is unavailable, 8 tools return the \`JDTLS_NOT_AVAILABLE\` error code: \
+list_members, read_member, find_definition, find_references, find_implementations, get_symbol_info, search_symbols, type_hierarchy. \
+Use get_project_info to check \`jdtlsAvailable\` per project.
+
+## Response Envelope
+
+All tools return \`{ ok: true, ...data }\` on success or \`{ ok: false, code: string, message: string, tried?: string[], suggestions?: string[] }\` on error. \
+The \`code\` field is a machine-readable error code (e.g., JDTLS_NOT_AVAILABLE, NOT_FOUND, AMBIGUOUS_ID). \
+\`tried\` shows what was attempted; \`suggestions\` offers recovery actions.
+
+## Study Jars
+
+Workflow: add_study_jar (provide file path + optional name) -> configure_study_jar (set autoInclude to control default visibility) -> list_study_jars (see all study jars and stats). \
+Study jar names must not conflict with existing dependency IDs. \
+Study jars are available to all browsing and search tools. Use configure_filters to fine-tune which jars appear in results.
+
+## Refresh Guidance
+
+Use refresh_project or refresh_project_members after modifying gradle.properties, build.gradle.kts, or fabric.mod.json \
+and running ./gradlew downloadSources. Both tools re-parse build configuration files (not just re-scan jars). \
+refresh_project refreshes all fabric mod members; refresh_project_members refreshes specific ones by name.
+
+## configure_filters
+
+Use configure_filters to control which dependency jars appear in browsing and search results. \
+In include-all mode (default), glob patterns define jars to EXCLUDE. In exclude-all mode, patterns define jars to INCLUDE. \
+Each child's own source and minecraft dependency are always included regardless of filters.`;
 
 // ---------------------------------------------------------------------------
 // Shared parameter schemas (reused across multiple tools)
@@ -169,13 +203,13 @@ export const TOOL_DESCRIPTIONS = {
 		'Get detailed info for a specific project member. For fabric mods: Minecraft version, Yarn mappings, loader version, Fabric API version, mapping era, fabric.mod.json contents, and jar inventory with Maven coordinates, category, availability, and file size. For study jars: jar path, auto-include status, and stats.',
 
 	create_project:
-		'Create a new empty project container. Projects hold fabric mods and study jars as members. The project name must be unique. Use add_fabric_mod or add_study_jar to populate it.',
+		'Create a new empty project container. Initializes a JDT LS workspace if available. Projects hold fabric mods and study jars as members. The project name must be unique. Response includes jdtlsAvailable status. Use add_fabric_mod or add_study_jar to populate it.',
 
 	remove_project:
 		'Remove an entire project and all its members. Closes all jar handles, cleans up JDT LS workspace, and frees resources. Clears the active project if this was it.',
 
 	set_active_child:
-		'Set the active child (fabric mod) on a project. When set, bare jar IDs like "minecraft" resolve within that child\'s namespace without requiring the scope parameter.',
+		'Set the active child (fabric mod) on a project. When set, bare jar IDs like "minecraft" resolve within that child\'s namespace without requiring the scope parameter. Does not affect which jars are searched — use the scope parameter on individual tools for that.',
 
 	add_fabric_mod:
 		'Add a Fabric/Loom Gradle project as a member of an existing project. Parses gradle.properties and build.gradle.kts to detect Minecraft version, Yarn mappings, and dependencies. Locates source jars in the Gradle cache. The member name is derived from fabric.mod.json id. If a member with the same name already exists, auto-suffixes with -2, -3, etc.',
@@ -186,13 +220,13 @@ export const TOOL_DESCRIPTIONS = {
 	// -- Configuration -------------------------------------------------------
 
 	configure_filters:
-		'Filter which dependency jars appear in browsing and search results. In include-all mode (default), glob patterns define jars to EXCLUDE. In exclude-all mode, patterns define jars to INCLUDE. Each child\'s own source and minecraft dependency are always included in its filtered results. Patterns match jar IDs (e.g., "net.fabricmc.*" to match all Fabric API modules).',
+		'Filter which dependency jars appear in browsing and search results. In include-all mode (default), glob patterns define jars to EXCLUDE. In exclude-all mode, patterns define jars to INCLUDE. Each child\'s own source and minecraft dependency are always included in its filtered results. Patterns match jar IDs (e.g., "net.fabricmc.fabric-api:*" to match all Fabric API modules).',
 
 	refresh_project:
-		'Re-scan all fabric mod members for dependency source jars in the Gradle cache. Use after running ./gradlew downloadSources or changing build.gradle dependencies. Automatically unloads any study jars whose names now conflict with real dependencies.',
+		'Re-scan all fabric mod members for dependency source jars in the Gradle cache. Re-parses gradle.properties and build.gradle.kts to detect configuration changes. Use after running ./gradlew downloadSources or changing build.gradle dependencies. Automatically unloads any study jars whose names now conflict with real dependencies.',
 
 	refresh_project_members:
-		'Re-scan specific fabric mod members for dependency source jars. Requires an array of member names. An empty array is not an error but returns "nothing changed". Use after running ./gradlew downloadSources for specific mods.',
+		'Re-scan specific fabric mod members for dependency source jars. Re-parses gradle.properties and fabric.mod.json for each specified member. Requires an array of member names. An empty array is not an error but returns "nothing changed". Use after running ./gradlew downloadSources for specific mods.',
 
 	// -- Browsing ------------------------------------------------------------
 
@@ -206,13 +240,13 @@ export const TOOL_DESCRIPTIONS = {
 		'Search for classes by glob pattern against fully-qualified names. Use * for one name segment, ** to cross package boundaries. Case-insensitive by default. Examples: "*Client" finds MinecraftClient, "net.minecraft.block.*" lists that package, "**.*Registry" finds registries anywhere. Filterable by kind and jar. Paginated. Pass details: { modifiers: true } to include access level and modifiers. Pass details: { innerClasses: true } to include inner class listings.',
 
 	list_members:
-		'List all members of a Java class as a structured tree: fields, methods, constructors, enum constants, and inner classes. Each member includes its name, kind, line range, member FQN, and nested children. Pass details: { signatures: true } to include parameter types, return types, field types, and LSP detail strings. Use this to understand a class\'s API before reading its source — especially useful for identifying Mixin targets.',
+		'List all members of a Java class as a structured tree: fields, methods, constructors, enum constants, and inner classes. Requires JDT LS (Java 21+ and JDTLS_HOME). Returns JDTLS_NOT_AVAILABLE if unavailable. Each member includes its name, kind, line range, member FQN, and nested children. Pass details: { signatures: true } to include parameter types, return types, field types, and LSP detail strings. Use this to understand a class\'s API before reading its source — especially useful for identifying Mixin targets.',
 
 	read_source:
 		'Read Java source of a class by FQN. When no jar is specified, returns source from every jar containing the class. Supports optional startLine and lineCount parameters to read a specific line range (requires specifying a jar). Every response includes metadata: startLine, endLine, totalLineCount, and truncated. Pass details: { provenance: true } to include dependency provenance chains. Use list_members first to understand structure, then read_source for implementation details.',
 
 	read_member:
-		'Read the source of a specific method, constructor, or field by its member FQN (e.g., net.minecraft.client.MinecraftClient#tick()). Returns the full declaration including Javadoc, annotations, signature, and body. When multiple overloads share the same FQN, returns all of them as separate entries. Get FQNs from list_members or search_symbols output. Use linesBefore and linesAfter to include surrounding source context without a separate read_source call. Pass details: { provenance: true } to include dependency provenance chains.',
+		'Read the source of a specific method, constructor, or field by its member FQN (e.g., net.minecraft.client.MinecraftClient#tick()). Requires JDT LS (Java 21+ and JDTLS_HOME). Returns JDTLS_NOT_AVAILABLE if unavailable. Field FQNs use a trailing colon format (e.g., MinecraftClient#worldRenderer:). Returns the full declaration including Javadoc, annotations, signature, and body. When multiple overloads share the same FQN, returns all of them as separate entries. Get FQNs from list_members or search_symbols output. Use linesBefore and linesAfter to include surrounding source context without a separate read_source call. Pass details: { provenance: true } to include dependency provenance chains.',
 
 	read_jar_entry:
 		'Read any file from a source jar by its internal path (slash-separated, e.g. "net/minecraft/client/MinecraftClient.java"). Unlike read_source which takes a class FQN, this takes a raw entry path — useful for non-Java files or when you know the exact path.',
@@ -220,27 +254,27 @@ export const TOOL_DESCRIPTIONS = {
 	// -- Position ------------------------------------------------------------
 
 	locate_in_source:
-		'Find a precise character position in Java source using cascading regex patterns. Returns offset, line, column, and matched text. Searches all jars containing the class unless a specific jar is given. This is the building block used by the LSP navigation tools — use it directly only when you need raw position data. Optionally include surrounding context lines with the context parameter. Pass details: { steps: true } to include cascade step details and provenance chains.',
+		'Find a precise character position in Java source using cascading regex patterns. Returns offset, line, column, and matched text. When details: { steps: true } is passed, each step in details.steps includes a matched field showing the matched text for that step. Searches all jars containing the class unless a specific jar is given. This is the building block used by the LSP navigation tools — use it directly only when you need raw position data. Optionally include surrounding context lines with the context parameter.',
 
 	// -- LSP navigation ------------------------------------------------------
 
 	find_definition:
-		'Go-to-definition for a symbol located by cascading regex patterns. Returns definition location(s) with jar ID, class name, line, and column. Works across jar boundaries — e.g., navigate from a method call in mod source to its definition in Minecraft source. Paginated with limit/offset. Pass details: { lineContent: true } to include context snippets, entry paths, and provenance chains.',
+		'Go-to-definition for a symbol located by cascading regex patterns. Requires JDT LS (Java 21+ and JDTLS_HOME). Returns JDTLS_NOT_AVAILABLE if unavailable. Returns definition location(s) with jar ID, class name, line, and column. Works across jar boundaries — e.g., navigate from a method call in mod source to its definition in Minecraft source. Paginated with limit/offset. Pass details: { lineContent: true } to include context snippets, entry paths, and provenance chains.',
 
 	find_references:
-		'Find all usages of a symbol located by cascading regex patterns across all source jars. Each result includes jar ID, class name, line, and column. Use to understand how a method/field/class is used — critical for assessing impact before writing Mixins. Paginated with limit/offset. Pass details: { lineContent: true } to include context snippets, entry paths, and provenance chains.',
+		'Find all usages of a symbol located by cascading regex patterns across all source jars. Requires JDT LS (Java 21+ and JDTLS_HOME). Returns JDTLS_NOT_AVAILABLE if unavailable. Each result includes jar ID, class name, line, and column. Use to understand how a method/field/class is used — critical for assessing impact before writing Mixins. Paginated with limit/offset. Pass details: { lineContent: true } to include context snippets, entry paths, and provenance chains.',
 
 	find_implementations:
-		'Find implementations of an interface method, abstract method, or type located by cascading regex patterns. Returns implementing locations with jar ID, class name, line, and column. Use to find concrete implementations — e.g., "what classes implement Inventory?" or "who overrides tick()?". Paginated with limit/offset. Pass details: { lineContent: true } to include context snippets, entry paths, and provenance chains.',
+		'Find implementations of an interface method, abstract method, or type located by cascading regex patterns. Requires JDT LS (Java 21+ and JDTLS_HOME). Returns JDTLS_NOT_AVAILABLE if unavailable. Returns implementing locations with jar ID, class name, line, and column. Use to find concrete implementations — e.g., "what classes implement Inventory?" or "who overrides tick()?". Paginated with limit/offset. Pass details: { lineContent: true } to include context snippets, entry paths, and provenance chains.',
 
 	get_symbol_info:
-		'Get hover information (type signature, Javadoc, metadata) for a symbol located by cascading regex patterns. Returns raw markdown from JDT LS. Use to check a symbol\'s type or read its documentation without navigating to its definition.',
+		'Get hover information (type signature, Javadoc, metadata) for a symbol located by cascading regex patterns. Requires JDT LS (Java 21+ and JDTLS_HOME). Returns JDTLS_NOT_AVAILABLE if unavailable. Returns raw markdown from JDT LS. Use to check a symbol\'s type or read its documentation without navigating to its definition.',
 
 	search_symbols:
-		'Search for Java types (classes, interfaces, enums) and methods/constructors by name across the entire workspace using JDT LS. Unlike search_classes which matches class names from the jar index, this finds symbols semantically via the language server. Fields are NOT searchable via this tool (use list_members on a specific class instead). Filterable by kind. Paginated.',
+		'Search for Java types (classes, interfaces, enums) and methods/constructors by name across the entire workspace using JDT LS. Requires JDT LS (Java 21+ and JDTLS_HOME). Returns JDTLS_NOT_AVAILABLE if unavailable. Unlike search_classes which matches class names from the jar index, this finds symbols semantically via the language server. Fields are NOT searchable via this tool (use list_members on a specific class instead). Filterable by kind. Paginated.',
 
 	type_hierarchy:
-		'Get the type hierarchy for a class: supertype chain (extends lineage and implements list, separated) and subtypes to configurable depth. Returns ClassReferences (name, FQN, kind) for each entry. Essential for understanding Mixin targets — e.g., finding what a class extends, what interfaces it implements, or what classes extend it.',
+		'Get the type hierarchy for a class: supertype chain (extends lineage and implements list, separated) and subtypes to configurable depth. Requires JDT LS (Java 21+ and JDTLS_HOME). Returns JDTLS_NOT_AVAILABLE if unavailable. Returns ClassReferences (name, FQN, kind, jar) for each entry. depth:0 returns the supertype chain only (no subtypes). The supertype chain is fully traversed regardless of depth. Essential for understanding Mixin targets — e.g., finding what a class extends, what interfaces it implements, or what classes extend it.',
 
 	// -- Study jar management -----------------------------------------------
 
@@ -248,7 +282,7 @@ export const TOOL_DESCRIPTIONS = {
 		'Add a source jar to a project for study. Provide a file path to a sources JAR and an optional name (auto-derived from filename if omitted). The name is used as the jar ID — it must not conflict with an existing dependency ID. The jar becomes available to all browsing and search tools. Use configure_study_jar to enable auto-include if you want it in default results.',
 
 	list_study_jars:
-		'List all study jars on a project with their names, file paths, auto-include status, and stats (package count, class count, total entries).',
+		'List all study jars on a project with their names, file paths, auto-include status, and stats (package count, class count).',
 
 	configure_study_jar:
 		'Configure one or more study jars on a project. Currently supports setting the auto-include flag, which controls whether the jar appears in default tool results when the jars parameter is omitted. Accepts an array of names; fails on the first nonexistent name with no partial update.',
