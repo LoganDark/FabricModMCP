@@ -395,13 +395,29 @@ export function getDependenciesForTool(
 			}
 		}
 	} else {
-		deps = getResolvedDependencies(project);
+		// Per-child filtering: each mod's filter applies only to its own deps
+		deps = new Map<string, DependencyEntry>();
+		for (const child of project.children.values()) {
+			if (child.kind === 'fabric-mod') {
+				const childAutoInclude = getAutoIncludeIds(child);
+				const filtered = getFilteredDependencies(child.dependencyJars, child.filterConfig, childAutoInclude);
+				for (const [id, entry] of filtered) {
+					deps.set(id, entry);
+				}
+			}
+		}
+		// Add autoInclude study jars (project-level, always included)
+		for (const child of project.children.values()) {
+			if (child.kind === 'study-jar' && child.autoInclude) {
+				const entry = studyJarToDependencyEntry(child);
+				deps.set(entry.id, entry);
+			}
+		}
+		return deps;
 	}
 
-	// Apply filter from the scoped child or sole fabric mod
-	const filterChild = scope
-		? project.children.get(scope)
-		: (() => { for (const c of project.children.values()) { if (c.kind === 'fabric-mod') return c; } return undefined; })();
+	// Apply filter for scoped path only
+	const filterChild = project.children.get(scope!);
 	const filter = filterChild?.kind === 'fabric-mod' ? filterChild.filterConfig : { mode: 'include-all' as const, patterns: [] };
 
 	return getFilteredDependencies(deps, filter, autoIncludeIds);
