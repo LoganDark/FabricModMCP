@@ -93,6 +93,7 @@ export interface SourceResult {
 	endLine: number;
 	totalLineCount: number;
 	truncated: boolean;
+	innerClass?: { name: string; startLine: number };
 }
 
 export interface MemberResult {

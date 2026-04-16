@@ -10,6 +10,22 @@ import { resolveJarId } from '../project/namespace-resolver.js';
 import { sliceLines } from '../browsing/line-slicer.js';
 import type { SourceResult } from '../browsing/types.js';
 
+/**
+ * Find the declaration line of an inner class within a source file.
+ * Returns { innerClass: { name, startLine } } if found, or {} if not found or not requested.
+ */
+function findInnerClassHint(sourceText: string, innerName: string | undefined): { innerClass?: { name: string; startLine: number } } {
+	if (!innerName) return {};
+	const regex = new RegExp(`^\\s*(?:public\\s+|private\\s+|protected\\s+)?(?:static\\s+)?(?:abstract\\s+|final\\s+)?(?:class|interface|enum|record)\\s+${innerName}\\b`, 'm');
+	const lines = sourceText.split('\n');
+	for (let i = 0; i < lines.length; i++) {
+		if (regex.test(lines[i])) {
+			return { innerClass: { name: innerName, startLine: i + 1 } };
+		}
+	}
+	return {};
+}
+
 export function registerReadSourceTool(server: McpServer): void {
 	server.registerTool(
 		'read_source',
@@ -33,7 +49,16 @@ export function registerReadSourceTool(server: McpServer): void {
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
 
-			const entryPath = classNameToEntryPath(className);
+			// Handle inner class FQNs: strip $Inner to get outer class file
+			let innerName: string | undefined;
+			let lookupClassName = className;
+			if (className.includes('$')) {
+				const dollarIdx = className.indexOf('$');
+				lookupClassName = className.substring(0, dollarIdx);
+				innerName = className.substring(className.lastIndexOf('$') + 1);
+			}
+
+			const entryPath = classNameToEntryPath(lookupClassName);
 
 			// Validate: line-range params require a specific jar
 			if ((startLine !== undefined || lineCount !== undefined) && jar === undefined) {
@@ -49,7 +74,7 @@ export function registerReadSourceTool(server: McpServer): void {
 
 			// If specific jar is requested
 			if (jar !== undefined) {
-				const sourceResult = await resolveClassSource(loadedProject, className, jar, scope);
+				const sourceResult = await resolveClassSource(loadedProject, lookupClassName, jar, scope);
 				if (!sourceResult.success) return handleClassSourceError(sourceResult, className, loadedProject.name, jar);
 
 				const dep = getAllDependencies(loadedProject).get(sourceResult.sourceJarId)!;
@@ -64,6 +89,7 @@ export function registerReadSourceTool(server: McpServer): void {
 					endLine: sliced.endLine,
 					totalLineCount: sliced.totalLineCount,
 					truncated: sliced.truncated,
+					...findInnerClassHint(sourceResult.sourceText, innerName),
 				}];
 
 				const envelope = makeSuccess({ sources }, {
@@ -105,6 +131,7 @@ export function registerReadSourceTool(server: McpServer): void {
 						endLine: sliced.endLine,
 						totalLineCount: sliced.totalLineCount,
 						truncated: sliced.truncated,
+						...findInnerClassHint(source, innerName),
 					});
 				} catch {
 					// Class not in this jar, continue to next

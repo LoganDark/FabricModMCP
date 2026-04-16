@@ -112,13 +112,25 @@ export function registerTypeHierarchyTool(server: McpServer): void {
 
 				const item = items[0];
 
-				// Step 2: Walk supertypes to root
+				// Step 2: Walk supertypes to root (with cycle detection)
 				const extendsChain: ClassReference[] = [];
 				const implementsList: ClassReference[] = [];
+				const seen = new Set<string>();
+				// Seed with the target class FQN to detect self-referential cycles
+				seen.add(toClassReference(item).fqn);
 				let current = item;
 				while (true) {
 					const supers = await endpoint.send('typeHierarchy/supertypes', { item: current });
 					if (!supers || supers.length === 0) break;
+
+					// Find the superclass before adding to chains — check for cycle
+					const superclass = supers.find((s: any) => s.kind !== 11);
+					if (superclass) {
+						const superFqn = toClassReference(superclass).fqn;
+						if (seen.has(superFqn)) break;
+						seen.add(superFqn);
+					}
+
 					for (const s of supers) {
 						const entry = toClassReference(s);
 						// SymbolKind 11 = Interface
@@ -128,8 +140,6 @@ export function registerTypeHierarchyTool(server: McpServer): void {
 							extendsChain.push(entry);
 						}
 					}
-					// Continue walking up from the first superclass (class inheritance is single)
-					const superclass = supers.find((s: any) => s.kind !== 11);
 					if (!superclass) break;
 					current = superclass;
 				}
