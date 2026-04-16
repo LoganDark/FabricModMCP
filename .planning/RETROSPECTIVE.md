@@ -208,14 +208,59 @@
 - Phase 27 cost zero execution time (retroactively complete)
 - Integration checker (sonnet) validated all 5 E2E flows and 15 requirement wirings
 
+## Milestone: v1.5 — Quality & Consistency
+
+**Shipped:** 2026-04-16
+**Phases:** 7 | **Plans:** 7 | **Tasks:** 14
+
+### What Was Built
+- Bug fixes: race-safe jar handles, cache eviction leak, cycle-safe type hierarchy, inner class source reading, JDT LS cleanup, workspace sync rollback
+- Unified API: limit+hasMore on all paginated tools, consistent parameter naming, z.enum validation
+- Per-child jar filtering (fixed cross-mod filter leakage)
+- Build file re-parsing on refresh with version/ID change warnings
+- Data exposure: JDT LS status, declared build deps, jar locations, inner class FQNs
+- Complete documentation: SERVER_INSTRUCTIONS with 5 new sections, all 28 tool descriptions accurate, CLAUDE.md filled
+- 31 new tests (665 -> 696), +292 net LOC
+
+### What Worked
+- 4-agent parallel audit before the milestone provided exhaustive, prioritized findings — zero guesswork during execution
+- One plan per phase kept execution fast and focused — 7 phases completed in a single session
+- Bug fixes first (28-29), then API changes (30), then behavior (32-33), then docs last (34) — correct dependency order
+- Quick task for tech debt after audit caught the remaining items before milestone completion
+- Per-phase verification caught the stale import (Phase 32) and description gap (Phase 34) immediately
+
+### What Was Inefficient
+- SUMMARY.md frontmatter `requirements_completed` was empty for Phases 28 and 33 — executors didn't populate it, only verifiers caught it
+- The 4-agent audit took ~15 minutes of wall clock — significant upfront cost, but paid for itself in zero rework during execution
+- Phase 34 (documentation) was the most token-heavy because the executor had to cross-reference every tool file against descriptions
+
+### Patterns Established
+- Pre-milestone comprehensive audit → milestone driven entirely by findings
+- `reloadFabricModConfig` helper pattern: extract shared logic from tool into loader module
+- Per-child filtering pattern: iterate children independently, merge after filtering
+- Inner class position hint pattern: `innerClass: { name, startLine }` metadata on source results
+- Signal handler cleanup pattern: iterate projectStore for all sessions on SIGINT/SIGTERM
+
+### Key Lessons
+- A thorough audit before a quality milestone eliminates ambiguity — every phase had clear, unambiguous work
+- "Discuss phase → all clear → write CONTEXT.md directly" is the right flow for audit-driven work
+- The audit identified issues (activeChild description mismatch, pagination inconsistency) that would have been hard to find any other way
+- Quick tasks are effective for post-audit tech debt cleanup that doesn't fit into the phase structure
+
+### Cost Observations
+- 7 plans executed in ~26 minutes total
+- Audit itself: ~15 minutes (4 parallel agents)
+- Most expensive phase: Phase 34 (documentation, 5min) — cross-referencing 28 tool files
+- Cheapest phase: Phase 32 (per-child filtering, 1min) — single function refactor
+
 ## Cross-Milestone Trends
 
-| Metric | v1.0 | v1.1 | v1.2 | v1.3 | v1.4 |
-|--------|------|------|------|------|------|
-| Phases | 10 | 4 | 4 | 4 | 6 |
-| Plans | 22 | 8 | 7 | 9 | 15 |
-| Tasks | 41 | ~66 | 12 | 17 | 31 |
-| LOC | 5,336 | 6,030 | 6,863 | 7,281 | 8,250 |
-| Tests | 327 | 423 | 526 | 592 | 665 |
-| Timeline | 2 days | 1 day | 1 day | 1 day | 1 day |
-| Requirements | 46/46 | 10/10 | 7/7 | 11/11 | 15/15 |
+| Metric | v1.0 | v1.1 | v1.2 | v1.3 | v1.4 | v1.5 |
+|--------|------|------|------|------|------|------|
+| Phases | 10 | 4 | 4 | 4 | 6 | 7 |
+| Plans | 22 | 8 | 7 | 9 | 15 | 7 |
+| Tasks | 41 | ~66 | 12 | 17 | 31 | 14 |
+| LOC | 5,336 | 6,030 | 6,863 | 7,281 | 8,250 | 8,542 |
+| Tests | 327 | 423 | 526 | 592 | 665 | 696 |
+| Timeline | 2 days | 1 day | 1 day | 1 day | 1 day | 1 day |
+| Requirements | 46/46 | 10/10 | 7/7 | 11/11 | 15/15 | 26/26 |

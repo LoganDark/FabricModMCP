@@ -53,17 +53,18 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - ✓ Namespace-aware extraction directories for JDT LS workspace (e.g., `mymod--minecraft`) — Validated in Phase 26
 - ✓ Default project gets JDT LS session at startup when available — v1.4
 
+- ✓ Unified pagination with both limit and hasMore on all paginated tools — v1.5
+- ✓ Per-child jar filtering: each mod's own filter applied independently — v1.5
+- ✓ Build file re-parsing on refresh with version/ID change warnings — v1.5
+- ✓ Accurate tool descriptions with JDT LS requirements per-tool — v1.5
+- ✓ Response envelope structure documented in SERVER_INSTRUCTIONS — v1.5
+- ✓ Bug fixes: cache eviction, race-safe handles, JDT LS cleanup, cycle detection, inner class read_source, workspace sync rollback — v1.5
+- ✓ API consistency: parameter renames, z.enum validation, dead fields removed — v1.5
+- ✓ Data exposure: JDT LS status, build deps, jar locations in hierarchy, inner class FQNs — v1.5
+
 ### Active
 
-- [ ] Unified pagination with both limit and hasMore on all paginated tools
-- ✓ Per-child jar filtering: each mod's own filter applied to its own deps before merging — Validated in Phase 32
-- ✓ Build file re-parsing on refresh: re-reads gradle.properties, build.gradle.kts, fabric.mod.json with version/ID change warnings — Validated in Phase 33
-- ✓ Accurate tool descriptions with JDT LS requirements documented per-tool — Validated in Phase 34
-- ✓ Response envelope structure documented in SERVER_INSTRUCTIONS — Validated in Phase 34
-- ✓ Bug fixes: JDT LS data dir cleanup, inner class read_source with position hint, workspace sync partial cleanup, type_hierarchy cycle detection — Validated in Phase 29
-- ✓ Bug fixes: entryIndexCache eviction on remove_project, JarReader race condition, error message corrections, add_study_jar provenance — Validated in Phase 28
-- ✓ API consistency: unified pagination (limit+hasMore), parameter renames, z.enum kind validation, dead fields removed — Validated in Phase 30
-- ✓ Expose JDT LS status, GradleConfig.dependencies, type_hierarchy jar locations, inner class FQNs — Validated in Phase 31
+(None — planning next milestone)
 
 ### Out of Scope
 
@@ -76,18 +77,10 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - JDT LS in-memory file support — rejected, JDT LS requires real files on disk (Issue #1815)
 - Study jars live at project level, not under fabric mods — already implemented in v1.4, moved from Active
 
-## Current Milestone: v1.5 Quality & Consistency
+## Current State
 
-**Goal:** Address all findings from comprehensive 4-agent codebase audit — fix bugs, unify API patterns, improve documentation accuracy, and close gaps to make the server reliable and agent-friendly.
-
-**Target features:**
-- Unified pagination envelopes (limit + hasMore on all paginated tools)
-- Per-child jar filtering (fix merged filter application in multi-mod projects)
-- Build file re-parsing on refresh (gradle.properties, build.gradle.kts, fabric.mod.json)
-- Accurate SERVER_INSTRUCTIONS with JDT LS requirements, response envelope docs, study jar workflow
-- Bug fixes: entryIndexCache leak, JDT LS data dir cleanup, inner class read_source, workspace sync cleanup
-- API consistency: parameter naming, kind enum validation, pagination defaults
-- Expose missing data: JDT LS status, GradleConfig.dependencies, type_hierarchy jar locations, inner class FQNs
+**Latest shipped:** v1.5 Quality & Consistency (2026-04-16)
+**Next milestone:** TBD — run `/gsd:new-milestone` to plan
 
 ## Context
 
@@ -96,6 +89,7 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - **Shipped:** v1.2 Symbol Resolution on 2026-04-14 — 6,863 LOC TypeScript, 22 MCP tools, 526 tests (+103 tests, +1 tool)
 - **Shipped:** v1.3 Context Management on 2026-04-15 — 7,281 LOC TypeScript, 25 MCP tools, 592 tests (+66 tests)
 - **Shipped:** v1.4 Project Rearchitecture on 2026-04-15 — 8,250 LOC TypeScript, 28 MCP tools, 665 tests (+73 tests, +3 tools)
+- **Shipped:** v1.5 Quality & Consistency on 2026-04-16 — 8,542 LOC TypeScript, 28 MCP tools, 696 tests (+31 tests)
 - **Tech stack:** TypeScript 5.7+, Node.js 22 LTS, official MCP SDK 1.29.x, Zod 4, node-stream-zip, JDT LS via ts-lsp-client
 - **Architecture:** Layered domain → tool pattern. Domain modules handle logic; tool layer wires Zod schemas and MCP registration. Shared abstractions: ProjectStore, JarReader, EntryIndex, SourceAdapter, cascadeRegex, resolveSymbolPosition, dependency-resolver, member-enrichment, member-extractor, symbol-transform
 - **Ecosystem:** Fabric mod development uses Gradle with Fabric Loom. Loom's genSources decompiles Minecraft into a sources jar (~6,600 .java files) in `~/.gradle/caches/fabric-loom/minecraftMaven/`
@@ -162,4 +156,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-16 after Phase 34 completion (v1.5 complete)*
+*Last updated: 2026-04-16 after v1.5 milestone*

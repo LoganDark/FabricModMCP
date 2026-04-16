@@ -1,5 +1,23 @@
 # Milestones
 
+## v1.5 Quality & Consistency (Shipped: 2026-04-16)
+
+**Phases completed:** 7 phases, 7 plans, 14 tasks
+**Stats:** 8,542 LOC TypeScript, 28 MCP tools, 696 tests (+31)
+
+**Delivered:** Comprehensive quality pass driven by 4-agent codebase audit — fixed bugs, unified APIs, improved documentation accuracy, and closed data exposure gaps to make the server reliable and agent-friendly.
+
+**Key accomplishments:**
+
+- Bug fixes: race-safe jar handles, cache eviction leak, cycle-safe type hierarchy, inner class read_source, JDT LS cleanup, workspace sync rollback
+- Unified API: limit+hasMore on all paginated tools, consistent parameter naming, z.enum validation, dead fields removed
+- Per-child jar filtering: each mod's own filter applied independently (fixed cross-mod filter leakage)
+- Build file re-parsing: refresh tools re-read gradle.properties, build.gradle.kts, fabric.mod.json with change warnings
+- Data exposure: JDT LS status, declared build deps, jar locations in type hierarchy, inner class FQNs
+- Complete documentation: SERVER_INSTRUCTIONS with 5 new sections, all 28 tool descriptions accurate, CLAUDE.md filled
+
+---
+
 ## v1.4 Project Rearchitecture (Shipped: 2026-04-15)
 
 **Phases completed:** 6 phases, 15 plans, 31 tasks
