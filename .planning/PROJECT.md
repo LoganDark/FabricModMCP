@@ -58,8 +58,8 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - [ ] Unified pagination with both limit and hasMore on all paginated tools
 - ✓ Per-child jar filtering: each mod's own filter applied to its own deps before merging — Validated in Phase 32
 - ✓ Build file re-parsing on refresh: re-reads gradle.properties, build.gradle.kts, fabric.mod.json with version/ID change warnings — Validated in Phase 33
-- [ ] Accurate tool descriptions with JDT LS requirements documented per-tool
-- [ ] Response envelope structure documented in SERVER_INSTRUCTIONS
+- ✓ Accurate tool descriptions with JDT LS requirements documented per-tool — Validated in Phase 34
+- ✓ Response envelope structure documented in SERVER_INSTRUCTIONS — Validated in Phase 34
 - ✓ Bug fixes: JDT LS data dir cleanup, inner class read_source with position hint, workspace sync partial cleanup, type_hierarchy cycle detection — Validated in Phase 29
 - ✓ Bug fixes: entryIndexCache eviction on remove_project, JarReader race condition, error message corrections, add_study_jar provenance — Validated in Phase 28
 - ✓ API consistency: unified pagination (limit+hasMore), parameter renames, z.enum kind validation, dead fields removed — Validated in Phase 30
@@ -162,4 +162,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-16 after Phase 33 completion*
+*Last updated: 2026-04-16 after Phase 34 completion (v1.5 complete)*
