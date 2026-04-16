@@ -48,6 +48,13 @@ export function registerRemoveProjectTool(server: McpServer): void {
 					logger.warn(`Temp dir cleanup error for ${project}: ${err}`);
 				}
 			}
+			if (proj.jdtls?.dataDir) {
+				try {
+					await cleanupTempDir(proj.jdtls.dataDir);
+				} catch (err) {
+					logger.warn(`Data dir cleanup error for ${project}: ${err}`);
+				}
+			}
 
 			// Evict entry index cache BEFORE closing project (getProjectJars returns undefined after close)
 			const jarPaths = jarReader.getProjectJars(project);

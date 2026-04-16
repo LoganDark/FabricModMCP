@@ -23,7 +23,7 @@ import type { LspClient } from 'ts-lsp-client';
 import { projectStore } from '../state/project-store.js';
 import { makeError, makeSuccess } from '../types/envelope.js';
 import { getFilteredDependencies } from '../project/jar-registry.js';
-import { getResolvedDependencies, getAllDependencies } from '../project/dependency-resolver.js';
+import { getAllDependencies } from '../project/dependency-resolver.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 

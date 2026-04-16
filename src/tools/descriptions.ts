@@ -226,7 +226,7 @@ export const TOOL_DESCRIPTIONS = {
 		'Re-scan all fabric mod members for dependency source jars in the Gradle cache. Re-parses gradle.properties and build.gradle.kts to detect configuration changes. Use after running ./gradlew downloadSources or changing build.gradle dependencies. Automatically unloads any study jars whose names now conflict with real dependencies.',
 
 	refresh_project_members:
-		'Re-scan specific fabric mod members for dependency source jars. Re-parses gradle.properties and fabric.mod.json for each specified member. Requires an array of member names. An empty array is not an error but returns "nothing changed". Use after running ./gradlew downloadSources for specific mods.',
+		'Re-scan specific fabric mod members for dependency source jars. Re-parses gradle.properties, build.gradle.kts, and fabric.mod.json for each specified member. Requires an array of member names. An empty array is not an error but returns "nothing changed". Use after running ./gradlew downloadSources for specific mods.',
 
 	// -- Browsing ------------------------------------------------------------
 
