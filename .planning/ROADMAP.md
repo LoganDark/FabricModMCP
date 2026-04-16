@@ -145,7 +145,10 @@ Plans:
   2. get_member_info response includes declared build dependencies from GradleConfig (configuration, group, artifact, version)
   3. type_hierarchy ClassReference entries include jar ID identifying which jar the type was found in
   4. list_members compact output includes FQN field for inner class entries
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 31-01-PLAN.md — Surface JDT LS status, build dependencies, jar locations in type hierarchy, and inner class FQNs
 
 ### Phase 32: Per-Child Jar Filtering
 **Goal**: Multi-mod projects apply each child's own include/exclude filter to its own jar set instead of merging filters incorrectly
@@ -193,7 +196,7 @@ Phases execute in numeric order: 28 → 29 → 30 → 31 → 32 → 33 → 34
 | 28. Jar & Cache Bug Fixes | v1.5 | 1/1 | Complete    | 2026-04-16 |
 | 29. JDT LS & Workspace Bug Fixes | v1.5 | 1/1 | Complete    | 2026-04-16 |
 | 30. API Consistency | v1.5 | 1/1 | Complete    | 2026-04-16 |
-| 31. Data Exposure | v1.5 | 0/? | Not started | - |
+| 31. Data Exposure | v1.5 | 0/1 | Not started | - |
 | 32. Per-Child Jar Filtering | v1.5 | 0/? | Not started | - |
 | 33. Build File Re-parsing | v1.5 | 0/? | Not started | - |
 | 34. Documentation & Instructions | v1.5 | 0/? | Not started | - |
