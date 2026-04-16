@@ -73,6 +73,19 @@ describe('add_study_jar tool', () => {
 		expect(envelope.data.autoInclude).toBe(false);
 	});
 
+	it('includes provenance metadata in response', async () => {
+		const result = await pair.client.callTool({
+			name: 'add_study_jar',
+			arguments: { project: 'test', path: testJarPath, name: 'prov-lib' },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		expect(envelope.metadata.provenance).toBeDefined();
+		expect(envelope.metadata.provenance.tool).toBe('add_study_jar');
+		expect(envelope.metadata.provenance.project).toBe('test');
+	});
+
 	it('adds a study jar with auto-derived name', async () => {
 		const result = await pair.client.callTool({
 			name: 'add_study_jar',

@@ -84,7 +84,7 @@ export function registerReadJarEntryTool(server: McpServer): void {
 					'JAR_ENTRY_NOT_FOUND',
 					`Entry '${path}' not found in jar '${jar}'`,
 					[jar, path],
-					['Check the file path -- use listEntries or browse packages to find available paths'],
+					['Check the file path -- use list_packages and list_classes to find available paths'],
 				);
 			}
 		},

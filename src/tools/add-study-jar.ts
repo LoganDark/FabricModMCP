@@ -41,6 +41,8 @@ export function registerAddStudyJarTool(server: McpServer): void {
 					path: studyJar.jarPath,
 					autoInclude: studyJar.autoInclude,
 					stats: studyJar.stats,
+				}, {
+					provenance: { tool: 'add_study_jar', project: loadedProject.name },
 				});
 
 				return {

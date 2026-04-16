@@ -74,7 +74,7 @@ export class JarReader {
 				'JAR_ENTRY_NOT_FOUND',
 				`Entry '${entryPath}' not found in jar`,
 				[jarPath, entryPath],
-				['Check the entry path -- use listEntries to see available paths'],
+				['Check the entry path -- use list_packages and list_classes to browse available paths'],
 			);
 		}
 	}
