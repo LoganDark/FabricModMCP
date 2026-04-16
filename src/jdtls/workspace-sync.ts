@@ -165,6 +165,7 @@ export async function syncFabricModToWorkspace(
 	}
 
 	const addedKeys: string[] = [];
+	const createdDirs: string[] = [];
 
 	try {
 		for (const [depId, dep] of fabricMod.dependencyJars) {
@@ -176,6 +177,7 @@ export async function syncFabricModToWorkspace(
 			const isModSource = dep.category === 'mod-source';
 			const dirName = isModSource ? jarIdToDirName(fabricMod.name) : jarIdToDirName(dep.id);
 			const depDir = join(jdtls.tempDir, dirName);
+			createdDirs.push(depDir);
 
 			const entries = await adapter.listJavaEntries();
 			for (const entryPath of entries) {
@@ -208,6 +210,9 @@ export async function syncFabricModToWorkspace(
 	} catch (err) {
 		for (const key of addedKeys) {
 			jdtls.jarIdToDirName.delete(key);
+		}
+		for (const dir of createdDirs) {
+			try { await rm(dir, { recursive: true, force: true }); } catch {}
 		}
 		return {
 			synced: false,
