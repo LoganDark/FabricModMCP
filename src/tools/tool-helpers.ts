@@ -471,6 +471,7 @@ export function stripEnrichedSymbol(
 	};
 
 	if ('memberFqn' in sym) base.memberFqn = sym.memberFqn;
+	if ('fqn' in sym) base.fqn = sym.fqn;
 
 	if (details?.signatures) {
 		base.detail = sym.detail;

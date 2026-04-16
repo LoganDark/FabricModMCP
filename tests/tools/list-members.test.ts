@@ -502,6 +502,80 @@ describe.skipIf(!toolModuleAvailable)('list_members', () => {
 		}
 	});
 
+	test('compact output includes fqn on class-kind symbols including inner classes', async () => {
+		const INNER_CLASS_SOURCE = `package net.minecraft.client;
+
+public class MinecraftClient {
+	public static class Options {
+		private int width;
+	}
+}
+`;
+		mockReadEntry.mockResolvedValue(Buffer.from(INNER_CLASS_SOURCE));
+		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
+		mockDocumentSymbol.mockResolvedValue([
+			{
+				name: 'MinecraftClient',
+				kind: 5, // class
+				detail: '',
+				range: { start: { line: 2, character: 0 }, end: { line: 6, character: 1 } },
+				selectionRange: { start: { line: 2, character: 13 }, end: { line: 2, character: 28 } },
+				children: [
+					{
+						name: 'Options',
+						kind: 5, // class
+						detail: '',
+						range: { start: { line: 3, character: 1 }, end: { line: 5, character: 2 } },
+						selectionRange: { start: { line: 3, character: 22 }, end: { line: 3, character: 29 } },
+						children: [
+							{
+								name: 'width',
+								kind: 8, // field
+								detail: 'int',
+								range: { start: { line: 4, character: 2 }, end: { line: 4, character: 19 } },
+								selectionRange: { start: { line: 4, character: 14 }, end: { line: 4, character: 19 } },
+							},
+						],
+					},
+				],
+			},
+		]);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'list_members',
+				arguments: {
+					project: 'test',
+					jar: 'testmod/minecraft',
+					class: 'net.minecraft.client.MinecraftClient',
+				},
+			});
+
+			const envelope = parseEnvelope(result);
+			expect(envelope.success).toBe(true);
+
+			const outerClass = envelope.data.members[0];
+			expect(outerClass.name).toBe('MinecraftClient');
+			expect(outerClass.fqn).toBe('net.minecraft.client.MinecraftClient');
+
+			const innerClass = outerClass.children[0];
+			expect(innerClass.name).toBe('Options');
+			expect(innerClass.fqn).toBe('net.minecraft.client.MinecraftClient$Options');
+
+			// Inner class's child (field) should NOT have fqn
+			const field = innerClass.children[0];
+			expect(field.fqn).toBeUndefined();
+			expect(field.memberFqn).toBeDefined();
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
+
 	test('returns empty members array when documentSymbol returns null', async () => {
 		mockDocumentSymbol.mockResolvedValue(null);
 

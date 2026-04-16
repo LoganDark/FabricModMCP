@@ -12,6 +12,7 @@ export interface ClassReference {
 	name: string;      // simple name
 	fqn: string;       // fully qualified name
 	kind: string;      // "class" | "interface" | "enum" | "record" | "@interface"
+	jar?: string;      // jar ID when URI maps to a known jar
 }
 
 export interface InnerClassInfo {
@@ -79,6 +80,7 @@ export interface EnrichedFieldSymbol extends TransformedSymbol {
 }
 
 export interface EnrichedClassSymbol extends TransformedSymbol {
+	fqn?: string;      // fully qualified name (e.g., "com.example.Outer$Inner" for inner classes)
 	children: EnrichedSymbol[];
 }
 

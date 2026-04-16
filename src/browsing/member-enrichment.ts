@@ -60,9 +60,10 @@ async function enrichOne(
 		} as EnrichedFieldSymbol;
 	}
 
-	// Class/interface/enum or unrecognized -- just pass through with enriched children
+	// Class/interface/enum or unrecognized -- pass through with enriched children and FQN
 	return {
 		...sym,
+		fqn: classFqn,
 		children: enrichedChildren,
 	} as EnrichedClassSymbol;
 }

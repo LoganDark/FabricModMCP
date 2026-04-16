@@ -116,6 +116,28 @@ describe('enrichSymbols', () => {
 		expect(innerMethodEnriched).toHaveProperty('memberFqn', 'net.minecraft.client.MinecraftClient$Options#getWidth()');
 	});
 
+	it('sets fqn on class-kind symbols including inner classes', async () => {
+		const innerClass = makeSym({
+			name: 'Options',
+			kind: 'class',
+			detail: null,
+			children: [],
+		});
+		const outerClass = makeSym({
+			name: 'MinecraftClient',
+			kind: 'class',
+			detail: null,
+			children: [innerClass],
+		});
+		const result = await enrichSymbols([outerClass], sourceText, 'net.minecraft.client.MinecraftClient', noopResolvePackage);
+
+		const enrichedOuter = result[0];
+		expect(enrichedOuter).toHaveProperty('fqn', 'net.minecraft.client.MinecraftClient');
+
+		const enrichedInner = enrichedOuter.children[0];
+		expect(enrichedInner).toHaveProperty('fqn', 'net.minecraft.client.MinecraftClient$Options');
+	});
+
 	it('handles null detail gracefully (class kind)', async () => {
 		const symbols = [makeSym({ name: 'MinecraftClient', kind: 'class', detail: null })];
 		const result = await enrichSymbols(symbols, sourceText, 'net.minecraft.client.MinecraftClient', noopResolvePackage);

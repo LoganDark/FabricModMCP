@@ -189,6 +189,8 @@ describe.skipIf(!toolModuleAvailable)('type_hierarchy', () => {
 			expect(envelope.data.extends).toHaveLength(2);
 			expect(envelope.data.extends[0].name).toBe('Thread');
 			expect(envelope.data.extends[0].fqn).toBe('java.lang.Thread');
+			// JDK types use jdt:// URIs which don't map to known jars
+			expect(envelope.data.extends[0].jar).toBeUndefined();
 			expect(envelope.data.extends[1].name).toBe('Object');
 
 			// implements: Runnable
@@ -196,6 +198,8 @@ describe.skipIf(!toolModuleAvailable)('type_hierarchy', () => {
 			expect(envelope.data.implements[0].name).toBe('Runnable');
 			expect(envelope.data.implements[0].fqn).toBe('java.lang.Runnable');
 			expect(envelope.data.implements[0].kind).toBe('interface');
+			// JDK types use jdt:// URIs which don't map to known jars
+			expect(envelope.data.implements[0].jar).toBeUndefined();
 		} finally {
 			await pair.cleanup();
 			projectStore.clear();
@@ -252,6 +256,8 @@ describe.skipIf(!toolModuleAvailable)('type_hierarchy', () => {
 			expect(envelope.data.subtypes).toHaveLength(1);
 			expect(envelope.data.subtypes[0].name).toBe('TestClient');
 			expect(envelope.data.subtypes[0].fqn).toBe('net.minecraft.client.TestClient');
+			// URI maps to tempDir/minecraft/ which is in jarIdToDirName
+			expect(envelope.data.subtypes[0].jar).toBe('testmod/minecraft');
 		} finally {
 			await pair.cleanup();
 			projectStore.clear();

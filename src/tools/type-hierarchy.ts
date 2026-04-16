@@ -7,16 +7,20 @@ import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, handleClassSourceError, resolveProjectSafely, returnError, withLspDocument, resolveClassSource } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import type { ClassReference } from '../browsing/types.js';
+import type { UriMapper } from '../jdtls/uri-mapper.js';
 
-function toClassReference(item: any): ClassReference {
+function toClassReference(item: any, uriMapper?: UriMapper): ClassReference {
 	const fqn = item.detail ? `${item.detail}.${item.name}` : item.name;
 	const kind = SYMBOL_KIND_NAME[item.kind]?.toLowerCase() ?? 'unknown';
 
-	return {
-		name: item.name,
-		fqn,
-		kind,
-	};
+	const ref: ClassReference = { name: item.name, fqn, kind };
+
+	if (uriMapper && item.uri) {
+		const mapping = uriMapper.fromFileUri(item.uri);
+		if (mapping) ref.jar = mapping.jar;
+	}
+
+	return ref;
 }
 
 export function registerTypeHierarchyTool(server: McpServer): void {
@@ -117,7 +121,7 @@ export function registerTypeHierarchyTool(server: McpServer): void {
 				const implementsList: ClassReference[] = [];
 				const seen = new Set<string>();
 				// Seed with the target class FQN to detect self-referential cycles
-				seen.add(toClassReference(item).fqn);
+				seen.add(toClassReference(item, uriMapper).fqn);
 				let current = item;
 				while (true) {
 					const supers = await endpoint.send('typeHierarchy/supertypes', { item: current });
@@ -126,13 +130,13 @@ export function registerTypeHierarchyTool(server: McpServer): void {
 					// Find the superclass before adding to chains — check for cycle
 					const superclass = supers.find((s: any) => s.kind !== 11);
 					if (superclass) {
-						const superFqn = toClassReference(superclass).fqn;
+						const superFqn = toClassReference(superclass, uriMapper).fqn;
 						if (seen.has(superFqn)) break;
 						seen.add(superFqn);
 					}
 
 					for (const s of supers) {
-						const entry = toClassReference(s);
+						const entry = toClassReference(s, uriMapper);
 						// SymbolKind 11 = Interface
 						if (s.kind === 11) {
 							implementsList.push(entry);
@@ -154,7 +158,7 @@ export function registerTypeHierarchyTool(server: McpServer): void {
 						const subs = await endpoint.send('typeHierarchy/subtypes', { item: f });
 						if (subs && subs.length > 0) {
 							for (const s of subs) {
-								subtypes.push(toClassReference(s));
+								subtypes.push(toClassReference(s, uriMapper));
 								next.push(s);
 							}
 						}
