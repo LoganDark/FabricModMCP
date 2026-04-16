@@ -131,7 +131,10 @@ Plans:
   3. remove_project_member uses `names` parameter (not `members`)
   4. search_symbols returns all results by default (no implicit limit) and `field` is not a valid kind value
   5. get_symbol_info response does not include `javadoc` field
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 30-01-PLAN.md — Unify pagination envelopes, rename parameters, fix schema validation, remove dead fields
 
 ### Phase 31: Data Exposure
 **Goal**: Tool responses surface all available metadata that agents need for informed decisions
@@ -189,7 +192,7 @@ Phases execute in numeric order: 28 → 29 → 30 → 31 → 32 → 33 → 34
 | 23-27 | v1.4 | 15/15 | Complete | 2026-04-15 |
 | 28. Jar & Cache Bug Fixes | v1.5 | 1/1 | Complete    | 2026-04-16 |
 | 29. JDT LS & Workspace Bug Fixes | v1.5 | 1/1 | Complete    | 2026-04-16 |
-| 30. API Consistency | v1.5 | 0/? | Not started | - |
+| 30. API Consistency | v1.5 | 0/1 | Not started | - |
 | 31. Data Exposure | v1.5 | 0/? | Not started | - |
 | 32. Per-Child Jar Filtering | v1.5 | 0/? | Not started | - |
 | 33. Build File Re-parsing | v1.5 | 0/? | Not started | - |
