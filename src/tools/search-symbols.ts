@@ -12,7 +12,6 @@ const KIND_NAME_TO_NUMBER: Record<string, number> = {
 	'class': 5,
 	'method': 6,
 	'property': 7,
-	'field': 8,
 	'constructor': 9,
 	'enum': 10,
 	'interface': 11,
@@ -29,15 +28,14 @@ export function registerSearchSymbolsTool(server: McpServer): void {
 				project: PARAMS.project,
 				scope: PARAMS.scope,
 				query: z.string().describe('Symbol name pattern to search for'),
-				kind: z.enum(['class', 'method', 'field', 'interface', 'enum', 'constructor', 'constant', 'property']).optional().describe('Filter results by symbol kind'),
-				limit: z.number().int().min(1).max(200).default(50).optional().describe('Maximum results per page (default: 50)'),
+				kind: z.enum(['class', 'method', 'interface', 'enum', 'constructor', 'constant', 'property']).optional().describe('Filter results by symbol kind'),
+				limit: z.number().int().min(1).optional().describe('Maximum results to return. Omit to return all.'),
 				offset: z.number().int().min(0).default(0).optional().describe('Pagination offset (default: 0)'),
 			},
 		},
 		async ({ query, kind, limit, offset, project, scope }) => {
 			logger.debug('search_symbols called', { query, kind, limit, offset, project });
 
-			const effectiveLimit = limit ?? 50;
 			const effectiveOffset = offset ?? 0;
 
 			const resolved = resolveProjectSafely(project);
@@ -68,7 +66,7 @@ export function registerSearchSymbolsTool(server: McpServer): void {
 
 			if (!results || !Array.isArray(results) || results.length === 0) {
 				const envelope = makeSuccess(
-					{ results: [], total: 0, limit: effectiveLimit, offset: effectiveOffset },
+					{ results: [], total: 0, limit: limit ?? 0, offset: effectiveOffset, hasMore: false },
 					{ provenance },
 				);
 				return {
@@ -88,7 +86,9 @@ export function registerSearchSymbolsTool(server: McpServer): void {
 
 			// Paginate
 			const total = filtered.length;
-			const page = filtered.slice(effectiveOffset, effectiveOffset + effectiveLimit);
+			const page = limit !== undefined
+				? filtered.slice(effectiveOffset, effectiveOffset + limit)
+				: filtered.slice(effectiveOffset);
 
 			// Transform to structured output
 			const uriMapper = createUriMapper(jdtls.tempDir, jdtls.jarIdToDirName);
@@ -114,8 +114,10 @@ export function registerSearchSymbolsTool(server: McpServer): void {
 				};
 			});
 
+			const effectiveLimit = limit ?? page.length;
+			const hasMore = effectiveOffset + page.length < total;
 			const envelope = makeSuccess(
-				{ results: transformed, total, limit: effectiveLimit, offset: effectiveOffset },
+				{ results: transformed, total, limit: effectiveLimit, offset: effectiveOffset, hasMore },
 				{ provenance },
 			);
 

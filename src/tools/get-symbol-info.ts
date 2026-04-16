@@ -99,7 +99,6 @@ export function registerGetSymbolInfoTool(server: McpServer): void {
 					const envelope = makeSuccess(
 						{
 							hover: null,
-							javadoc: '',
 							position: {
 								jar: sourceJarId,
 								class: className,
@@ -122,7 +121,6 @@ export function registerGetSymbolInfoTool(server: McpServer): void {
 					const envelope = makeSuccess(
 						{
 							hover: null,
-							javadoc: '',
 							position: {
 								jar: sourceJarId,
 								class: className,
@@ -138,10 +136,10 @@ export function registerGetSymbolInfoTool(server: McpServer): void {
 					};
 				}
 
+				// TODO: Extract Javadoc from hover markdown or source text when Javadoc support is implemented
 				const envelope = makeSuccess(
 					{
 						hover: hoverMarkdown,
-						javadoc: '',
 						position: {
 							jar: sourceJarId,
 							class: className,

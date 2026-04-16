@@ -121,7 +121,7 @@ describe.skipIf(!toolModuleAvailable)('get_symbol_info', () => {
 			const envelope = parseEnvelope(result);
 			expect(envelope.success).toBe(true);
 			expect(envelope.data.hover).toContain('public void run()');
-			expect(envelope.data).toHaveProperty('javadoc');
+			expect(envelope.data).not.toHaveProperty('javadoc');
 			expect(envelope.data.position).toBeDefined();
 			expect(envelope.data.position.jar).toBe('testmod/minecraft');
 
@@ -248,7 +248,7 @@ describe.skipIf(!toolModuleAvailable)('get_symbol_info', () => {
 			const envelope = parseEnvelope(result);
 			expect(envelope.success).toBe(true);
 			expect(envelope.data.hover).toBeNull();
-			expect(envelope.data.javadoc).toBe('');
+			expect(envelope.data).not.toHaveProperty('javadoc');
 		} finally {
 			await pair.cleanup();
 			projectStore.clear();
