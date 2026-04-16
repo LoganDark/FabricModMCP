@@ -27,14 +27,14 @@ Requirements for v1.5 Quality & Consistency milestone. Derived from comprehensiv
 
 ### Bug Fixes
 
-- [ ] **FIX-01**: `remove_project` evicts entryIndexCache for all project jar paths
+- [x] **FIX-01**: `remove_project` evicts entryIndexCache for all project jar paths
 - [ ] **FIX-02**: JDT LS data directory cleaned up on server exit and catchable termination signals
-- [ ] **FIX-03**: `JarReader.getHandle()` prevents race conditions by avoiding await in critical section
+- [x] **FIX-03**: `JarReader.getHandle()` prevents race conditions by avoiding await in critical section
 - [ ] **FIX-04**: `type_hierarchy` supertype walk has cycle detection (retains seen set, bails on loop)
 - [ ] **FIX-05**: `read_source` handles inner class FQNs by stripping `$Inner` to find outer class file
 - [ ] **FIX-06**: `syncFabricModToWorkspace` cleans up extracted files on partial failure
-- [ ] **FIX-07**: `read_jar_entry` error message references `list_packages`/`list_classes` instead of non-existent `listEntries`
-- [ ] **FIX-08**: `add_study_jar` includes provenance metadata in makeSuccess call
+- [x] **FIX-07**: `read_jar_entry` error message references `list_packages`/`list_classes` instead of non-existent `listEntries`
+- [x] **FIX-08**: `add_study_jar` includes provenance metadata in makeSuccess call
 
 ### Behavioral Improvements
 
@@ -102,14 +102,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-05 | Phase 30 | Pending |
 | API-06 | Phase 30 | Pending |
 | API-07 | Phase 30 | Pending |
-| FIX-01 | Phase 28 | Pending |
+| FIX-01 | Phase 28 | Complete |
 | FIX-02 | Phase 29 | Pending |
-| FIX-03 | Phase 28 | Pending |
+| FIX-03 | Phase 28 | Complete |
 | FIX-04 | Phase 29 | Pending |
 | FIX-05 | Phase 29 | Pending |
 | FIX-06 | Phase 29 | Pending |
-| FIX-07 | Phase 28 | Pending |
-| FIX-08 | Phase 28 | Pending |
+| FIX-07 | Phase 28 | Complete |
+| FIX-08 | Phase 28 | Complete |
 | BEH-01 | Phase 32 | Pending |
 | BEH-02 | Phase 33 | Pending |
 | DATA-01 | Phase 31 | Pending |
