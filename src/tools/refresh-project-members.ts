@@ -10,6 +10,7 @@ import { resolveProjectSafely, returnError } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import type { FabricModChild, DependencyEntry, StudyJarChild } from '../project/types.js';
 import { syncFabricModToWorkspace, unsyncFabricModFromWorkspace } from '../jdtls/workspace-sync.js';
+import { reloadFabricModConfig } from '../project/loader.js';
 
 export function registerRefreshProjectMembersTool(server: McpServer): void {
 	server.registerTool(
@@ -74,6 +75,7 @@ export function registerRefreshProjectMembersTool(server: McpServer): void {
 			}
 
 			const combinedSummaries: Array<{ modName: string; total: number; withSources: number; withoutSources: number }> = [];
+			const allWarnings: string[] = [];
 
 			for (const mod of modsToRefresh) {
 				// Save old dependency list for workspace unsync
@@ -85,6 +87,10 @@ export function registerRefreshProjectMembersTool(server: McpServer): void {
 					if (dep.sourcesJarPath) oldJarPaths.add(dep.sourcesJarPath);
 				}
 				if (mod.sourcesJar.path) oldJarPaths.add(mod.sourcesJar.path);
+
+				// Re-parse build configuration files
+				const reloadResult = await reloadFabricModConfig(mod);
+				allWarnings.push(...reloadResult.warnings);
 
 				// Close ONLY this mod's old jar handles via removeProjectJar
 				for (const jarPath of oldJarPaths) {
@@ -172,6 +178,7 @@ export function registerRefreshProjectMembersTool(server: McpServer): void {
 					summary: totalSummary,
 					refreshedChildren: modsToRefresh.map(m => m.name),
 					suggestions,
+					...(allWarnings.length > 0 ? { warnings: allWarnings } : {}),
 					...(unloadedNames.length > 0 ? { autoUnloaded: unloadedNames } : {}),
 				},
 				{
@@ -183,6 +190,9 @@ export function registerRefreshProjectMembersTool(server: McpServer): void {
 			);
 
 			let text = `Refreshed dependencies for ${modsToRefresh.map(m => m.name).join(', ')}: ${totalSummary.total} total, ${totalSummary.withSources} with sources, ${totalSummary.withoutSources} without sources`;
+			if (allWarnings.length > 0) {
+				text += '\n' + allWarnings.join('\n');
+			}
 			if (unloadedNames.length > 0) {
 				text += `\nAuto-unloaded ${unloadedNames.length} study jar(s) that now match real dependencies: ${unloadedNames.join(', ')}`;
 			}
