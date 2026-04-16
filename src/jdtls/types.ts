@@ -4,14 +4,14 @@ import type { ChildProcess } from 'node:child_process';
 
 export type SnippetKind = 'method' | 'field' | 'class' | 'fallback';
 
-export interface ContextSnippet {
+export type ContextSnippet = {
 	snippet: string;       // The extracted source text
 	startLine: number;     // 1-based start line in the original source
 	endLine: number;       // 1-based end line in the original source
 	kind: SnippetKind;     // What semantic unit was extracted
 }
 
-export interface NavigationResult {
+export type NavigationResult = {
 	jar: string;                    // Jar ID (e.g., "minecraft", "fabric-api:fabric-networking-api-v1")
 	category: JarCategory;         // 'minecraft' | 'mod-source' | 'fabric-api' | 'library'
 	provenanceChains?: string[][];  // Dependency provenance chains (optional for compact output)
@@ -22,7 +22,7 @@ export interface NavigationResult {
 	context?: ContextSnippet;       // Enclosing semantic unit (optional for compact output)
 }
 
-export interface JdtLsSession {
+export type JdtLsSession = {
 	available: boolean;
 	failureReason?: string;
 	tempDir: string;                // Extracted source files root

@@ -2,7 +2,7 @@ import type { JdtLsSession } from '../jdtls/types.js';
 
 export type MappingEra = 'mapped' | 'unmapped';
 
-export interface DependencyCoordinate {
+export type DependencyCoordinate = {
 	configuration: string;  // "minecraft", "mappings", "modImplementation", "implementation", etc.
 	group: string;          // "com.mojang", "net.fabricmc"
 	artifact: string;       // "minecraft", "yarn", "fabric-loader"
@@ -10,7 +10,7 @@ export interface DependencyCoordinate {
 	raw: string;            // "com.mojang:minecraft:1.21.11"
 }
 
-export interface GradleConfig {
+export type GradleConfig = {
 	minecraftVersion: string;
 	mappingEra: MappingEra;
 	yarnMappings?: string;
@@ -19,7 +19,7 @@ export interface GradleConfig {
 	dependencies: DependencyCoordinate[];
 }
 
-export interface FabricModJson {
+export type FabricModJson = {
 	schemaVersion: number;
 	id: string;
 	version: string;
@@ -32,14 +32,14 @@ export interface FabricModJson {
 	depends: Record<string, string>;
 }
 
-export interface ResolvedJar {
+export type ResolvedJar = {
 	path: string;
 	exists: boolean;
 }
 
 export type JarCategory = 'minecraft' | 'mod-source' | 'fabric-api' | 'library' | 'study';
 
-export interface DependencyEntry {
+export type DependencyEntry = {
 	id: string;           // "minecraft", "src", or "group:artifact"
 	group: string;
 	artifact: string;
@@ -50,18 +50,18 @@ export interface DependencyEntry {
 	provenanceChains: string[][];   // paths of dependency IDs that led to this entry; seed entries have []
 }
 
-export interface FilterConfig {
+export type FilterConfig = {
 	mode: 'include-all' | 'exclude-all';
 	patterns: string[];  // glob patterns matching jar IDs
 }
 
-export interface StudyJarStats {
+export type StudyJarStats = {
 	totalEntries: number;
 	packageCount: number;
 	classCount: number;
 }
 
-export interface StudyJar {
+export type StudyJar = {
 	name: string;
 	jarPath: string;
 	mtime: number;
@@ -70,7 +70,7 @@ export interface StudyJar {
 	stats: StudyJarStats;
 }
 
-export interface FabricModChild {
+export type FabricModChild = {
 	kind: 'fabric-mod';
 	name: string;
 	rootPath: string;
@@ -81,7 +81,7 @@ export interface FabricModChild {
 	filterConfig: FilterConfig;
 }
 
-export interface StudyJarChild {
+export type StudyJarChild = {
 	kind: 'study-jar';
 	name: string;
 	jarPath: string;
@@ -93,7 +93,7 @@ export interface StudyJarChild {
 
 export type ProjectChild = FabricModChild | StudyJarChild;
 
-export interface Project {
+export type Project = {
 	name: string;
 	activeChild?: string;
 	children: Map<string, ProjectChild>;

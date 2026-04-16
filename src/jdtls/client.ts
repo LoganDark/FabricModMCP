@@ -15,30 +15,30 @@ import { glob } from 'glob';
 import { JSONRPCEndpoint, LspClient } from 'ts-lsp-client';
 import { logger } from '../logging/logger.js';
 
-export interface JavaDetected {
+export type JavaDetected = {
 	javaPath: string;
 	version: number;
 }
 
-export interface JavaNotFound {
+export type JavaNotFound = {
 	javaPath: null;
 	error: string;
 }
 
 export type JavaDetectResult = JavaDetected | JavaNotFound;
 
-export interface JdtLsFound {
+export type JdtLsFound = {
 	jdtlsHome: string;
 }
 
-export interface JdtLsNotFound {
+export type JdtLsNotFound = {
 	jdtlsHome: null;
 	error: string;
 }
 
 export type JdtLsFindResult = JdtLsFound | JdtLsNotFound;
 
-export interface JdtLsStartResult {
+export type JdtLsStartResult = {
 	process: ChildProcess;
 	client: LspClient;
 	endpoint: JSONRPCEndpoint;
@@ -211,7 +211,8 @@ export async function startJdtLs(
 					contentFormat: ['markdown', 'plaintext'],
 				},
 				implementation: { dynamicRegistration: false },
-				typeHierarchy: { dynamicRegistration: false },
+				// JDT LS supports typeHierarchy but it's not in the LSP 3.17 types yet
+				...{ typeHierarchy: { dynamicRegistration: false } },
 			},
 			workspace: {
 				symbol: { dynamicRegistration: false },

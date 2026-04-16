@@ -7,7 +7,7 @@ import type { DependencyEntry, JarCategory } from '../project/types.js';
 import type { JarReader } from '../project/jar-reader.js';
 import { CATEGORY_PRIORITY, classNameToEntryPath, sortByPriority } from '../tools/tool-helpers.js';
 
-export interface SearchResponse {
+export type SearchResponse = {
 	results: ClassInfo[];
 	offset: number;
 	limit: number;
@@ -15,7 +15,7 @@ export interface SearchResponse {
 	hasMore: boolean;
 }
 
-export interface SearchOptions {
+export type SearchOptions = {
 	query: string;
 	caseSensitive?: boolean;
 	kind?: string[];

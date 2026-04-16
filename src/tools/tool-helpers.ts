@@ -27,7 +27,7 @@ import { getAllDependencies } from '../project/dependency-resolver.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 
-export interface LocateFailure {
+export type LocateFailure = {
 	jar: string;
 	category: JarCategory;
 	provenanceChains?: string[][];

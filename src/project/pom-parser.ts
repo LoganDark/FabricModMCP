@@ -1,4 +1,4 @@
-export interface PomDependency {
+export type PomDependency = {
 	groupId: string;
 	artifactId: string;
 	version: string;

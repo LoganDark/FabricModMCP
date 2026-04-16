@@ -14,7 +14,7 @@ import type { DependencyEntry } from '../project/types.js';
 import { jarIdToDirName } from './uri-mapper.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 
-export interface ExtractionResult {
+export type ExtractionResult = {
 	tempDir: string;
 	jarIdToDirNameMap: Map<string, string>;
 }

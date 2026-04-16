@@ -4,7 +4,7 @@ import type { JarReader } from '../project/jar-reader.js';
 import type { DependencyEntry } from '../project/types.js';
 import { DomainError } from '../errors/domain-error.js';
 
-export interface SourceAdapter {
+export type SourceAdapter = {
 	listJavaEntries(): Promise<string[]>;
 	readEntry(entryPath: string): Promise<Buffer>;
 }

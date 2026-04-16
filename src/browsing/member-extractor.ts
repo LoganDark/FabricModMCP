@@ -10,14 +10,14 @@
 
 import type { EnrichedSymbol, EnrichedMethodSymbol, EnrichedFieldSymbol } from './types.js';
 
-export interface ParsedFqn {
+export type ParsedFqn = {
 	className: string;
 	memberName: string;
 	isMethod: boolean;
 	isField: boolean;
 }
 
-export interface MemberExtraction {
+export type MemberExtraction = {
 	source: string;
 	startLine: number;
 	endLine: number;

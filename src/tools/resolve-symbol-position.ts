@@ -16,7 +16,7 @@ import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { classNameToEntryPath, sortByPriority, getDependenciesForTool, getRootPathForScope } from './tool-helpers.js';
 import { resolveJarId } from '../project/namespace-resolver.js';
 
-export interface SymbolPositionSuccess {
+export type SymbolPositionSuccess = {
 	success: true;
 	sourceJarId: string;
 	sourceText: string;
@@ -25,7 +25,7 @@ export interface SymbolPositionSuccess {
 	entryPath: string;
 }
 
-export interface SymbolPositionCascadeFailure {
+export type SymbolPositionCascadeFailure = {
 	success: false;
 	kind: 'cascade-failure';
 	jar: string;
@@ -36,13 +36,13 @@ export interface SymbolPositionCascadeFailure {
 	error?: string;
 }
 
-export interface SymbolPositionNotFound {
+export type SymbolPositionNotFound = {
 	success: false;
 	kind: 'not-found';
 	entryPath: string;
 }
 
-export interface SymbolPositionJarError {
+export type SymbolPositionJarError = {
 	success: false;
 	kind: 'jar-not-found' | 'jar-not-available';
 	jar: string;

@@ -8,7 +8,7 @@
  * No I/O. No jar reading. No project/state imports. Pure function.
  */
 
-export interface CascadeStep {
+export type CascadeStep = {
 	step: number;        // 1-based step number
 	pattern: string;     // Original pattern string (including any (?flags) prefix)
 	status: 'success' | 'failed';
@@ -17,7 +17,7 @@ export interface CascadeStep {
 	length?: number;     // Length of matched text (only on success)
 }
 
-export interface CascadeSuccess {
+export type CascadeSuccess = {
 	success: true;
 	steps: CascadeStep[];
 	offset: number;      // Final match absolute offset
@@ -25,7 +25,7 @@ export interface CascadeSuccess {
 	column: number;      // 1-based column number
 }
 
-export interface CascadeFailure {
+export type CascadeFailure = {
 	success: false;
 	steps: CascadeStep[];
 	failedStep: number;  // 1-based step number that failed (0 for empty patterns)

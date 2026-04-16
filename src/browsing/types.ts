@@ -2,20 +2,20 @@ import type { JarCategory } from '../project/types.js';
 import type { CascadeStep } from './cascading-regex.js';
 import type { TypeReference, ParameterInfo } from './member-types.js';
 
-export interface PackageEntry {
+export type PackageEntry = {
 	name: string;          // dot-separated: "net.minecraft.client"
 	classCount: number;    // top-level classes only (no inner classes)
 	jars: string[];        // jar IDs that contain this package
 }
 
-export interface ClassReference {
+export type ClassReference = {
 	name: string;      // simple name
 	fqn: string;       // fully qualified name
 	kind: string;      // "class" | "interface" | "enum" | "record" | "@interface"
 	jar?: string;      // jar ID when URI maps to a known jar
 }
 
-export interface InnerClassInfo {
+export type InnerClassInfo = {
 	name: string;      // dollar-separated: "MinecraftClient$Options"
 	fqn: string;       // "net.minecraft.client.MinecraftClient$Options"
 	kind: string;      // "class" | "interface" | "enum" | "record" | "@interface"
@@ -23,7 +23,7 @@ export interface InnerClassInfo {
 	modifiers?: string[];
 }
 
-export interface ClassInfo {
+export type ClassInfo = {
 	name: string;
 	fqn: string;
 	kind: string;
@@ -33,13 +33,13 @@ export interface ClassInfo {
 	innerClasses?: InnerClassInfo[];
 }
 
-export interface LocateResultContext {
+export type LocateResultContext = {
 	text: string;
 	startLine: number;
 	endLine: number;
 }
 
-export interface LocateResult {
+export type LocateResult = {
 	jar: string;
 	category: JarCategory;
 	provenanceChains?: string[][];
@@ -50,7 +50,7 @@ export interface LocateResult {
 	context?: LocateResultContext;
 }
 
-export interface TransformedSymbol {
+export type TransformedSymbol = {
 	name: string;
 	kind: string;
 	detail: string | null;
@@ -66,27 +66,27 @@ export interface TransformedSymbol {
 	children: TransformedSymbol[];
 }
 
-export interface EnrichedMethodSymbol extends TransformedSymbol {
+export type EnrichedMethodSymbol = TransformedSymbol & {
 	memberFqn: string;
 	parameters: ParameterInfo[];
 	returnType: TypeReference | null;
 	children: EnrichedSymbol[];
 }
 
-export interface EnrichedFieldSymbol extends TransformedSymbol {
+export type EnrichedFieldSymbol = TransformedSymbol & {
 	memberFqn: string;
 	fieldType: TypeReference;
 	children: EnrichedSymbol[];
 }
 
-export interface EnrichedClassSymbol extends TransformedSymbol {
+export type EnrichedClassSymbol = TransformedSymbol & {
 	fqn?: string;      // fully qualified name (e.g., "com.example.Outer$Inner" for inner classes)
 	children: EnrichedSymbol[];
 }
 
 export type EnrichedSymbol = EnrichedMethodSymbol | EnrichedFieldSymbol | EnrichedClassSymbol;
 
-export interface SourceResult {
+export type SourceResult = {
 	jar: string;
 	category: JarCategory;
 	provenanceChains?: string[][];
@@ -98,7 +98,7 @@ export interface SourceResult {
 	innerClass?: { name: string; startLine: number };
 }
 
-export interface MemberResult {
+export type MemberResult = {
 	jar: string;
 	category: JarCategory;
 	provenanceChains?: string[][];

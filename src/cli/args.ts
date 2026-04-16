@@ -1,7 +1,7 @@
 import { parseArgs } from 'node:util';
 import type { LogLevel } from '../logging/logger.js';
 
-export interface CliArgs {
+export type CliArgs = {
 	logLevel: LogLevel;
 }
 

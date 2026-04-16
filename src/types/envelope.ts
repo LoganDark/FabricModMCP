@@ -1,10 +1,10 @@
-export interface ToolSuccess<T> {
+export type ToolSuccess<T> = {
 	success: true;
 	data: T;
 	metadata: Record<string, unknown>;
-}
+};
 
-export interface ToolError {
+export type ToolError = {
 	success: false;
 	error: {
 		code: string;
@@ -13,14 +13,14 @@ export interface ToolError {
 		suggestions?: string[];
 	};
 	metadata: Record<string, unknown>;
-}
+};
 
-export interface Disambiguation {
+export type Disambiguation = {
 	success: true;
 	disambiguation: true;
 	message: string;
 	options: Array<{ value: string; label: string; description?: string }>;
-}
+};
 
 export type ToolResponse<T> = ToolSuccess<T> | ToolError | Disambiguation;
 

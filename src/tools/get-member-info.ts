@@ -54,7 +54,7 @@ export function registerGetMemberInfoTool(server: McpServer): void {
 					})),
 				};
 
-				const mod = child.fabricMod as Record<string, unknown>;
+				const mod = child.fabricMod as unknown as Record<string, unknown>;
 				const {
 					schemaVersion,
 					id,

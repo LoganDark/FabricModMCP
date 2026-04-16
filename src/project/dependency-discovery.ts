@@ -6,7 +6,7 @@ import { parsePomDependencies } from './pom-parser.js';
 import { findSourcesJar } from './source-jar-finder.js';
 import type { GradleConfig, DependencyEntry } from './types.js';
 
-export interface DiscoveryResult {
+export type DiscoveryResult = {
 	dependencies: Map<string, DependencyEntry>;
 	summary: {
 		total: number;

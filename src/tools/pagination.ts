@@ -5,13 +5,13 @@
  */
 
 /** Input parameters for pagination. Both fields are optional. */
-export interface PaginationInput {
+export type PaginationInput = {
 	limit?: number;
 	offset?: number;
 }
 
 /** Paginated result with metadata. */
-export interface PaginatedResult<T> {
+export type PaginatedResult<T> = {
 	results: T[];
 	total: number;
 	offset: number;

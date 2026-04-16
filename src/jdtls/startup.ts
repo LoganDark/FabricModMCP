@@ -28,7 +28,7 @@ import { logger } from '../logging/logger.js';
 export async function initJdtLsSession(): Promise<JdtLsSession> {
 	const java = detectJava();
 
-	if (!java.javaPath) {
+	if (java.javaPath === null) {
 		return {
 			available: false,
 			failureReason: java.error,
@@ -40,7 +40,7 @@ export async function initJdtLsSession(): Promise<JdtLsSession> {
 
 	const jdtlsFind = findJdtLs();
 
-	if (!jdtlsFind.jdtlsHome) {
+	if (jdtlsFind.jdtlsHome === null) {
 		return {
 			available: false,
 			failureReason: jdtlsFind.error,

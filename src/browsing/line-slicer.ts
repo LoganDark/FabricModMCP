@@ -7,7 +7,7 @@
  * Pure function. No I/O.
  */
 
-export interface LineSliceResult {
+export type LineSliceResult = {
 	source: string;
 	startLine: number;
 	endLine: number;

@@ -11,7 +11,7 @@
 
 import { realpathSync } from 'node:fs';
 
-export interface UriMapping {
+export type UriMapping = {
 	jar: string;        // jar ID
 	entryPath: string;  // path within jar (e.g., "net/minecraft/client/MinecraftClient.java")
 }
@@ -42,7 +42,7 @@ export function entryPathToClassName(entryPath: string): string {
 	return entryPath.replace(/\.java$/, '').replace(/\//g, '.');
 }
 
-export interface UriMapper {
+export type UriMapper = {
 	toFileUri(jarId: string, entryPath: string): string;
 	fromFileUri(uri: string): UriMapping | null;
 }

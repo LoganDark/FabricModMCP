@@ -17,7 +17,7 @@ const JAVA_LANG_TYPES = new Set([
 	"SuppressWarnings", "FunctionalInterface", "Void",
 ]);
 
-export interface ImportInfo {
+export type ImportInfo = {
 	explicitImports: Map<string, string>;  // simpleName -> fqn
 	starPackages: string[];                 // package names for star imports
 	currentPackage: string | null;          // from package declaration

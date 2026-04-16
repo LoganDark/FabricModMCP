@@ -1,4 +1,4 @@
-export interface DecomposedEntry {
+export type DecomposedEntry = {
 	packageName: string;
 	className: string;
 	isInnerClass: boolean;
@@ -30,12 +30,12 @@ export function decomposeEntryPath(entryPath: string): DecomposedEntry | null {
 	return { packageName, className, isInnerClass, outerClassName, isAnonymous };
 }
 
-export interface ClassIndexEntry {
+export type ClassIndexEntry = {
 	className: string;
 	innerClassNames: string[];
 }
 
-export interface FlatClassIndexEntry {
+export type FlatClassIndexEntry = {
 	fqn: string;
 	className: string;
 	packageName: string;
