@@ -56,7 +56,7 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 ### Active
 
 - [ ] Unified pagination with both limit and hasMore on all paginated tools
-- [ ] Per-child jar filtering instead of merged filter in multi-mod projects
+- ✓ Per-child jar filtering: each mod's own filter applied to its own deps before merging — Validated in Phase 32
 - [ ] Build file re-parsing on refresh_project/refresh_project_members
 - [ ] Accurate tool descriptions with JDT LS requirements documented per-tool
 - [ ] Response envelope structure documented in SERVER_INSTRUCTIONS
@@ -162,4 +162,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-16 after Phase 31 completion*
+*Last updated: 2026-04-16 after Phase 32 completion*
