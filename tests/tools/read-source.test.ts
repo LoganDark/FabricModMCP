@@ -34,15 +34,13 @@ public class MinecraftClient {
     // Main game client
     private static MinecraftClient instance;
 
+    public static class Options {
+        public boolean fullscreen;
+    }
+
     public void run() {
         // game loop
     }
-}`;
-
-const INNER_SOURCE_TEXT = `package net.minecraft.client;
-
-public static class Options {
-    public boolean fullscreen;
 }`;
 
 function makeFakeProject(modOverrides: Partial<FabricModChild> = {}): Project {
@@ -97,9 +95,6 @@ describe('read_source tool', () => {
 			if (jarPath === '/fake/minecraft-sources.jar') {
 				if (entryPath === 'net/minecraft/client/MinecraftClient.java') {
 					return Buffer.from(MC_SOURCE_TEXT, 'utf-8');
-				}
-				if (entryPath === 'net/minecraft/client/MinecraftClient$Options.java') {
-					return Buffer.from(INNER_SOURCE_TEXT, 'utf-8');
 				}
 			}
 			throw new Error(`Entry not found: ${entryPath} in ${jarPath}`);
@@ -171,7 +166,7 @@ describe('read_source tool', () => {
 		expect(jarIds).toContain('testmod/minecraft');
 	});
 
-	it('supports inner class FQN with $ notation', async () => {
+	it('reads outer class source for inner class FQN with $ notation', async () => {
 		const fake = makeFakeProject();
 		projectStore.set('test', fake);
 
@@ -183,7 +178,60 @@ describe('read_source tool', () => {
 		const envelope = parseEnvelope(result);
 		expect(envelope.success).toBe(true);
 		expect(envelope.data.sources).toHaveLength(1);
+		// Should read the outer class file
+		expect(envelope.data.sources[0].source).toContain('public class MinecraftClient');
 		expect(envelope.data.sources[0].source).toContain('public static class Options');
+		// Should include innerClass hint
+		expect(envelope.data.sources[0].innerClass).toBeDefined();
+		expect(envelope.data.sources[0].innerClass.name).toBe('Options');
+		expect(envelope.data.sources[0].innerClass.startLine).toBeGreaterThan(0);
+	});
+
+	it('returns outer source without innerClass hint when inner class not found in source', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		// Request inner class that doesn't exist in the source
+		const result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', jar: 'testmod/minecraft', class: 'net.minecraft.client.MinecraftClient$NonExistent' },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		expect(envelope.data.sources).toHaveLength(1);
+		expect(envelope.data.sources[0].source).toContain('public class MinecraftClient');
+		expect(envelope.data.sources[0].innerClass).toBeUndefined();
+	});
+
+	it('handles inner class FQN in all-jars search mode', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', class: 'net.minecraft.client.MinecraftClient$Options' },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		expect(envelope.data.sources.length).toBeGreaterThanOrEqual(1);
+		expect(envelope.data.sources[0].innerClass).toBeDefined();
+		expect(envelope.data.sources[0].innerClass.name).toBe('Options');
+	});
+
+	it('className without $ works identically (no regression)', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', jar: 'testmod/minecraft', class: 'net.minecraft.client.MinecraftClient' },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		expect(envelope.data.sources[0].innerClass).toBeUndefined();
 	});
 
 	it('returns CLASS_NOT_FOUND error when class not in any jar', async () => {

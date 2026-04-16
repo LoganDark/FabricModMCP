@@ -316,6 +316,73 @@ describe.skipIf(!toolModuleAvailable)('type_hierarchy', () => {
 		}
 	});
 
+	test('terminates on circular supertype hierarchy without infinite loop', async () => {
+		// A extends B, B extends A — cycle
+		mockEndpointSend.mockImplementation(async (method: string, params: any) => {
+			if (method === 'textDocument/prepareTypeHierarchy') {
+				return [{
+					name: 'ClassA',
+					kind: 5,
+					detail: 'com.example',
+					uri: 'file:///tmp/test-jdtls/minecraft/com/example/ClassA.java',
+					range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+					selectionRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+				}];
+			}
+			if (method === 'typeHierarchy/supertypes') {
+				if (params.item.name === 'ClassA') {
+					return [{
+						name: 'ClassB',
+						kind: 5,
+						detail: 'com.example',
+						uri: 'file:///tmp/test-jdtls/minecraft/com/example/ClassB.java',
+						range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+						selectionRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+					}];
+				}
+				if (params.item.name === 'ClassB') {
+					return [{
+						name: 'ClassA',
+						kind: 5,
+						detail: 'com.example',
+						uri: 'file:///tmp/test-jdtls/minecraft/com/example/ClassA.java',
+						range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+						selectionRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+					}];
+				}
+				return [];
+			}
+			if (method === 'typeHierarchy/subtypes') return [];
+			return null;
+		});
+
+		mockReadEntry.mockResolvedValue(Buffer.from(`package com.example;\npublic class ClassA extends ClassB {}\n`));
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'type_hierarchy',
+				arguments: {
+					project: 'test',
+					jar: 'testmod/minecraft',
+					class: 'com.example.ClassA',
+				},
+			});
+
+			const envelope = parseEnvelope(result);
+			expect(envelope.success).toBe(true);
+			// Should have collected ClassB before hitting cycle
+			expect(envelope.data.extends).toHaveLength(1);
+			expect(envelope.data.extends[0].fqn).toBe('com.example.ClassB');
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
+
 	test('returns empty hierarchy when prepareTypeHierarchy returns null', async () => {
 		mockEndpointSend.mockImplementation(async (method: string) => {
 			if (method === 'textDocument/prepareTypeHierarchy') {
