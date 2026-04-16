@@ -38,7 +38,7 @@ Requirements for v1.5 Quality & Consistency milestone. Derived from comprehensiv
 
 ### Behavioral Improvements
 
-- [ ] **BEH-01**: `getDependenciesForTool` without scope applies each child's own filter to its own jar set rather than applying one mod's filter to merged results
+- [x] **BEH-01**: `getDependenciesForTool` without scope applies each child's own filter to its own jar set rather than applying one mod's filter to merged results
 - [ ] **BEH-02**: `refresh_project` and `refresh_project_members` re-parse build files (gradle.properties, build.gradle.kts, fabric.mod.json) not just re-scan jar files
 
 ### Data Exposure
@@ -110,7 +110,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FIX-06 | Phase 29 | Complete |
 | FIX-07 | Phase 28 | Complete |
 | FIX-08 | Phase 28 | Complete |
-| BEH-01 | Phase 32 | Pending |
+| BEH-01 | Phase 32 | Complete |
 | BEH-02 | Phase 33 | Pending |
 | DATA-01 | Phase 31 | Complete |
 | DATA-02 | Phase 31 | Complete |

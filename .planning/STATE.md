@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Quality & Consistency
 status: unknown
-stopped_at: Completed 31-01-PLAN.md
-last_updated: "2026-04-16T01:26:57.607Z"
+stopped_at: Completed 32-01-PLAN.md
+last_updated: "2026-04-16T01:36:19.920Z"
 progress:
   total_phases: 7
-  completed_phases: 4
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 5
+  total_plans: 5
+  completed_plans: 5
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-15)
 
 **Core value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
-**Current focus:** Phase 31 — data-exposure
+**Current focus:** Phase 32 — per-child-jar-filtering
 
 ## Current Position
 
-Phase: 32
-Plan: Not started
+Phase: 32 (per-child-jar-filtering) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ See PROJECT.md Key Decisions table for full decision log.
 - [Phase 29]: Inner class handling in read_source only (not classNameToEntryPath) to limit blast radius
 - [Phase 30-api-consistency]: All paginated responses now include { results, total, offset, limit, hasMore }
 - [Phase 31-data-exposure]: Omit raw field from declaredDependencies; fqn reuses classFqn parameter for inner class $ separator
+- [Phase 32-per-child-jar-filtering]: Unscoped getDependenciesForTool now iterates children independently with per-child filtering and early return
 
 ### Roadmap Evolution
 
@@ -79,9 +80,10 @@ None.
 | Phase 29 P01 | 5min | 2 tasks | 8 files |
 | Phase 30-api-consistency P01 | 4min | 2 tasks | 12 files |
 | Phase 31-data-exposure P01 | 3min | 2 tasks | 11 files |
+| Phase 32-per-child-jar-filtering P01 | 1min | 2 tasks | 2 files |
 
 ## Session Continuity
 
-Last session: 2026-04-16T01:24:55.584Z
-Stopped at: Completed 31-01-PLAN.md
+Last session: 2026-04-16T01:36:19.918Z
+Stopped at: Completed 32-01-PLAN.md
 Resume file: None
