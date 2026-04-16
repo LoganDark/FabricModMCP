@@ -185,7 +185,10 @@ Plans:
   2. SERVER_INSTRUCTIONS documents the response envelope structure, study jar workflow, scope dual-effect, refresh guidance, and configure_filters usage
   3. All tool descriptions match their actual schemas, response fields, and behavior (no stale references to removed/renamed params or fields)
   4. CLAUDE.md Architecture, Conventions, and Project Structure sections are filled in with current information and stale Phase references removed
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 34-01-PLAN.md — Update SERVER_INSTRUCTIONS, all tool descriptions, and CLAUDE.md sections
 
 ## Progress
 
@@ -205,4 +208,4 @@ Phases execute in numeric order: 28 → 29 → 30 → 31 → 32 → 33 → 34
 | 31. Data Exposure | v1.5 | 1/1 | Complete    | 2026-04-16 |
 | 32. Per-Child Jar Filtering | v1.5 | 1/1 | Complete    | 2026-04-16 |
 | 33. Build File Re-parsing | v1.5 | 1/1 | Complete    | 2026-04-16 |
-| 34. Documentation & Instructions | v1.5 | 0/? | Not started | - |
+| 34. Documentation & Instructions | v1.5 | 0/1 | Not started | - |
