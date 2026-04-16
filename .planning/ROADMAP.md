@@ -184,7 +184,7 @@ Phases execute in numeric order: 28 → 29 → 30 → 31 → 32 → 33 → 34
 | 15-18 | v1.2 | 7/7 | Complete | 2026-04-14 |
 | 19-22 | v1.3 | 9/9 | Complete | 2026-04-15 |
 | 23-27 | v1.4 | 15/15 | Complete | 2026-04-15 |
-| 28. Jar & Cache Bug Fixes | v1.5 | 1/1 | Complete   | 2026-04-16 |
+| 28. Jar & Cache Bug Fixes | v1.5 | 1/1 | Complete    | 2026-04-16 |
 | 29. JDT LS & Workspace Bug Fixes | v1.5 | 0/? | Not started | - |
 | 30. API Consistency | v1.5 | 0/? | Not started | - |
 | 31. Data Exposure | v1.5 | 0/? | Not started | - |
