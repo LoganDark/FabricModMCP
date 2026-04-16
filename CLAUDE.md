@@ -28,7 +28,7 @@ An MCP (Model Context Protocol) server that gives Claude Code deep access to Min
 ### MCP Framework
 | Technology | Version | Purpose | Why | Confidence |
 |------------|---------|---------|-----|------------|
-| @modelcontextprotocol/sdk | 1.29.x (v1.x line) | MCP server implementation | Official SDK. Full MCP spec compliance. Supports stdio transport (what Claude Code uses). v2 anticipated Q1 2026 but v1.x is production-recommended and will receive patches for 6+ months after v2 ships. Start on v1.x; migrate to v2 when stable. | HIGH |
+| @modelcontextprotocol/sdk | 1.29.x (v1.x line) | MCP server implementation | Official SDK. Full MCP spec compliance. Supports stdio transport (what Claude Code uses). Production-ready v1.x line. | HIGH |
 ### Schema Validation
 | Technology | Version | Purpose | Why | Confidence |
 |------------|---------|---------|-----|------------|
@@ -49,7 +49,7 @@ An MCP (Model Context Protocol) server that gives Claude Code deep access to Min
 |------------|---------|---------|-----|------------|
 | Eclipse JDT LS | Latest milestone | Java semantic analysis (find-definition, find-references) | The only mature, standalone Java language server. Runs as a separate JVM process. Communicates via LSP over stdio/socket. Supports headless operation without an IDE. Requires Java 21+ runtime. | HIGH |
 | vscode-languageserver-protocol | 3.17.x | LSP client protocol types | Provides TypeScript types for all LSP messages. Used to build a lightweight LSP client that talks to JDT LS. | HIGH |
-| ts-lsp-client | 2.x | Standalone LSP client | Minimal-dependency LSP client for Node.js. Unlike vscode-languageclient, does not depend on VS Code internals. Spawns JDT LS as a child process, sends LSP requests, receives responses. | MEDIUM |
+| ts-lsp-client | 2.x | Standalone LSP client | Minimal-dependency LSP client for Node.js. Unlike vscode-languageclient, does not depend on VS Code internals. Spawns JDT LS as a child process, sends LSP requests, receives responses. | HIGH |
 ### Gradle Project Parsing
 | Technology | Version | Purpose | Why | Confidence |
 |------------|---------|---------|-----|------------|
@@ -78,20 +78,61 @@ An MCP (Model Context Protocol) server that gives Claude Code deep access to Min
 | MCP SDK | Official SDK | FastMCP | FastMCP adds web server features (OAuth, CORS, HTTP routes) irrelevant for local stdio server. Unnecessary abstraction layer. |
 | ZIP Library | node-stream-zip | adm-zip | Memory hog -- loads entire jar into memory. Blocks multi-project support. |
 | Gradle Parsing | Properties file parser | Gradle Tooling API | 10-30s cold start, requires JVM, massive overkill for reading a .properties file. |
-| Java LSP | JDT LS (Phase 2) | None (regex only) | Phase 1 uses cascading regex for search. JDT LS adds semantic find-definition/find-references in Phase 2. This is an additive approach, not a replacement. |
+| Java LSP | JDT LS | None (regex only) | Cascading regex provides text-based search. JDT LS adds semantic navigation (find-definition, find-references, type hierarchy). Both are used — additive, not replacement. |
 ## Runtime Dependencies
+
+| Package | Purpose |
+|---------|---------|
+| @modelcontextprotocol/sdk | MCP server implementation and stdio transport |
+| glob | File system globbing for finding .java files and gradle.properties |
+| node-stream-zip | O(1) random access reading of .java files from source jars |
+| picomatch | Fast glob pattern matching for class/package filtering |
+| ts-lsp-client | Standalone LSP client for communicating with JDT LS |
+| zod | Runtime schema validation with static type inference for tool parameters |
+
 ## Installation
-# Core
-# Dev dependencies  
+
+```
+pnpm install      # Install dependencies
+pnpm start        # Run the MCP server (stdio transport)
+pnpm build        # Bundle for production (tsup)
+pnpm test         # Run tests (vitest)
+```
+
 ## Project Structure
+
+```
+src/
+  index.ts          - Entry point
+  server.ts         - MCP server setup and tool registration
+  browsing/         - Class parsing, member extraction, search, cascading regex
+  cli/              - CLI argument parsing
+  errors/           - Domain error types and validation
+  jdtls/            - JDT LS client, workspace sync, startup
+  logging/          - Logger
+  project/          - Gradle parsing, jar reading, dependency discovery
+  state/            - ProjectStore singleton
+  tools/            - MCP tool handlers and descriptions
+  types/            - Shared types and response envelope
+tests/              - Test files
+```
+
 ## Key Technical Details
+
 ### Jar Reading Strategy
+
+Uses node-stream-zip for O(1) random access by entry path from source jars. The ZIP central directory is read on open, then individual entries are accessed by path (e.g., `zip.entryData('net/minecraft/client/MinecraftClient.java')`). No full-memory load, no iteration. The Minecraft sources jar has ~6,600 files.
+
 ### Gradle Properties Parsing Strategy
+
+Reads `gradle.properties` as simple key=value pairs to extract `minecraft_version`, `yarn_mappings`, `loader_version`, `fabric_api_version`. Supplements with regex extraction from `build.gradle.kts` for dependency declarations. No Gradle Tooling API needed.
+
 ### Multi-Project Support
-- Gradle properties
-- Source jar handles (Minecraft + dependencies)
-- Mod source directory
-- JDT LS workspace (Phase 2)
+
+Each project holds:
+- Fabric mod children (with Gradle properties, source jar handles, dependency jars)
+- Study jar children (with jar path, auto-include status, stats)
+- JDT LS workspace (one per project, covers all children for cross-mod navigation)
 ## Sources
 - [MCP TypeScript SDK - GitHub](https://github.com/modelcontextprotocol/typescript-sdk)
 - [@modelcontextprotocol/sdk - npm](https://www.npmjs.com/package/@modelcontextprotocol/sdk)
@@ -109,13 +150,25 @@ An MCP (Model Context Protocol) server that gives Claude Code deep access to Min
 <!-- GSD:conventions-start source:CONVENTIONS.md -->
 ## Conventions
 
-Conventions not yet established. Will populate as patterns emerge during development.
+- **Tab indentation** in all source files (not spaces)
+- **No nested JSON strings** in MCP tool text responses -- do not JSON.stringify structuredContent into text content
+- **All tool descriptions** live in `src/tools/descriptions.ts` -- the `TOOL_DESCRIPTIONS` and `SERVER_INSTRUCTIONS` objects
+- **Shared parameter schemas** in `PARAMS` and `DETAIL_PARAMS` objects in `descriptions.ts` -- reused across multiple tools
+- **Tool response envelope**: `{ ok: true, ...data }` on success, `{ ok: false, code, message, tried?, suggestions? }` on error (see `src/types/envelope.ts`)
+- **Domain logic** in `src/browsing/`, `src/project/`, `src/jdtls/` -- tools in `src/tools/` are thin wrappers that validate params and format responses
+- **Tests** use vitest, located alongside source or in `tests/` directory
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
 ## Architecture
 
-Architecture not yet mapped. Follow existing patterns found in the codebase.
+Layered architecture with thin tool wrappers over domain modules:
+
+- **Layer 1 -- MCP Server** (`src/server.ts`, `src/index.ts`): Registers tools, handles MCP protocol via stdio transport
+- **Layer 2 -- Tools** (`src/tools/*.ts`): Thin handlers that validate params (via Zod schemas from `descriptions.ts`), call domain logic, and format responses. Each tool imports its description from `descriptions.ts`.
+- **Layer 3 -- Domain** (`src/browsing/`, `src/project/`, `src/jdtls/`): Business logic. Browsing: class parsing, member extraction, search, cascading regex. Project: Gradle parsing, jar reading, dependency discovery, namespace resolution. JDT LS: LSP client, workspace sync, symbol navigation.
+- **Layer 4 -- State** (`src/state/project-store.ts`): Singleton ProjectStore holding all project state, jar handles, JDT LS sessions
+- **Layer 5 -- Types** (`src/types/`): Shared type definitions, response envelope (`makeSuccess`/`makeError`)
 <!-- GSD:architecture-end -->
 
 <!-- GSD:workflow-start source:GSD defaults -->
