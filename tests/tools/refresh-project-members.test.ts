@@ -14,6 +14,10 @@ vi.mock('../../src/jdtls/workspace-sync.js', () => ({
 	unsyncFabricModFromWorkspace: vi.fn().mockResolvedValue({ synced: false }),
 }));
 
+vi.mock('../../src/project/loader.js', () => ({
+	reloadFabricModConfig: vi.fn().mockResolvedValue({ warnings: [] }),
+}));
+
 function makeDiscoveryResult(modName: string, extraDeps: Map<string, DependencyEntry> = new Map()) {
 	const deps = new Map<string, DependencyEntry>([
 		[`${modName}/minecraft`, {
@@ -208,5 +212,68 @@ describe('refresh_project_members tool', () => {
 			undefined,
 			expect.anything(),
 		);
+	});
+
+	it('calls reloadFabricModConfig for each member before discoverDependencies', async () => {
+		const { discoverDependencies } = await import('../../src/project/dependency-discovery.js');
+		const { reloadFabricModConfig } = await import('../../src/project/loader.js');
+		vi.mocked(reloadFabricModConfig).mockClear();
+		vi.mocked(discoverDependencies).mockClear();
+
+		const project = makeFakeMultiModProject(['mod-a', 'mod-b']);
+		projectStore.set('test', project);
+		projectStore.setActive('test');
+		jarReader.registerProject('test', new Set(['/fake/minecraft-sources.jar']));
+
+		const callOrder: string[] = [];
+		vi.mocked(reloadFabricModConfig).mockImplementation(async () => {
+			callOrder.push('reload');
+			return { warnings: [] };
+		});
+		vi.mocked(discoverDependencies).mockImplementation(async () => {
+			callOrder.push('discover');
+			return makeDiscoveryResult('mod-a');
+		});
+
+		await pair.client.callTool({
+			name: 'refresh_project_members',
+			arguments: { project: 'test', members: ['mod-a'] },
+		});
+
+		expect(reloadFabricModConfig).toHaveBeenCalledTimes(1);
+		expect(reloadFabricModConfig).toHaveBeenCalledWith(
+			expect.objectContaining({ name: 'mod-a' }),
+		);
+		expect(callOrder).toEqual(['reload', 'discover']);
+	});
+
+	it('includes warnings from reloadFabricModConfig in response', async () => {
+		const { discoverDependencies } = await import('../../src/project/dependency-discovery.js');
+		const { reloadFabricModConfig } = await import('../../src/project/loader.js');
+
+		const project = makeFakeMultiModProject(['mod-a']);
+		projectStore.set('test', project);
+		projectStore.setActive('test');
+		jarReader.registerProject('test', new Set(['/fake/minecraft-sources.jar']));
+
+		vi.mocked(reloadFabricModConfig).mockResolvedValue({
+			warnings: ['Minecraft version changed from 1.21.11 to 1.22.0 — sources jar path updated'],
+		});
+		vi.mocked(discoverDependencies).mockResolvedValue(makeDiscoveryResult('mod-a'));
+
+		const result = await pair.client.callTool({
+			name: 'refresh_project_members',
+			arguments: { project: 'test', members: ['mod-a'] },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		expect(envelope.data.warnings).toContainEqual(
+			expect.stringContaining('Minecraft version changed'),
+		);
+
+		// Check text response
+		const text = (result as any).content[0].text;
+		expect(text).toContain('Minecraft version changed');
 	});
 });
