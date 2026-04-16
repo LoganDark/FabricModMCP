@@ -60,7 +60,7 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - [ ] Build file re-parsing on refresh_project/refresh_project_members
 - [ ] Accurate tool descriptions with JDT LS requirements documented per-tool
 - [ ] Response envelope structure documented in SERVER_INSTRUCTIONS
-- [ ] Bug fixes: JDT LS data dir cleanup, inner class read_source, workspace sync cleanup, type_hierarchy cycle detection
+- ✓ Bug fixes: JDT LS data dir cleanup, inner class read_source with position hint, workspace sync partial cleanup, type_hierarchy cycle detection — Validated in Phase 29
 - ✓ Bug fixes: entryIndexCache eviction on remove_project, JarReader race condition, error message corrections, add_study_jar provenance — Validated in Phase 28
 - [ ] API consistency: rename parameters, validate enums, remove dead fields/options
 - [ ] Expose JDT LS status, GradleConfig.dependencies, type_hierarchy jar locations, inner class FQNs
@@ -162,4 +162,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-16 after Phase 28 completion*
+*Last updated: 2026-04-16 after Phase 29 completion*
