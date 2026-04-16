@@ -102,7 +102,10 @@
   2. Concurrent getHandle() calls for the same jar path do not create duplicate handles or corrupt state
   3. read_jar_entry error messages direct user to list_packages/list_classes (not non-existent listEntries)
   4. add_study_jar response includes provenance metadata matching other jar-adding tools
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 28-01-PLAN.md — Fix cache eviction, race condition, error messages, and provenance metadata
 
 ### Phase 29: JDT LS & Workspace Bug Fixes
 **Goal**: JDT LS lifecycle and workspace sync are resilient to edge cases and clean up after themselves
@@ -181,7 +184,7 @@ Phases execute in numeric order: 28 → 29 → 30 → 31 → 32 → 33 → 34
 | 15-18 | v1.2 | 7/7 | Complete | 2026-04-14 |
 | 19-22 | v1.3 | 9/9 | Complete | 2026-04-15 |
 | 23-27 | v1.4 | 15/15 | Complete | 2026-04-15 |
-| 28. Jar & Cache Bug Fixes | v1.5 | 0/? | Not started | - |
+| 28. Jar & Cache Bug Fixes | v1.5 | 0/1 | Not started | - |
 | 29. JDT LS & Workspace Bug Fixes | v1.5 | 0/? | Not started | - |
 | 30. API Consistency | v1.5 | 0/? | Not started | - |
 | 31. Data Exposure | v1.5 | 0/? | Not started | - |
