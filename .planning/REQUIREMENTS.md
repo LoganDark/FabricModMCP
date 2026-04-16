@@ -90,38 +90,38 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DOC-01 | TBD | Pending |
-| DOC-02 | TBD | Pending |
-| DOC-03 | TBD | Pending |
-| DOC-04 | TBD | Pending |
-| DOC-05 | TBD | Pending |
-| API-01 | TBD | Pending |
-| API-02 | TBD | Pending |
-| API-03 | TBD | Pending |
-| API-04 | TBD | Pending |
-| API-05 | TBD | Pending |
-| API-06 | TBD | Pending |
-| API-07 | TBD | Pending |
-| FIX-01 | TBD | Pending |
-| FIX-02 | TBD | Pending |
-| FIX-03 | TBD | Pending |
-| FIX-04 | TBD | Pending |
-| FIX-05 | TBD | Pending |
-| FIX-06 | TBD | Pending |
-| FIX-07 | TBD | Pending |
-| FIX-08 | TBD | Pending |
-| BEH-01 | TBD | Pending |
-| BEH-02 | TBD | Pending |
-| DATA-01 | TBD | Pending |
-| DATA-02 | TBD | Pending |
-| DATA-03 | TBD | Pending |
-| DATA-04 | TBD | Pending |
+| DOC-01 | Phase 34 | Pending |
+| DOC-02 | Phase 34 | Pending |
+| DOC-03 | Phase 34 | Pending |
+| DOC-04 | Phase 34 | Pending |
+| DOC-05 | Phase 34 | Pending |
+| API-01 | Phase 30 | Pending |
+| API-02 | Phase 30 | Pending |
+| API-03 | Phase 30 | Pending |
+| API-04 | Phase 30 | Pending |
+| API-05 | Phase 30 | Pending |
+| API-06 | Phase 30 | Pending |
+| API-07 | Phase 30 | Pending |
+| FIX-01 | Phase 28 | Pending |
+| FIX-02 | Phase 29 | Pending |
+| FIX-03 | Phase 28 | Pending |
+| FIX-04 | Phase 29 | Pending |
+| FIX-05 | Phase 29 | Pending |
+| FIX-06 | Phase 29 | Pending |
+| FIX-07 | Phase 28 | Pending |
+| FIX-08 | Phase 28 | Pending |
+| BEH-01 | Phase 32 | Pending |
+| BEH-02 | Phase 33 | Pending |
+| DATA-01 | Phase 31 | Pending |
+| DATA-02 | Phase 31 | Pending |
+| DATA-03 | Phase 31 | Pending |
+| DATA-04 | Phase 31 | Pending |
 
 **Coverage:**
 - v1.5 requirements: 26 total
-- Mapped to phases: 0
-- Unmapped: 26
+- Mapped to phases: 26
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-15*
-*Last updated: 2026-04-15 after initial definition*
+*Last updated: 2026-04-15 after roadmap creation*
