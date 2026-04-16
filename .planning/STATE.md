@@ -78,6 +78,7 @@ None.
 |---|-------------|------|--------|-----------|
 | 260415-81t | Remove study: prefix from study jar IDs | 2026-04-15 | c46f7c2 | [260415-81t-remove-study-prefix-from-study-jar-ids](./quick/260415-81t-remove-study-prefix-from-study-jar-ids/) |
 | 260415-8hc | Split innerClasses into separate detail flag | 2026-04-14 | 7cf52c0 | [260415-8hc-split-innerclasses-into-separate-detail-](./quick/260415-8hc-split-innerclasses-into-separate-detail-/) |
+| 260415-reo | Fix v1.5 audit tech debt: dataDir cleanup, stale import, description | 2026-04-16 | bbb3f90 | [260415-reo-fix-v1-5-audit-tech-debt-datadir-cleanup](./quick/260415-reo-fix-v1-5-audit-tech-debt-datadir-cleanup/) |
 | Phase 28 P01 | 3min | 2 tasks | 7 files |
 | Phase 29 P01 | 5min | 2 tasks | 8 files |
 | Phase 30-api-consistency P01 | 4min | 2 tasks | 12 files |
@@ -88,6 +89,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-16T02:32:49.473Z
-Stopped at: Completed 34-01-PLAN.md
+Last session: 2026-04-16T02:46:02Z
+Stopped at: Completed quick task 260415-reo
 Resume file: None
