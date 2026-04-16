@@ -17,6 +17,88 @@ async function fileExists(filePath: string): Promise<boolean> {
 	}
 }
 
+export async function reloadFabricModConfig(mod: FabricModChild): Promise<{ warnings: string[] }> {
+	const warnings: string[] = [];
+	const rootPath = mod.rootPath;
+
+	// Read gradle.properties
+	let propertiesContent: string;
+	const propertiesPath = join(rootPath, 'gradle.properties');
+	try {
+		propertiesContent = await readFile(propertiesPath, 'utf-8');
+	} catch {
+		throw new DomainError(
+			'GRADLE_PROPERTIES_NOT_FOUND',
+			'gradle.properties not found -- is this a Gradle project?',
+			[propertiesPath],
+			['Ensure this is a Fabric/Loom project root directory'],
+		);
+	}
+
+	// Parse properties
+	const properties = parseGradleProperties(propertiesContent);
+
+	// Read build.gradle.kts
+	let buildGradleContent: string;
+	const buildGradlePath = join(rootPath, 'build.gradle.kts');
+	try {
+		buildGradleContent = await readFile(buildGradlePath, 'utf-8');
+	} catch {
+		throw new DomainError(
+			'BUILD_GRADLE_NOT_FOUND',
+			'build.gradle.kts not found',
+			[buildGradlePath],
+			['This server only supports Kotlin DSL (build.gradle.kts), not Groovy (build.gradle)'],
+		);
+	}
+
+	// Parse gradle config
+	const newGradleConfig = parseBuildGradle(buildGradleContent, properties);
+
+	// Resolve new sources jar path
+	const newSourcesJarPath = resolveSourcesJarPath(newGradleConfig);
+
+	// Check if sources jar exists (warn instead of throw)
+	const sourcesJarExists = await fileExists(newSourcesJarPath);
+
+	// Read fabric.mod.json
+	let fabricModContent: string;
+	const fabricModPath = join(rootPath, 'src', 'main', 'resources', 'fabric.mod.json');
+	try {
+		fabricModContent = await readFile(fabricModPath, 'utf-8');
+	} catch {
+		throw new DomainError(
+			'FABRIC_MOD_NOT_FOUND',
+			'fabric.mod.json not found',
+			[fabricModPath],
+			['Ensure this is a Fabric mod project with src/main/resources/fabric.mod.json'],
+		);
+	}
+
+	// Parse fabric mod
+	const newFabricMod = parseFabricMod(fabricModContent);
+
+	// Compare and build warnings
+	if (mod.gradleConfig.minecraftVersion !== newGradleConfig.minecraftVersion) {
+		warnings.push(`Minecraft version changed from ${mod.gradleConfig.minecraftVersion} to ${newGradleConfig.minecraftVersion} — sources jar path updated`);
+	}
+
+	if (mod.fabricMod.id !== newFabricMod.id) {
+		warnings.push(`fabric.mod.json id changed from '${mod.fabricMod.id}' to '${newFabricMod.id}' — child name kept as '${mod.name}' for namespace stability`);
+	}
+
+	if (!sourcesJarExists) {
+		warnings.push('New sources jar not found. Run ./gradlew genSources, then refresh again.');
+	}
+
+	// Mutate mod in place
+	mod.gradleConfig = newGradleConfig;
+	mod.sourcesJar = { path: newSourcesJarPath, exists: sourcesJarExists };
+	mod.fabricMod = newFabricMod;
+
+	return { warnings };
+}
+
 export async function loadFabricMod(projectPath: string): Promise<FabricModChild> {
 	const absolutePath = resolve(projectPath);
 
