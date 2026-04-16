@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Quality & Consistency
 status: unknown
-stopped_at: Completed 28-01-PLAN.md
-last_updated: "2026-04-16T00:29:22.793Z"
+stopped_at: Completed 29-01-PLAN.md
+last_updated: "2026-04-16T00:44:45.046Z"
 progress:
   total_phases: 7
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-15)
 
 **Core value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
-**Current focus:** Phase 28 — jar-and-cache-bug-fixes
+**Current focus:** Phase 29 — jdt-ls-and-workspace-bug-fixes
 
 ## Current Position
 
-Phase: 29
-Plan: Not started
+Phase: 29 (jdt-ls-and-workspace-bug-fixes) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -51,6 +51,8 @@ See PROJECT.md Key Decisions table for full decision log.
 - v1.5: Documentation phase goes last (depends on final API/behavior state)
 - [Phase 28]: Store Promise<StreamZip> instead of StreamZip in handles map for race-safe concurrent access
 - [Phase 28]: Evict cache entries for both jar paths and mod source keys before closeProject
+- [Phase 29]: Cycle detection seeds seen set with target class FQN for self-referential cycles
+- [Phase 29]: Inner class handling in read_source only (not classNameToEntryPath) to limit blast radius
 
 ### Roadmap Evolution
 
@@ -72,9 +74,10 @@ None.
 | 260415-81t | Remove study: prefix from study jar IDs | 2026-04-15 | c46f7c2 | [260415-81t-remove-study-prefix-from-study-jar-ids](./quick/260415-81t-remove-study-prefix-from-study-jar-ids/) |
 | 260415-8hc | Split innerClasses into separate detail flag | 2026-04-14 | 7cf52c0 | [260415-8hc-split-innerclasses-into-separate-detail-](./quick/260415-8hc-split-innerclasses-into-separate-detail-/) |
 | Phase 28 P01 | 3min | 2 tasks | 7 files |
+| Phase 29 P01 | 5min | 2 tasks | 8 files |
 
 ## Session Continuity
 
-Last session: 2026-04-16T00:27:11.840Z
-Stopped at: Completed 28-01-PLAN.md
+Last session: 2026-04-16T00:44:45.044Z
+Stopped at: Completed 29-01-PLAN.md
 Resume file: None

@@ -84,7 +84,7 @@
 **Milestone Goal:** Address all findings from comprehensive 4-agent codebase audit — fix bugs, unify API patterns, improve documentation accuracy, and close gaps to make the server reliable and agent-friendly.
 
 - [x] **Phase 28: Jar & Cache Bug Fixes** - Fix cache eviction leak, jar reader race condition, error messages, and missing metadata (completed 2026-04-16)
-- [ ] **Phase 29: JDT LS & Workspace Bug Fixes** - Fix data dir cleanup, type hierarchy cycles, inner class source reading, and workspace sync partial failure
+- [x] **Phase 29: JDT LS & Workspace Bug Fixes** - Fix data dir cleanup, type hierarchy cycles, inner class source reading, and workspace sync partial failure (completed 2026-04-16)
 - [ ] **Phase 30: API Consistency** - Unify pagination envelopes, rename parameters, validate enums, remove dead fields
 - [ ] **Phase 31: Data Exposure** - Surface JDT LS status, build dependencies, jar locations, and inner class FQNs in tool responses
 - [ ] **Phase 32: Per-Child Jar Filtering** - Fix getDependenciesForTool to apply each child's own filter instead of merged filter
@@ -119,7 +119,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 29-01-PLAN.md — Fix data dir cleanup, type hierarchy cycles, inner class read_source, and workspace sync partial failure
+- [x] 29-01-PLAN.md — Fix data dir cleanup, type hierarchy cycles, inner class read_source, and workspace sync partial failure
 
 ### Phase 30: API Consistency
 **Goal**: All tool schemas use consistent naming, validated enums, and unified pagination envelopes
@@ -188,7 +188,7 @@ Phases execute in numeric order: 28 → 29 → 30 → 31 → 32 → 33 → 34
 | 19-22 | v1.3 | 9/9 | Complete | 2026-04-15 |
 | 23-27 | v1.4 | 15/15 | Complete | 2026-04-15 |
 | 28. Jar & Cache Bug Fixes | v1.5 | 1/1 | Complete    | 2026-04-16 |
-| 29. JDT LS & Workspace Bug Fixes | v1.5 | 0/1 | Not started | - |
+| 29. JDT LS & Workspace Bug Fixes | v1.5 | 1/1 | Complete   | 2026-04-16 |
 | 30. API Consistency | v1.5 | 0/? | Not started | - |
 | 31. Data Exposure | v1.5 | 0/? | Not started | - |
 | 32. Per-Child Jar Filtering | v1.5 | 0/? | Not started | - |
