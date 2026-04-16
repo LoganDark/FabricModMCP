@@ -17,13 +17,13 @@ Requirements for v1.5 Quality & Consistency milestone. Derived from comprehensiv
 
 ### Pagination & API Consistency
 
-- [ ] **API-01**: All paginated tools return both `limit` and `hasMore` in response envelopes
-- [ ] **API-02**: `search_classes` parameter renamed from `pattern` to `query`
-- [ ] **API-03**: `remove_project_member` parameter renamed from `members` to `names`
-- [ ] **API-04**: `search_symbols` default limit removed (return all by default like other tools)
-- [ ] **API-05**: `search_classes` kind filter uses z.enum validation instead of unvalidated string array
-- [ ] **API-06**: `field` removed from `search_symbols` kind enum with documentation that field search is not supported
-- [ ] **API-07**: `javadoc` field removed from `get_symbol_info` response (always empty), TODO comment left for future
+- [x] **API-01**: All paginated tools return both `limit` and `hasMore` in response envelopes
+- [x] **API-02**: `search_classes` parameter renamed from `pattern` to `query`
+- [x] **API-03**: `remove_project_member` parameter renamed from `members` to `names`
+- [x] **API-04**: `search_symbols` default limit removed (return all by default like other tools)
+- [x] **API-05**: `search_classes` kind filter uses z.enum validation instead of unvalidated string array
+- [x] **API-06**: `field` removed from `search_symbols` kind enum with documentation that field search is not supported
+- [x] **API-07**: `javadoc` field removed from `get_symbol_info` response (always empty), TODO comment left for future
 
 ### Bug Fixes
 
@@ -95,13 +95,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DOC-03 | Phase 34 | Pending |
 | DOC-04 | Phase 34 | Pending |
 | DOC-05 | Phase 34 | Pending |
-| API-01 | Phase 30 | Pending |
-| API-02 | Phase 30 | Pending |
-| API-03 | Phase 30 | Pending |
-| API-04 | Phase 30 | Pending |
-| API-05 | Phase 30 | Pending |
-| API-06 | Phase 30 | Pending |
-| API-07 | Phase 30 | Pending |
+| API-01 | Phase 30 | Complete |
+| API-02 | Phase 30 | Complete |
+| API-03 | Phase 30 | Complete |
+| API-04 | Phase 30 | Complete |
+| API-05 | Phase 30 | Complete |
+| API-06 | Phase 30 | Complete |
+| API-07 | Phase 30 | Complete |
 | FIX-01 | Phase 28 | Complete |
 | FIX-02 | Phase 29 | Complete |
 | FIX-03 | Phase 28 | Complete |
