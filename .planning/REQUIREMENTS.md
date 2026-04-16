@@ -9,11 +9,11 @@ Requirements for v1.5 Quality & Consistency milestone. Derived from comprehensiv
 
 ### Documentation
 
-- [ ] **DOC-01**: Each JDT LS-dependent tool description states the JDT LS requirement, and SERVER_INSTRUCTIONS explains what JDT LS is and how to check availability
-- [ ] **DOC-02**: SERVER_INSTRUCTIONS documents the response envelope structure (`{ ok, data }` / `{ ok, code, message, tried, suggestions }`)
-- [ ] **DOC-03**: SERVER_INSTRUCTIONS includes study jar workflow, scope dual-effect explanation, refresh guidance, and configure_filters mention
-- [ ] **DOC-04**: All tool descriptions accurately match their actual input schemas, response fields, and behavior (fixes: locate_in_source matchedText, list_study_jars totalEntries, create_project JDT LS init, read_member FQN format, type_hierarchy depth semantics, set_active_child description, configure_filters pattern example, search_symbols field kind note)
-- [ ] **DOC-05**: CLAUDE.md sections filled in (Architecture, Conventions, Project Structure) with stale Phase references removed
+- [x] **DOC-01**: Each JDT LS-dependent tool description states the JDT LS requirement, and SERVER_INSTRUCTIONS explains what JDT LS is and how to check availability
+- [x] **DOC-02**: SERVER_INSTRUCTIONS documents the response envelope structure (`{ ok, data }` / `{ ok, code, message, tried, suggestions }`)
+- [x] **DOC-03**: SERVER_INSTRUCTIONS includes study jar workflow, scope dual-effect explanation, refresh guidance, and configure_filters mention
+- [x] **DOC-04**: All tool descriptions accurately match their actual input schemas, response fields, and behavior (fixes: locate_in_source matchedText, list_study_jars totalEntries, create_project JDT LS init, read_member FQN format, type_hierarchy depth semantics, set_active_child description, configure_filters pattern example, search_symbols field kind note)
+- [x] **DOC-05**: CLAUDE.md sections filled in (Architecture, Conventions, Project Structure) with stale Phase references removed
 
 ### Pagination & API Consistency
 
@@ -90,11 +90,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DOC-01 | Phase 34 | Pending |
-| DOC-02 | Phase 34 | Pending |
-| DOC-03 | Phase 34 | Pending |
-| DOC-04 | Phase 34 | Pending |
-| DOC-05 | Phase 34 | Pending |
+| DOC-01 | Phase 34 | Complete |
+| DOC-02 | Phase 34 | Complete |
+| DOC-03 | Phase 34 | Complete |
+| DOC-04 | Phase 34 | Complete |
+| DOC-05 | Phase 34 | Complete |
 | API-01 | Phase 30 | Complete |
 | API-02 | Phase 30 | Complete |
 | API-03 | Phase 30 | Complete |

@@ -89,7 +89,7 @@
 - [x] **Phase 31: Data Exposure** - Surface JDT LS status, build dependencies, jar locations, and inner class FQNs in tool responses (completed 2026-04-16)
 - [x] **Phase 32: Per-Child Jar Filtering** - Fix getDependenciesForTool to apply each child's own filter instead of merged filter (completed 2026-04-16)
 - [x] **Phase 33: Build File Re-parsing** - Extend refresh tools to re-parse gradle.properties, build.gradle.kts, and fabric.mod.json (completed 2026-04-16)
-- [ ] **Phase 34: Documentation & Instructions** - Accurate tool descriptions, complete SERVER_INSTRUCTIONS, and filled CLAUDE.md sections
+- [x] **Phase 34: Documentation & Instructions** - Accurate tool descriptions, complete SERVER_INSTRUCTIONS, and filled CLAUDE.md sections (completed 2026-04-16)
 
 ## Phase Details
 
@@ -188,7 +188,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 34-01-PLAN.md — Update SERVER_INSTRUCTIONS, all tool descriptions, and CLAUDE.md sections
+- [x] 34-01-PLAN.md — Update SERVER_INSTRUCTIONS, all tool descriptions, and CLAUDE.md sections
 
 ## Progress
 
@@ -208,4 +208,4 @@ Phases execute in numeric order: 28 → 29 → 30 → 31 → 32 → 33 → 34
 | 31. Data Exposure | v1.5 | 1/1 | Complete    | 2026-04-16 |
 | 32. Per-Child Jar Filtering | v1.5 | 1/1 | Complete    | 2026-04-16 |
 | 33. Build File Re-parsing | v1.5 | 1/1 | Complete    | 2026-04-16 |
-| 34. Documentation & Instructions | v1.5 | 0/1 | Not started | - |
+| 34. Documentation & Instructions | v1.5 | 1/1 | Complete   | 2026-04-16 |
