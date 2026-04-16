@@ -43,10 +43,10 @@ Requirements for v1.5 Quality & Consistency milestone. Derived from comprehensiv
 
 ### Data Exposure
 
-- [ ] **DATA-01**: `get_project_info` includes JDT LS availability status and failure reason per project
-- [ ] **DATA-02**: `get_member_info` exposes GradleConfig.dependencies (declared build dependencies with configuration, group, artifact, version)
-- [ ] **DATA-03**: `type_hierarchy` ClassReference output includes jar ID for each supertype/subtype
-- [ ] **DATA-04**: `list_members` compact output includes FQN for inner class entries
+- [x] **DATA-01**: `get_project_info` includes JDT LS availability status and failure reason per project
+- [x] **DATA-02**: `get_member_info` exposes GradleConfig.dependencies (declared build dependencies with configuration, group, artifact, version)
+- [x] **DATA-03**: `type_hierarchy` ClassReference output includes jar ID for each supertype/subtype
+- [x] **DATA-04**: `list_members` compact output includes FQN for inner class entries
 
 ## Future Requirements
 
@@ -112,10 +112,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FIX-08 | Phase 28 | Complete |
 | BEH-01 | Phase 32 | Pending |
 | BEH-02 | Phase 33 | Pending |
-| DATA-01 | Phase 31 | Pending |
-| DATA-02 | Phase 31 | Pending |
-| DATA-03 | Phase 31 | Pending |
-| DATA-04 | Phase 31 | Pending |
+| DATA-01 | Phase 31 | Complete |
+| DATA-02 | Phase 31 | Complete |
+| DATA-03 | Phase 31 | Complete |
+| DATA-04 | Phase 31 | Complete |
 
 **Coverage:**
 - v1.5 requirements: 26 total
