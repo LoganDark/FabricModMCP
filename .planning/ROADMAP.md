@@ -171,7 +171,10 @@ Plans:
   1. refresh_project re-reads gradle.properties and build.gradle.kts, detecting changes to Minecraft version, mappings, and dependencies
   2. refresh_project_members re-reads fabric.mod.json for each fabric mod child, detecting changes to mod metadata
   3. After modifying gradle.properties and calling refresh, the project reflects the updated configuration (e.g., new Minecraft version)
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 33-01-PLAN.md — Extract shared re-parsing helper and wire into both refresh tools
 
 ### Phase 34: Documentation & Instructions
 **Goal**: All tool descriptions, SERVER_INSTRUCTIONS, and CLAUDE.md accurately describe the server's actual behavior and API
@@ -201,5 +204,5 @@ Phases execute in numeric order: 28 → 29 → 30 → 31 → 32 → 33 → 34
 | 30. API Consistency | v1.5 | 1/1 | Complete    | 2026-04-16 |
 | 31. Data Exposure | v1.5 | 1/1 | Complete    | 2026-04-16 |
 | 32. Per-Child Jar Filtering | v1.5 | 1/1 | Complete    | 2026-04-16 |
-| 33. Build File Re-parsing | v1.5 | 0/? | Not started | - |
+| 33. Build File Re-parsing | v1.5 | 0/1 | Not started | - |
 | 34. Documentation & Instructions | v1.5 | 0/? | Not started | - |
