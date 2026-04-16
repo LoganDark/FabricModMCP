@@ -560,6 +560,56 @@ describe('isWorkspaceSynced', () => {
 			expect(jdtls.jarIdToDirName.has('testmod/minecraft')).toBe(false);
 			expect(jdtls.jarIdToDirName.has('testmod')).toBe(false);
 		});
+
+		it('cleans up partially extracted directories on failure', async () => {
+			const tempDir = await mkdtemp(join(tmpdir(), 'test-ws-sync-'));
+			tempDirs.push(tempDir);
+
+			// First dep succeeds, second dep fails
+			let callCount = 0;
+			const partialReader = {
+				listEntries: async () => {
+					callCount++;
+					if (callCount === 1) return ['com/example/Foo.java'];
+					throw new Error('second dep failed');
+				},
+				readEntry: async () => Buffer.from('public class Foo {}'),
+			} as unknown as JarReader;
+
+			// Create a mod with two deps that both have source jars
+			const deps = new Map<string, DependencyEntry>([
+				['testmod/minecraft', {
+					id: 'testmod/minecraft',
+					group: 'com.mojang',
+					artifact: 'minecraft',
+					version: '1.21.11',
+					category: 'minecraft',
+					sourcesJarPath: '/fake/minecraft-sources.jar',
+					available: true,
+					provenanceChains: [],
+				}],
+				['testmod/fabric-api', {
+					id: 'testmod/fabric-api',
+					group: 'net.fabricmc',
+					artifact: 'fabric-api',
+					version: '1.0.0',
+					category: 'fabric-api',
+					sourcesJarPath: '/fake/fabric-sources.jar',
+					available: true,
+					provenanceChains: [],
+				}],
+			]);
+
+			const mod = createMockFabricMod({ deps });
+			const endpoint = createMockEndpoint();
+			const jdtls = createMockJdtLsSession(tempDir, { endpoint });
+
+			const result = await syncFabricModToWorkspace(mod, jdtls, partialReader);
+
+			expect(result.synced).toBe(false);
+			// The first dep's directory should have been cleaned up
+			expect(existsSync(join(tempDir, 'testmod--minecraft'))).toBe(false);
+		});
 	});
 
 	describe('unsyncFabricModFromWorkspace', () => {
