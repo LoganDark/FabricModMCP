@@ -45,7 +45,7 @@ describe('remove_project_member tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'remove_project_member',
-			arguments: { project: 'test', members: ['mod-a'] },
+			arguments: { project: 'test', names: ['mod-a'] },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -70,7 +70,7 @@ describe('remove_project_member tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'remove_project_member',
-			arguments: { project: 'test', members: ['my-study'] },
+			arguments: { project: 'test', names: ['my-study'] },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -86,7 +86,7 @@ describe('remove_project_member tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'remove_project_member',
-			arguments: { project: 'test', members: ['mod-a', 'nonexistent'] },
+			arguments: { project: 'test', names: ['mod-a', 'nonexistent'] },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -109,7 +109,7 @@ describe('remove_project_member tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'remove_project_member',
-			arguments: { project: 'test', members: ['testmod'] },
+			arguments: { project: 'test', names: ['testmod'] },
 		});
 
 		const envelope = parseEnvelope(result);

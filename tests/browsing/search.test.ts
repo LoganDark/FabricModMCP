@@ -92,7 +92,7 @@ describe('searchClasses', () => {
 	describe('pattern matching', () => {
 		it('*Client matches class name but not FQN with dots', async () => {
 			const result = await searchClasses(
-				{ pattern: '*Client' },
+				{ query: '*Client' },
 				deps, '/fake/root', mockJarReader,
 			);
 			// *Client should match MinecraftClient (single segment, no dots)
@@ -101,7 +101,7 @@ describe('searchClasses', () => {
 
 		it('**.*Client matches FQN with any number of package segments', async () => {
 			const result = await searchClasses(
-				{ pattern: '**.*Client' },
+				{ query: '**.*Client' },
 				deps, '/fake/root', mockJarReader,
 			);
 			expect(result.results.map(r => r.fqn)).toContain('net.minecraft.client.MinecraftClient');
@@ -109,7 +109,7 @@ describe('searchClasses', () => {
 
 		it('net.minecraft.client.* matches classes directly in that package', async () => {
 			const result = await searchClasses(
-				{ pattern: 'net.minecraft.client.*' },
+				{ query: 'net.minecraft.client.*' },
 				deps, '/fake/root', mockJarReader,
 			);
 			const fqns = result.results.map(r => r.fqn);
@@ -120,7 +120,7 @@ describe('searchClasses', () => {
 
 		it('net.minecraft.** matches classes in any sub-package', async () => {
 			const result = await searchClasses(
-				{ pattern: 'net.minecraft.**' },
+				{ query: 'net.minecraft.**' },
 				deps, '/fake/root', mockJarReader,
 			);
 			const fqns = result.results.map(r => r.fqn);
@@ -132,7 +132,7 @@ describe('searchClasses', () => {
 
 		it('*$Options matches inner classes', async () => {
 			const result = await searchClasses(
-				{ pattern: '*$Options' },
+				{ query: '*$Options' },
 				deps, '/fake/root', mockJarReader,
 			);
 			expect(result.results.map(r => r.fqn)).toContain('net.minecraft.client.MinecraftClient$Options');
@@ -142,7 +142,7 @@ describe('searchClasses', () => {
 	describe('case sensitivity', () => {
 		it('case-insensitive by default: *client matches MinecraftClient', async () => {
 			const result = await searchClasses(
-				{ pattern: '*client' },
+				{ query: '*client' },
 				deps, '/fake/root', mockJarReader,
 			);
 			expect(result.results.map(r => r.fqn)).toContain('net.minecraft.client.MinecraftClient');
@@ -150,7 +150,7 @@ describe('searchClasses', () => {
 
 		it('case-sensitive when caseSensitive=true: *client does NOT match MinecraftClient', async () => {
 			const result = await searchClasses(
-				{ pattern: '*client', caseSensitive: true },
+				{ query: '*client', caseSensitive: true },
 				deps, '/fake/root', mockJarReader,
 			);
 			expect(result.results.map(r => r.fqn)).not.toContain('net.minecraft.client.MinecraftClient');
@@ -160,7 +160,7 @@ describe('searchClasses', () => {
 	describe('kind filtering', () => {
 		it('returns all types when kind is omitted', async () => {
 			const result = await searchClasses(
-				{ pattern: '**' },
+				{ query: '**' },
 				deps, '/fake/root', mockJarReader,
 			);
 			const types = result.results.map(r => r.kind);
@@ -170,7 +170,7 @@ describe('searchClasses', () => {
 
 		it('filters to only interfaces when kind=["interface"]', async () => {
 			const result = await searchClasses(
-				{ pattern: '**', kind: ['interface'] },
+				{ query: '**', kind: ['interface'] },
 				deps, '/fake/root', mockJarReader,
 			);
 			expect(result.results.every(r => r.kind === 'interface')).toBe(true);
@@ -179,7 +179,7 @@ describe('searchClasses', () => {
 
 		it('filters to classes and enums when kind=["class", "enum"]', async () => {
 			const result = await searchClasses(
-				{ pattern: '**', kind: ['class', 'enum'] },
+				{ query: '**', kind: ['class', 'enum'] },
 				deps, '/fake/root', mockJarReader,
 			);
 			expect(result.results.every(r => r.kind === 'class' || r.kind === 'enum')).toBe(true);
@@ -205,7 +205,7 @@ describe('searchClasses', () => {
 			});
 
 			const result = await searchClasses(
-				{ pattern: '**.Bootstrap' },
+				{ query: '**.Bootstrap' },
 				deps, '/fake/root', mockJarReader,
 			);
 
@@ -221,7 +221,7 @@ describe('searchClasses', () => {
 	describe('sorting', () => {
 		it('sorts by jar priority (minecraft before library) then alphabetically', async () => {
 			const result = await searchClasses(
-				{ pattern: '**' },
+				{ query: '**' },
 				deps, '/fake/root', mockJarReader,
 			);
 
@@ -235,7 +235,7 @@ describe('searchClasses', () => {
 	describe('pagination', () => {
 		it('defaults to offset=0, limit=250', async () => {
 			const result = await searchClasses(
-				{ pattern: '**' },
+				{ query: '**' },
 				deps, '/fake/root', mockJarReader,
 			);
 			expect(result.offset).toBe(0);
@@ -244,11 +244,11 @@ describe('searchClasses', () => {
 
 		it('total reflects count after kind filtering', async () => {
 			const allResult = await searchClasses(
-				{ pattern: '**' },
+				{ query: '**' },
 				deps, '/fake/root', mockJarReader,
 			);
 			const interfaceResult = await searchClasses(
-				{ pattern: '**', kind: ['interface'] },
+				{ query: '**', kind: ['interface'] },
 				deps, '/fake/root', mockJarReader,
 			);
 			expect(interfaceResult.total).toBeLessThan(allResult.total);
@@ -256,11 +256,11 @@ describe('searchClasses', () => {
 
 		it('respects offset and limit', async () => {
 			const all = await searchClasses(
-				{ pattern: '**' },
+				{ query: '**' },
 				deps, '/fake/root', mockJarReader,
 			);
 			const page = await searchClasses(
-				{ pattern: '**', offset: 1, limit: 2 },
+				{ query: '**', offset: 1, limit: 2 },
 				deps, '/fake/root', mockJarReader,
 			);
 			expect(page.results.length).toBe(2);
@@ -272,7 +272,7 @@ describe('searchClasses', () => {
 
 		it('offset past end returns empty results with correct total', async () => {
 			const result = await searchClasses(
-				{ pattern: '**', offset: 9999 },
+				{ query: '**', offset: 9999 },
 				deps, '/fake/root', mockJarReader,
 			);
 			expect(result.results).toEqual([]);
@@ -284,7 +284,7 @@ describe('searchClasses', () => {
 		it('pre-filtered deps limits which jars to search', async () => {
 			const scoped = filterDependenciesByJarPattern(deps, ['minecraft']);
 			const result = await searchClasses(
-				{ pattern: '**' },
+				{ query: '**' },
 				scoped, '/fake/root', mockJarReader,
 			);
 			// Should only have classes from the minecraft jar
@@ -296,7 +296,7 @@ describe('searchClasses', () => {
 		it('pre-filtered deps supports glob patterns', async () => {
 			const scoped = filterDependenciesByJarPattern(deps, ['fabric-api:*']);
 			const result = await searchClasses(
-				{ pattern: '**' },
+				{ query: '**' },
 				scoped, '/fake/root', mockJarReader,
 			);
 			expect(result.results.map(r => r.fqn)).toContain('net.fabricmc.fabric.api.networking.NetworkHandler');

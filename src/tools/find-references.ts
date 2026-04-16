@@ -78,6 +78,7 @@ export function registerFindReferencesTool(server: McpServer): void {
 				const envelope = makeSuccess(
 					{
 						...paginated,
+						limit: limit ?? paginated.results.length,
 						results: stripped,
 						sourcePosition: {
 							jar: sourceJarId,

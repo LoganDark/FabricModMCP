@@ -12,10 +12,11 @@ export interface SearchResponse {
 	offset: number;
 	limit: number;
 	total: number;
+	hasMore: boolean;
 }
 
 export interface SearchOptions {
-	pattern: string;
+	query: string;
 	caseSensitive?: boolean;
 	kind?: string[];
 	offset?: number;
@@ -35,7 +36,7 @@ export async function searchClasses(
 	const sortedJars = sortByPriority(Array.from(resolvedDeps.entries()));
 
 	// Step 4: Create FQN matcher using dot-to-slash conversion
-	let matchPattern = options.pattern.replaceAll('.', '/');
+	let matchPattern = options.query.replaceAll('.', '/');
 	// If the pattern has no path separators (no dots were converted),
 	// allow matching at any depth by prepending {**/,}
 	if (!matchPattern.includes('/')) {
@@ -158,5 +159,6 @@ export async function searchClasses(
 		offset,
 		limit,
 		total,
+		hasMore: offset + sliced.length < total,
 	};
 }

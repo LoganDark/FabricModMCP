@@ -21,18 +21,18 @@ export function registerRemoveProjectMemberTool(server: McpServer): void {
 			description: TOOL_DESCRIPTIONS.remove_project_member,
 			inputSchema: {
 				project: PARAMS.project,
-				members: z.array(z.string()).min(1).describe('Names of members to remove'),
+				names: z.array(z.string()).min(1).describe('Names of members to remove'),
 			},
 		},
-		async ({ project, members }) => {
-			logger.debug('remove_project_member called', { project, members });
+		async ({ project, names }) => {
+			logger.debug('remove_project_member called', { project, names });
 
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
 
 			// First pass: validate all names exist
-			for (const name of members) {
+			for (const name of names) {
 				if (!loadedProject.children.has(name)) {
 					return returnError(
 						'CHILD_NOT_FOUND',
@@ -44,7 +44,7 @@ export function registerRemoveProjectMemberTool(server: McpServer): void {
 			}
 
 			// Second pass: remove each member
-			for (const name of members) {
+			for (const name of names) {
 				const child = loadedProject.children.get(name)!;
 
 				if (child.kind === 'fabric-mod') {
@@ -120,17 +120,17 @@ export function registerRemoveProjectMemberTool(server: McpServer): void {
 				}
 			}
 
-			logger.info(`Removed members [${members.join(', ')}] from project '${loadedProject.name}'`);
+			logger.info(`Removed members [${names.join(', ')}] from project '${loadedProject.name}'`);
 
 			const envelope = makeSuccess({
-				removed: members,
+				removed: names,
 				project: loadedProject.name,
 			}, {
 				provenance: { tool: 'remove_project_member', project: loadedProject.name },
 			});
 
 			return {
-				content: [{ type: 'text' as const, text: `Removed ${members.length} member(s) from project '${loadedProject.name}': ${members.join(', ')}` }],
+				content: [{ type: 'text' as const, text: `Removed ${names.length} member(s) from project '${loadedProject.name}': ${names.join(', ')}` }],
 				structuredContent: envelope,
 			};
 		},

@@ -118,7 +118,7 @@ describe('search_classes tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'search_classes',
-			arguments: { project: 'test', pattern: '*Client' },
+			arguments: { project: 'test', query: '*Client' },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -134,7 +134,7 @@ describe('search_classes tool', () => {
 	it('returns DomainError envelope for nonexistent project', async () => {
 		const result = await pair.client.callTool({
 			name: 'search_classes',
-			arguments: { project: 'nonexistent', pattern: '*Client' },
+			arguments: { project: 'nonexistent', query: '*Client' },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -148,7 +148,7 @@ describe('search_classes tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'search_classes',
-			arguments: { project: 'test', pattern: '**.*Registry' },
+			arguments: { project: 'test', query: '**.*Registry' },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -160,7 +160,7 @@ describe('search_classes tool', () => {
 		expect(envelope.metadata.provenance).toBeDefined();
 		expect(envelope.metadata.provenance.tool).toBe('search_classes');
 		expect(envelope.metadata.provenance.project).toBe('test');
-		expect(envelope.metadata.provenance.pattern).toBe('**.*Registry');
+		expect(envelope.metadata.provenance.query).toBe('**.*Registry');
 	});
 
 	it('accepts optional parameters: caseSensitive, kind, jars, offset, limit', async () => {
@@ -171,7 +171,7 @@ describe('search_classes tool', () => {
 			name: 'search_classes',
 			arguments: {
 				project: 'test',
-				pattern: '*',
+				query: '*',
 				caseSensitive: true,
 				kind: ['class'],
 				jars: ['testmod/minecraft'],
@@ -191,7 +191,7 @@ describe('search_classes tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'search_classes',
-			arguments: { project: 'test', pattern: '*Client' },
+			arguments: { project: 'test', query: '*Client' },
 		});
 
 		const envelope = parseEnvelope(result);
@@ -212,7 +212,7 @@ describe('search_classes tool', () => {
 
 		const result = await pair.client.callTool({
 			name: 'search_classes',
-			arguments: { project: 'test', pattern: '*Client', details: { modifiers: true } },
+			arguments: { project: 'test', query: '*Client', details: { modifiers: true } },
 		});
 
 		const envelope = parseEnvelope(result);
