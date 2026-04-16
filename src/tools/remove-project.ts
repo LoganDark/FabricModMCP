@@ -8,6 +8,7 @@ import { returnError } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS } from './descriptions.js';
 import { shutdownJdtLs } from '../jdtls/client.js';
 import { cleanupTempDir } from '../jdtls/workspace.js';
+import { evictEntryIndex } from '../browsing/entry-index-cache.js';
 
 export function registerRemoveProjectTool(server: McpServer): void {
 	server.registerTool(
@@ -45,6 +46,29 @@ export function registerRemoveProjectTool(server: McpServer): void {
 					await cleanupTempDir(proj.jdtls.tempDir);
 				} catch (err) {
 					logger.warn(`Temp dir cleanup error for ${project}: ${err}`);
+				}
+			}
+
+			// Evict entry index cache BEFORE closing project (getProjectJars returns undefined after close)
+			const jarPaths = jarReader.getProjectJars(project);
+			if (jarPaths) {
+				for (const jarPath of jarPaths) {
+					evictEntryIndex(jarPath);
+				}
+			}
+			// Also evict mod source cache keys (fs: prefix entries)
+			for (const child of proj.children.values()) {
+				if (child.kind === 'fabric-mod') {
+					for (const dep of child.dependencyJars.values()) {
+						if (dep.sourcesJarPath) {
+							evictEntryIndex(dep.sourcesJarPath);
+						}
+					}
+					if (child.sourcesJar.path) {
+						evictEntryIndex(child.sourcesJar.path);
+					}
+				} else if (child.kind === 'study-jar') {
+					evictEntryIndex(child.jarPath);
 				}
 			}
 

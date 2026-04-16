@@ -2,7 +2,7 @@ import StreamZip from 'node-stream-zip';
 import { DomainError } from '../errors/domain-error.js';
 
 export class JarReader {
-	private handles = new Map<string, StreamZip.StreamZipAsync>();
+	private handles = new Map<string, Promise<StreamZip.StreamZipAsync>>();
 	private projectHandles = new Map<string, Set<string>>();
 
 	registerProject(projectName: string, jarPaths: Set<string>): void {
@@ -86,37 +86,55 @@ export class JarReader {
 	}
 
 	async close(jarPath: string): Promise<void> {
-		const handle = this.handles.get(jarPath);
-		if (handle) {
-			await handle.close();
+		const handlePromise = this.handles.get(jarPath);
+		if (handlePromise) {
 			this.handles.delete(jarPath);
+			try {
+				const handle = await handlePromise;
+				await handle.close();
+			} catch {
+				// Handle failed to open -- nothing to close
+			}
 		}
 	}
 
 	async closeAll(): Promise<void> {
-		for (const [, handle] of this.handles) {
-			await handle.close();
-		}
+		const promises = Array.from(this.handles.values());
 		this.handles.clear();
+		for (const handlePromise of promises) {
+			try {
+				const handle = await handlePromise;
+				await handle.close();
+			} catch {
+				// Handle failed to open -- nothing to close
+			}
+		}
 	}
 
 	private async getHandle(jarPath: string): Promise<StreamZip.StreamZipAsync> {
-		let handle = this.handles.get(jarPath);
-		if (!handle) {
-			try {
-				handle = new StreamZip.async({ file: jarPath, storeEntries: true });
-				// Force open by accessing entries (validates the file exists and is a valid ZIP)
-				await handle.entries();
-				this.handles.set(jarPath, handle);
-			} catch {
-				throw new DomainError(
-					'JAR_OPEN_FAILED',
-					`Failed to open jar: ${jarPath}`,
-					[jarPath],
-					['Check that the file exists and is a valid JAR/ZIP file'],
-				);
-			}
+		const existing = this.handles.get(jarPath);
+		if (existing) {
+			return existing;
 		}
-		return handle;
+
+		const handlePromise = (async () => {
+			const zip = new StreamZip.async({ file: jarPath, storeEntries: true });
+			// Force open by accessing entries (validates the file exists and is a valid ZIP)
+			await zip.entries();
+			return zip;
+		})();
+		this.handles.set(jarPath, handlePromise);
+
+		try {
+			return await handlePromise;
+		} catch {
+			this.handles.delete(jarPath);
+			throw new DomainError(
+				'JAR_OPEN_FAILED',
+				`Failed to open jar: ${jarPath}`,
+				[jarPath],
+				['Check that the file exists and is a valid JAR/ZIP file'],
+			);
+		}
 	}
 }

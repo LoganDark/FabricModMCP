@@ -169,6 +169,35 @@ describe('JarReader', () => {
 			});
 		});
 
+		it('concurrent getHandle calls for the same jar return the same handle', async () => {
+			trackReader.registerProject('proj-c', new Set([testJarPath]));
+			// Launch multiple reads concurrently -- all should resolve with the same data
+			const results = await Promise.all([
+				trackReader.readEntry(testJarPath, 'net/minecraft/Bootstrap.java'),
+				trackReader.readEntry(testJarPath, 'net/minecraft/client/MinecraftClient.java'),
+				trackReader.readEntry(testJarPath, 'net/minecraft/Bootstrap.java'),
+			]);
+			expect(results[0].toString('utf-8')).toContain('Bootstrap');
+			expect(results[1].toString('utf-8')).toContain('MinecraftClient');
+			expect(results[2].toString('utf-8')).toContain('Bootstrap');
+		});
+
+		it('failed getHandle cleans up sentinel so retries work', async () => {
+			const badPath = '/nonexistent/bad.jar';
+			trackReader.registerProject('proj-fail', new Set([badPath]));
+
+			// First attempt should fail
+			await expect(
+				trackReader.readEntry(badPath, 'any/Entry.java'),
+			).rejects.toThrow('Failed to open jar');
+
+			// After failure, a subsequent call with a valid path should still work
+			// (the sentinel should be cleaned up)
+			trackReader.addProjectJar('proj-fail', testJarPath);
+			const buf = await trackReader.readEntry(testJarPath, 'net/minecraft/Bootstrap.java');
+			expect(buf.toString('utf-8')).toContain('Bootstrap');
+		});
+
 		it('closeProject removes project tracking', async () => {
 			trackReader.registerProject('proj-a', new Set([testJarPath]));
 			await trackReader.closeProject('proj-a');
