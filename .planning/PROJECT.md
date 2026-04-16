@@ -55,7 +55,14 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 
 ### Active
 
-(None — planning next milestone)
+- [ ] Unified pagination with both limit and hasMore on all paginated tools
+- [ ] Per-child jar filtering instead of merged filter in multi-mod projects
+- [ ] Build file re-parsing on refresh_project/refresh_project_members
+- [ ] Accurate tool descriptions with JDT LS requirements documented per-tool
+- [ ] Response envelope structure documented in SERVER_INSTRUCTIONS
+- [ ] Bug fixes: entryIndexCache eviction, JDT LS data dir cleanup, inner class read_source, workspace sync cleanup, type_hierarchy cycle detection
+- [ ] API consistency: rename parameters, validate enums, remove dead fields/options
+- [ ] Expose JDT LS status, GradleConfig.dependencies, type_hierarchy jar locations, inner class FQNs
 
 ### Out of Scope
 
@@ -68,10 +75,18 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - JDT LS in-memory file support — rejected, JDT LS requires real files on disk (Issue #1815)
 - Study jars live at project level, not under fabric mods — already implemented in v1.4, moved from Active
 
-## Current State
+## Current Milestone: v1.5 Quality & Consistency
 
-**Latest shipped:** v1.4 Project Rearchitecture (2026-04-15)
-**Next milestone:** TBD — run `/gsd:new-milestone` to plan
+**Goal:** Address all findings from comprehensive 4-agent codebase audit — fix bugs, unify API patterns, improve documentation accuracy, and close gaps to make the server reliable and agent-friendly.
+
+**Target features:**
+- Unified pagination envelopes (limit + hasMore on all paginated tools)
+- Per-child jar filtering (fix merged filter application in multi-mod projects)
+- Build file re-parsing on refresh (gradle.properties, build.gradle.kts, fabric.mod.json)
+- Accurate SERVER_INSTRUCTIONS with JDT LS requirements, response envelope docs, study jar workflow
+- Bug fixes: entryIndexCache leak, JDT LS data dir cleanup, inner class read_source, workspace sync cleanup
+- API consistency: parameter naming, kind enum validation, pagination defaults
+- Expose missing data: JDT LS status, GradleConfig.dependencies, type_hierarchy jar locations, inner class FQNs
 
 ## Context
 
@@ -146,4 +161,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-15 after v1.4 milestone*
+*Last updated: 2026-04-15 after v1.5 milestone start*
