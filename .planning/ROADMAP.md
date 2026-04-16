@@ -116,7 +116,10 @@ Plans:
   2. type_hierarchy does not hang or crash when the class hierarchy contains cycles (returns results with cycle broken)
   3. read_source accepts inner class FQNs (e.g., `net.minecraft.client.Foo$Bar`) and returns the outer class source
   4. syncFabricModToWorkspace removes partially extracted files when extraction fails midway
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 29-01-PLAN.md — Fix data dir cleanup, type hierarchy cycles, inner class read_source, and workspace sync partial failure
 
 ### Phase 30: API Consistency
 **Goal**: All tool schemas use consistent naming, validated enums, and unified pagination envelopes
@@ -185,7 +188,7 @@ Phases execute in numeric order: 28 → 29 → 30 → 31 → 32 → 33 → 34
 | 19-22 | v1.3 | 9/9 | Complete | 2026-04-15 |
 | 23-27 | v1.4 | 15/15 | Complete | 2026-04-15 |
 | 28. Jar & Cache Bug Fixes | v1.5 | 1/1 | Complete    | 2026-04-16 |
-| 29. JDT LS & Workspace Bug Fixes | v1.5 | 0/? | Not started | - |
+| 29. JDT LS & Workspace Bug Fixes | v1.5 | 0/1 | Not started | - |
 | 30. API Consistency | v1.5 | 0/? | Not started | - |
 | 31. Data Exposure | v1.5 | 0/? | Not started | - |
 | 32. Per-Child Jar Filtering | v1.5 | 0/? | Not started | - |
