@@ -46,6 +46,12 @@ export function registerGetMemberInfoTool(server: McpServer): void {
 					yarnMappings: child.gradleConfig.yarnMappings ?? null,
 					loaderVersion: child.gradleConfig.loaderVersion ?? null,
 					fabricApiVersion: child.gradleConfig.fabricApiVersion ?? null,
+					declaredDependencies: child.gradleConfig.dependencies.map(d => ({
+						configuration: d.configuration,
+						group: d.group,
+						artifact: d.artifact,
+						version: d.version,
+					})),
 				};
 
 				const mod = child.fabricMod as Record<string, unknown>;

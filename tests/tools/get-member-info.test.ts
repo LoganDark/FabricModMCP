@@ -164,6 +164,63 @@ describe('get_member_info tool', () => {
 		expect(envelope.data.stats.classCount).toBe(5);
 	});
 
+	it('returns declaredDependencies in projectInfo for fabric mod members', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'get_member_info',
+			arguments: { project: 'test', member: 'testmod' },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		expect(envelope.data.projectInfo.declaredDependencies).toBeDefined();
+		expect(Array.isArray(envelope.data.projectInfo.declaredDependencies)).toBe(true);
+		// Factory has empty dependencies array
+		expect(envelope.data.projectInfo.declaredDependencies).toEqual([]);
+	});
+
+	it('returns declaredDependencies with correct shape (no raw field)', async () => {
+		const fake = makeFakeProject({
+			gradleConfig: {
+				minecraftVersion: '1.21.11',
+				mappingEra: 'mapped',
+				yarnMappings: '1.21.11+build.4',
+				loaderVersion: '0.16.14',
+				fabricApiVersion: '0.119.5+1.21.11',
+				dependencies: [
+					{
+						configuration: 'modImplementation',
+						group: 'net.fabricmc.fabric-api',
+						artifact: 'fabric-api',
+						version: '0.119.5+1.21.11',
+						raw: 'net.fabricmc.fabric-api:fabric-api:0.119.5+1.21.11',
+					},
+				],
+			},
+		} as any);
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'get_member_info',
+			arguments: { project: 'test', member: 'testmod' },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		const deps = envelope.data.projectInfo.declaredDependencies;
+		expect(deps).toHaveLength(1);
+		expect(deps[0]).toEqual({
+			configuration: 'modImplementation',
+			group: 'net.fabricmc.fabric-api',
+			artifact: 'fabric-api',
+			version: '0.119.5+1.21.11',
+		});
+		// raw field should NOT be present
+		expect(deps[0].raw).toBeUndefined();
+	});
+
 	it('returns error for nonexistent member', async () => {
 		const fake = makeFakeProject();
 		projectStore.set('test', fake);

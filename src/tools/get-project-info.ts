@@ -45,6 +45,8 @@ export function registerGetProjectInfoTool(server: McpServer): void {
 				{
 					project: loadedProject.name,
 					activeChild: loadedProject.activeChild ?? null,
+					jdtlsAvailable: loadedProject.jdtls?.available ?? false,
+					jdtlsFailureReason: loadedProject.jdtls?.failureReason ?? (loadedProject.jdtls ? null : 'not initialized'),
 					memberCount: members.length,
 					members,
 				},

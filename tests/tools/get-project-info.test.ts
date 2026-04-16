@@ -3,6 +3,7 @@ import { createTestPair, type TestPair } from '../helpers/client.js';
 import { parseEnvelope, makeFakeFabricModNamed } from '../helpers/factories.js';
 import { projectStore } from '../../src/state/project-store.js';
 import type { Project, StudyJarChild } from '../../src/project/types.js';
+import type { JdtLsSession } from '../../src/jdtls/types.js';
 
 vi.mock('../../src/project/loader.js', () => ({
 	loadFabricMod: vi.fn(),
@@ -104,6 +105,76 @@ describe('get_project_info tool', () => {
 
 		const envelope = parseEnvelope(result);
 		expect(envelope.data.activeChild).toBe('my-mod');
+	});
+
+	it('returns jdtlsAvailable false and jdtlsFailureReason "not initialized" when no jdtls session', async () => {
+		const mod = makeFakeFabricModNamed('my-mod');
+		const project: Project = {
+			name: 'test',
+			children: new Map([['my-mod', mod]]),
+		};
+		projectStore.set('test', project);
+
+		const result = await pair.client.callTool({
+			name: 'get_project_info',
+			arguments: { project: 'test' },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		expect(envelope.data.jdtlsAvailable).toBe(false);
+		expect(envelope.data.jdtlsFailureReason).toBe('not initialized');
+	});
+
+	it('returns jdtlsAvailable true and jdtlsFailureReason null when jdtls is available', async () => {
+		const mod = makeFakeFabricModNamed('my-mod');
+		const project: Project = {
+			name: 'test',
+			children: new Map([['my-mod', mod]]),
+			jdtls: {
+				available: true,
+				tempDir: '/tmp/test',
+				dataDir: '/tmp/data',
+				jarIdToDirName: new Map(),
+			} as JdtLsSession,
+		};
+		projectStore.set('test', project);
+
+		const result = await pair.client.callTool({
+			name: 'get_project_info',
+			arguments: { project: 'test' },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		expect(envelope.data.jdtlsAvailable).toBe(true);
+		expect(envelope.data.jdtlsFailureReason).toBeNull();
+	});
+
+	it('returns jdtlsAvailable false with failureReason when jdtls failed', async () => {
+		const mod = makeFakeFabricModNamed('my-mod');
+		const project: Project = {
+			name: 'test',
+			children: new Map([['my-mod', mod]]),
+			jdtls: {
+				available: false,
+				failureReason: 'Java not found',
+				tempDir: '/tmp/test',
+				dataDir: '/tmp/data',
+				jarIdToDirName: new Map(),
+			} as JdtLsSession,
+		};
+		projectStore.set('test', project);
+
+		const result = await pair.client.callTool({
+			name: 'get_project_info',
+			arguments: { project: 'test' },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(true);
+		expect(envelope.data.jdtlsAvailable).toBe(false);
+		expect(envelope.data.jdtlsFailureReason).toBe('Java not found');
 	});
 
 	it('returns error for nonexistent project', async () => {
