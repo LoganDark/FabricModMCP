@@ -200,6 +200,6 @@ Phases execute in numeric order: 28 → 29 → 30 → 31 → 32 → 33 → 34
 | 29. JDT LS & Workspace Bug Fixes | v1.5 | 1/1 | Complete    | 2026-04-16 |
 | 30. API Consistency | v1.5 | 1/1 | Complete    | 2026-04-16 |
 | 31. Data Exposure | v1.5 | 1/1 | Complete    | 2026-04-16 |
-| 32. Per-Child Jar Filtering | v1.5 | 1/1 | Complete   | 2026-04-16 |
+| 32. Per-Child Jar Filtering | v1.5 | 1/1 | Complete    | 2026-04-16 |
 | 33. Build File Re-parsing | v1.5 | 0/? | Not started | - |
 | 34. Documentation & Instructions | v1.5 | 0/? | Not started | - |
