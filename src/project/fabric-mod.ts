@@ -16,10 +16,18 @@ const fabricModSchema = z.object({
 	depends: z.record(z.string(), z.string()).default({}),
 }).passthrough();
 
-export function parseFabricMod(content: string): FabricModJson {
+export function parseFabricMod(content: string, properties?: Map<string, string>): FabricModJson {
+	// Substitute ${property_name} placeholders using gradle properties (same pattern as parseBuildGradle)
+	let substituted = content;
+	if (properties && properties.size > 0) {
+		substituted = content.replace(/\$\{(\w+)\}/g, (_match, varName: string) => {
+			return properties.get(varName) ?? _match;
+		});
+	}
+
 	let parsed: unknown;
 	try {
-		parsed = JSON.parse(content);
+		parsed = JSON.parse(substituted);
 	} catch {
 		throw new DomainError(
 			'FABRIC_MOD_INVALID_JSON',

@@ -75,8 +75,8 @@ export async function reloadFabricModConfig(mod: FabricModChild): Promise<{ warn
 		);
 	}
 
-	// Parse fabric mod
-	const newFabricMod = parseFabricMod(fabricModContent);
+	// Parse fabric mod (with property substitution for ${} placeholders)
+	const newFabricMod = parseFabricMod(fabricModContent, properties);
 
 	// Compare and build warnings
 	if (mod.gradleConfig.minecraftVersion !== newGradleConfig.minecraftVersion) {
@@ -189,8 +189,8 @@ export async function loadFabricMod(projectPath: string): Promise<FabricModChild
 		);
 	}
 
-	// Parse fabric mod
-	const fabricMod = parseFabricMod(fabricModContent);
+	// Parse fabric mod (with property substitution for ${} placeholders)
+	const fabricMod = parseFabricMod(fabricModContent, properties);
 
 	// Discover dependencies
 	const discovery = await discoverDependencies(gradleConfig, sourcesJarPath, absolutePath, fabricMod.id);
