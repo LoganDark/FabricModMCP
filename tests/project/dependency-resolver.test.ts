@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { getResolvedDependencies, getAllDependencies } from '../../src/project/dependency-resolver.js';
 import { CATEGORY_PRIORITY, sortByPriority, getDependenciesForTool } from '../../src/tools/tool-helpers.js';
 import type { DependencyEntry, Project, FabricModChild, ProjectChild, StudyJar, StudyJarChild, JarCategory } from '../../src/project/types.js';
+// StudyJarChild used directly in multi-mod tests
 
 function makeDep(id: string, category: JarCategory = 'library'): DependencyEntry {
 	return {
@@ -355,6 +356,143 @@ describe('getDependenciesForTool', () => {
 		expect(result.has('included')).toBe(true);
 		// autoInclude=false excluded
 		expect(result.has('excluded')).toBe(false);
+	});
+
+	it('unscoped multi-mod applies each child\'s own filter independently', () => {
+		// mod-a has deps: mod-a/minecraft (minecraft), mod-a/lib-x (library)
+		// mod-b has deps: mod-b/minecraft (minecraft), mod-b/lib-y (library)
+		// mod-a filter: exclude all lib-* (would kill mod-b/lib-y if applied globally)
+		// mod-b filter: no exclusions
+		const modA: FabricModChild = {
+			kind: 'fabric-mod',
+			name: 'mod-a',
+			rootPath: '/fake/mod-a',
+			gradleConfig: {
+				minecraftVersion: '1.21.11',
+				mappingEra: 'mapped' as const,
+				yarnMappings: '1.21.11+build.4',
+				loaderVersion: '0.16.14',
+				dependencies: [],
+			},
+			sourcesJar: { path: '/fake/sources-a.jar', exists: true },
+			fabricMod: {
+				schemaVersion: 1, id: 'mod-a', version: '1.0.0', name: 'Mod A',
+				description: '', authors: [], license: 'MIT', environment: '*', mixins: [], depends: {},
+			},
+			dependencyJars: new Map([
+				['mod-a/minecraft', makeDep('mod-a/minecraft', 'minecraft')],
+				['mod-a/lib-x', makeDep('mod-a/lib-x', 'library')],
+			]),
+			filterConfig: { mode: 'include-all', patterns: ['*/lib-*'] },
+		};
+
+		const modB: FabricModChild = {
+			kind: 'fabric-mod',
+			name: 'mod-b',
+			rootPath: '/fake/mod-b',
+			gradleConfig: {
+				minecraftVersion: '1.21.11',
+				mappingEra: 'mapped' as const,
+				yarnMappings: '1.21.11+build.4',
+				loaderVersion: '0.16.14',
+				dependencies: [],
+			},
+			sourcesJar: { path: '/fake/sources-b.jar', exists: true },
+			fabricMod: {
+				schemaVersion: 1, id: 'mod-b', version: '1.0.0', name: 'Mod B',
+				description: '', authors: [], license: 'MIT', environment: '*', mixins: [], depends: {},
+			},
+			dependencyJars: new Map([
+				['mod-b/minecraft', makeDep('mod-b/minecraft', 'minecraft')],
+				['mod-b/lib-y', makeDep('mod-b/lib-y', 'library')],
+			]),
+			filterConfig: { mode: 'include-all', patterns: [] },
+		};
+
+		const children = new Map<string, ProjectChild>();
+		children.set('mod-a', modA);
+		children.set('mod-b', modB);
+		const project: Project = { name: 'multi-project', children };
+
+		const result = getDependenciesForTool(project);
+		// mod-a's filter (exclude */lib-*) applies only to mod-a's deps:
+		//   mod-a/minecraft passes, mod-a/lib-x excluded
+		// mod-b's filter (no exclusions) applies only to mod-b's deps:
+		//   mod-b/minecraft passes, mod-b/lib-y passes
+		// If old global behavior: mod-a's filter would exclude mod-b/lib-y too
+		expect(result.size).toBe(3);
+		expect(result.has('mod-a/minecraft')).toBe(true);
+		expect(result.has('mod-a/lib-x')).toBe(false);
+		expect(result.has('mod-b/minecraft')).toBe(true);
+		expect(result.has('mod-b/lib-y')).toBe(true);
+	});
+
+	it('unscoped multi-mod includes autoInclude study jars', () => {
+		const modA: FabricModChild = {
+			kind: 'fabric-mod',
+			name: 'mod-a',
+			rootPath: '/fake/mod-a',
+			gradleConfig: {
+				minecraftVersion: '1.21.11',
+				mappingEra: 'mapped' as const,
+				yarnMappings: '1.21.11+build.4',
+				loaderVersion: '0.16.14',
+				dependencies: [],
+			},
+			sourcesJar: { path: '/fake/sources-a.jar', exists: true },
+			fabricMod: {
+				schemaVersion: 1, id: 'mod-a', version: '1.0.0', name: 'Mod A',
+				description: '', authors: [], license: 'MIT', environment: '*', mixins: [], depends: {},
+			},
+			dependencyJars: new Map([
+				['mod-a/minecraft', makeDep('mod-a/minecraft', 'minecraft')],
+			]),
+			filterConfig: { mode: 'include-all', patterns: [] },
+		};
+
+		const modB: FabricModChild = {
+			kind: 'fabric-mod',
+			name: 'mod-b',
+			rootPath: '/fake/mod-b',
+			gradleConfig: {
+				minecraftVersion: '1.21.11',
+				mappingEra: 'mapped' as const,
+				yarnMappings: '1.21.11+build.4',
+				loaderVersion: '0.16.14',
+				dependencies: [],
+			},
+			sourcesJar: { path: '/fake/sources-b.jar', exists: true },
+			fabricMod: {
+				schemaVersion: 1, id: 'mod-b', version: '1.0.0', name: 'Mod B',
+				description: '', authors: [], license: 'MIT', environment: '*', mixins: [], depends: {},
+			},
+			dependencyJars: new Map([
+				['mod-b/minecraft', makeDep('mod-b/minecraft', 'minecraft')],
+			]),
+			filterConfig: { mode: 'include-all', patterns: [] },
+		};
+
+		const children = new Map<string, ProjectChild>();
+		children.set('mod-a', modA);
+		children.set('mod-b', modB);
+
+		const sj: StudyJarChild = {
+			kind: 'study-jar',
+			name: 'my-study',
+			jarPath: '/fake/study/my-study.jar',
+			mtime: Date.now(),
+			size: 1024,
+			autoInclude: true,
+			stats: { totalEntries: 10, packageCount: 2, classCount: 5 },
+		};
+		children.set('my-study', sj);
+
+		const project: Project = { name: 'multi-project', children };
+		const result = getDependenciesForTool(project);
+		expect(result.has('mod-a/minecraft')).toBe(true);
+		expect(result.has('mod-b/minecraft')).toBe(true);
+		expect(result.has('my-study')).toBe(true);
+		expect(result.size).toBe(3);
 	});
 
 	it('without jars param respects filterConfig exclusion patterns', () => {
