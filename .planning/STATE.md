@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Quality & Consistency
 status: unknown
-stopped_at: Completed 32-01-PLAN.md
-last_updated: "2026-04-16T01:37:58.966Z"
+stopped_at: Completed 33-01-PLAN.md
+last_updated: "2026-04-16T02:05:40.296Z"
 progress:
   total_phases: 7
-  completed_phases: 5
-  total_plans: 5
-  completed_plans: 5
+  completed_phases: 6
+  total_plans: 6
+  completed_plans: 6
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-15)
 
 **Core value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
-**Current focus:** Phase 32 — per-child-jar-filtering
+**Current focus:** Phase 33 — build-file-re-parsing
 
 ## Current Position
 
-Phase: 33
-Plan: Not started
+Phase: 33 (build-file-re-parsing) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ See PROJECT.md Key Decisions table for full decision log.
 - [Phase 30-api-consistency]: All paginated responses now include { results, total, offset, limit, hasMore }
 - [Phase 31-data-exposure]: Omit raw field from declaredDependencies; fqn reuses classFqn parameter for inner class $ separator
 - [Phase 32-per-child-jar-filtering]: Unscoped getDependenciesForTool now iterates children independently with per-child filtering and early return
+- [Phase 33]: reloadFabricModConfig in loader.ts for code locality; tests in separate file to avoid mock interference
 
 ### Roadmap Evolution
 
@@ -81,9 +82,10 @@ None.
 | Phase 30-api-consistency P01 | 4min | 2 tasks | 12 files |
 | Phase 31-data-exposure P01 | 3min | 2 tasks | 11 files |
 | Phase 32-per-child-jar-filtering P01 | 1min | 2 tasks | 2 files |
+| Phase 33 P01 | 5min | 2 tasks | 6 files |
 
 ## Session Continuity
 
-Last session: 2026-04-16T01:36:19.918Z
-Stopped at: Completed 32-01-PLAN.md
+Last session: 2026-04-16T02:05:40.294Z
+Stopped at: Completed 33-01-PLAN.md
 Resume file: None
