@@ -158,7 +158,10 @@ Plans:
   1. getDependenciesForTool without scope returns jars where each child's filter is applied only to that child's own dependencies
   2. In a project with two mods having different filters, browsing tools without scope show correctly filtered results from both mods (not one mod's filter applied to all)
   3. Scoped calls continue to work identically (single child, single filter)
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 32-01-PLAN.md — Fix getDependenciesForTool to apply per-child filtering in unscoped path
 
 ### Phase 33: Build File Re-parsing
 **Goal**: Refresh tools detect and apply changes to build configuration files without requiring project removal and re-creation
@@ -197,6 +200,6 @@ Phases execute in numeric order: 28 → 29 → 30 → 31 → 32 → 33 → 34
 | 29. JDT LS & Workspace Bug Fixes | v1.5 | 1/1 | Complete    | 2026-04-16 |
 | 30. API Consistency | v1.5 | 1/1 | Complete    | 2026-04-16 |
 | 31. Data Exposure | v1.5 | 1/1 | Complete    | 2026-04-16 |
-| 32. Per-Child Jar Filtering | v1.5 | 0/? | Not started | - |
+| 32. Per-Child Jar Filtering | v1.5 | 0/1 | Not started | - |
 | 33. Build File Re-parsing | v1.5 | 0/? | Not started | - |
 | 34. Documentation & Instructions | v1.5 | 0/? | Not started | - |
