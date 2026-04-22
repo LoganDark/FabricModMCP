@@ -22,6 +22,7 @@ vi.mock('../../src/project/gradle-parser.js', () => ({
 
 vi.mock('../../src/project/loom-cache.js', () => ({
 	resolveSourcesJarPath: vi.fn(),
+	resolveCompiledJarPath: vi.fn(),
 }));
 
 vi.mock('../../src/project/fabric-mod.js', () => ({
@@ -44,6 +45,7 @@ function makeFakeMod(overrides: Partial<FabricModChild> = {}): FabricModChild {
 			dependencies: [],
 		},
 		sourcesJar: { path: '/fake/old-sources.jar', exists: true },
+		compiledJar: { path: '/fake/old-compiled.jar', exists: true },
 		fabricMod: {
 			schemaVersion: 1,
 			id: 'testmod',
@@ -68,6 +70,7 @@ describe('reloadFabricModConfig', () => {
 	let mockParseGradleProperties: ReturnType<typeof vi.fn>;
 	let mockParseBuildGradle: ReturnType<typeof vi.fn>;
 	let mockResolveSourcesJarPath: ReturnType<typeof vi.fn>;
+	let mockResolveCompiledJarPath: ReturnType<typeof vi.fn>;
 	let mockParseFabricMod: ReturnType<typeof vi.fn>;
 
 	beforeEach(async () => {
@@ -83,6 +86,7 @@ describe('reloadFabricModConfig', () => {
 
 		const loomCache = await import('../../src/project/loom-cache.js');
 		mockResolveSourcesJarPath = vi.mocked(loomCache.resolveSourcesJarPath);
+		mockResolveCompiledJarPath = vi.mocked(loomCache.resolveCompiledJarPath);
 
 		const fabricMod = await import('../../src/project/fabric-mod.js');
 		mockParseFabricMod = vi.mocked(fabricMod.parseFabricMod);
@@ -123,8 +127,9 @@ describe('reloadFabricModConfig', () => {
 		mockParseGradleProperties.mockReturnValue(new Map([['minecraft_version', newGradle.minecraftVersion]]));
 		mockParseBuildGradle.mockReturnValue(newGradle);
 		mockResolveSourcesJarPath.mockReturnValue('/fake/new-sources.jar');
+		mockResolveCompiledJarPath.mockReturnValue('/fake/new-compiled.jar');
 		mockParseFabricMod.mockReturnValue(newFabric);
-		mockAccess.mockResolvedValue(undefined); // sources jar exists
+		mockAccess.mockResolvedValue(undefined); // jars exist
 	}
 
 	it('re-reads gradle.properties and build.gradle.kts, updates mod.gradleConfig', async () => {

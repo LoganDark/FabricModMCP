@@ -103,6 +103,7 @@ export function registerGetMemberInfoTool(server: McpServer): void {
 						artifact: dep.artifact,
 						version: dep.version,
 						available: dep.available,
+						hasCompiledJar: dep.compiledJarPath !== null,
 						sizeBytes,
 						provenanceChains: dep.provenanceChains,
 					});
@@ -110,6 +111,7 @@ export function registerGetMemberInfoTool(server: McpServer): void {
 				data.jarInventory = entries;
 			} else if (child.kind === 'study-jar') {
 				data.jarPath = child.jarPath;
+				data.compiledJarPath = child.compiledJarPath ?? null;
 				data.mtime = child.mtime;
 				data.size = child.size;
 				data.autoInclude = child.autoInclude;
