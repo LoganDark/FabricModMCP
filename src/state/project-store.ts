@@ -99,9 +99,9 @@ export class ProjectStore {
 		if (this.projects.size === 0) {
 			throw new DomainError(
 				'NO_PROJECTS_LOADED',
-				'No projects are loaded',
+				'No projects are loaded. The MCP server may have restarted — all state is in-memory and must be re-created each session.',
 				[],
-				['Create a project with create_project, then add a fabric mod with add_fabric_mod'],
+				['Use create_project to create a project, then add_fabric_mod to register a Fabric mod directory, or add_study_jar to load an arbitrary jar for analysis'],
 			);
 		}
 

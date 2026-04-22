@@ -123,6 +123,56 @@ export function resolveProjectSafely(project?: string): { ok: true; project: Pro
 }
 
 /**
+ * Check whether a resolved project has any browseable content.
+ * Returns an error result if the workspace is empty, or null if dependencies exist.
+ */
+export function requireDependencies(project: Project, scope?: string): ReturnType<typeof returnError> | null {
+	if (project.children.size === 0) {
+		return returnError(
+			'EMPTY_WORKSPACE',
+			`Project '${project.name}' has no fabric mods or study jars loaded. Add content before browsing.`,
+			[],
+			['Use add_fabric_mod to register a Fabric mod directory (provides Minecraft sources + dependencies)', 'Use add_study_jar to load any jar file for source browsing'],
+		);
+	}
+
+	const deps = getDependenciesForTool(project, undefined, scope);
+	let hasAvailable = false;
+	for (const [, dep] of deps) {
+		if (dep.available) {
+			hasAvailable = true;
+			break;
+		}
+	}
+
+	if (deps.size === 0 || !hasAvailable) {
+		// Check if any children have available dependencies at all
+		let anyAvailable = false;
+		for (const child of project.children.values()) {
+			if (child.kind === 'fabric-mod') {
+				for (const [, dep] of child.dependencyJars) {
+					if (dep.available) { anyAvailable = true; break; }
+				}
+			} else if (child.kind === 'study-jar') {
+				anyAvailable = true;
+			}
+			if (anyAvailable) break;
+		}
+
+		if (!anyAvailable) {
+			return returnError(
+				'NO_SOURCES_AVAILABLE',
+				`Project '${project.name}' has no source jars available for browsing.`,
+				[],
+				['Check that your fabric mod directory has valid Gradle properties', 'Use add_study_jar to load a jar file directly'],
+			);
+		}
+	}
+
+	return null;
+}
+
+/**
  * Build a standard MCP error response from error parameters.
  */
 export function returnError(code: string, message: string, tried: string[], suggestions?: string[]): { content: { type: 'text'; text: string }[]; structuredContent: ReturnType<typeof makeError> } {
