@@ -6,7 +6,7 @@ import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { parseClassDeclaration } from '../browsing/class-parser.js';
 import { getOrBuildIndex } from '../browsing/entry-index-cache.js';
 import { logger } from '../logging/logger.js';
-import { getDependenciesForTool, resolveProjectSafely, stripClassInfo, getRootPathForScope } from './tool-helpers.js';
+import { getDependenciesForTool, resolveProjectSafely, requireDependencies, stripClassInfo, getRootPathForScope } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
 import type { SourceAdapter } from '../browsing/source-adapter.js';
 import type { ClassInfo, InnerClassInfo } from '../browsing/types.js';
@@ -53,6 +53,9 @@ export function registerListClassesTool(server: McpServer): void {
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
+
+			const depCheck = requireDependencies(loadedProject, scope);
+			if (depCheck) return depCheck;
 
 			const filtered = getDependenciesForTool(loadedProject, jars, scope);
 

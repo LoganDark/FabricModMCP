@@ -3,7 +3,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { logger } from '../logging/logger.js';
-import { classNameToEntryPath, handleClassSourceError, resolveProjectSafely, returnError, withLspDocument, resolveClassSource, getDependenciesForTool, getRootPathForScope } from './tool-helpers.js';
+import { classNameToEntryPath, handleClassSourceError, resolveProjectSafely, requireDependencies, returnError, withLspDocument, resolveClassSource, getDependenciesForTool, getRootPathForScope } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
 import type { MemberResult } from '../browsing/types.js';
 import { enrichSymbols } from '../browsing/member-enrichment.js';
@@ -47,6 +47,9 @@ export function registerReadMemberTool(server: McpServer): void {
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
+
+			const depCheck = requireDependencies(loadedProject, scope);
+			if (depCheck) return depCheck;
 
 			// Check JDT LS availability
 			if (!loadedProject.jdtls?.available || !loadedProject.jdtls.client) {

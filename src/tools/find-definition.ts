@@ -4,7 +4,7 @@ import { applyPagination } from './pagination.js';
 import { resolveSymbolPosition } from './resolve-symbol-position.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { logger } from '../logging/logger.js';
-import { handleSymbolPositionError, normalizeLocations, processNavigationLocations, resolveProjectSafely, returnError, stripNavigationResult, withLspDocument } from './tool-helpers.js';
+import { handleSymbolPositionError, normalizeLocations, processNavigationLocations, resolveProjectSafely, requireDependencies, returnError, stripNavigationResult, withLspDocument } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
 
 export function registerFindDefinitionTool(server: McpServer): void {
@@ -30,6 +30,9 @@ export function registerFindDefinitionTool(server: McpServer): void {
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
+
+			const depCheck = requireDependencies(loadedProject, scope);
+			if (depCheck) return depCheck;
 
 			// Check JDT LS availability -- hard error, no fallback
 			if (!loadedProject.jdtls?.available || !loadedProject.jdtls.client) {

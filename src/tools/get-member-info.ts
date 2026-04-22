@@ -3,7 +3,7 @@ import { stat } from 'node:fs/promises';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { logger } from '../logging/logger.js';
-import { resolveProjectSafely, returnError } from './tool-helpers.js';
+import { resolveProjectSafely, requireDependencies, returnError } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 
 export function registerGetMemberInfoTool(server: McpServer): void {
@@ -23,6 +23,9 @@ export function registerGetMemberInfoTool(server: McpServer): void {
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
+
+			const depCheck = requireDependencies(loadedProject);
+			if (depCheck) return depCheck;
 
 			const child = loadedProject.children.get(member);
 			if (!child) {

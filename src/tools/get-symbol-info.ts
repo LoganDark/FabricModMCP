@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { makeSuccess } from '../types/envelope.js';
 import { resolveSymbolPosition } from './resolve-symbol-position.js';
 import { logger } from '../logging/logger.js';
-import { handleSymbolPositionError, resolveProjectSafely, returnError, withLspDocument } from './tool-helpers.js';
+import { handleSymbolPositionError, resolveProjectSafely, requireDependencies, returnError, withLspDocument } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 
 /**
@@ -60,6 +60,9 @@ export function registerGetSymbolInfoTool(server: McpServer): void {
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
+
+			const depCheck = requireDependencies(loadedProject, scope);
+			if (depCheck) return depCheck;
 
 			// Check JDT LS availability -- hard error, no fallback
 			if (!loadedProject.jdtls?.available || !loadedProject.jdtls.client) {

@@ -5,7 +5,7 @@ import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { getOrBuildIndex } from '../browsing/entry-index-cache.js';
 import { logger } from '../logging/logger.js';
-import { getDependenciesForTool, resolveProjectSafely, getRootPathForScope } from './tool-helpers.js';
+import { getDependenciesForTool, resolveProjectSafely, requireDependencies, getRootPathForScope } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import type { PackageEntry } from '../browsing/types.js';
 
@@ -29,6 +29,9 @@ export function registerListPackagesTool(server: McpServer): void {
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
+
+			const depCheck = requireDependencies(loadedProject, scope);
+			if (depCheck) return depCheck;
 
 			const filtered = getDependenciesForTool(loadedProject, jars, scope);
 

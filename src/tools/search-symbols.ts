@@ -4,7 +4,7 @@ import { makeSuccess } from '../types/envelope.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { SYMBOL_KIND_NAME } from '../jdtls/symbol-kind.js';
 import { logger } from '../logging/logger.js';
-import { resolveProjectSafely, returnError } from './tool-helpers.js';
+import { resolveProjectSafely, requireDependencies, returnError } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import { buildMemberFqn } from '../browsing/member-fqn.js';
 
@@ -41,6 +41,9 @@ export function registerSearchSymbolsTool(server: McpServer): void {
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
+
+			const depCheck = requireDependencies(loadedProject, scope);
+			if (depCheck) return depCheck;
 
 			// Check JDT LS availability
 			if (!loadedProject.jdtls?.available || !loadedProject.jdtls.endpoint) {

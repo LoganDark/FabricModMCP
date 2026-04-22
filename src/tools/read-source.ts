@@ -4,7 +4,7 @@ import { getAllDependencies } from '../project/dependency-resolver.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { logger } from '../logging/logger.js';
-import { classNameToEntryPath, handleClassSourceError, sortByPriority, resolveProjectSafely, returnError, resolveClassSource, getDependenciesForTool, getRootPathForScope } from './tool-helpers.js';
+import { classNameToEntryPath, handleClassSourceError, sortByPriority, resolveProjectSafely, requireDependencies, returnError, resolveClassSource, getDependenciesForTool, getRootPathForScope } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
 import { resolveJarId } from '../project/namespace-resolver.js';
 import { sliceLines } from '../browsing/line-slicer.js';
@@ -48,6 +48,9 @@ export function registerReadSourceTool(server: McpServer): void {
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
+
+			const depCheck = requireDependencies(loadedProject, scope);
+			if (depCheck) return depCheck;
 
 			// Handle inner class FQNs: strip $Inner to get outer class file
 			let innerName: string | undefined;

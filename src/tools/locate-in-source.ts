@@ -6,7 +6,7 @@ import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { cascadeRegex } from '../browsing/cascading-regex.js';
 import { logger } from '../logging/logger.js';
-import { classNameToEntryPath, sortByPriority, resolveProjectSafely, returnError, stripLocateResult, stripLocateFailure, getDependenciesForTool, getRootPathForScope } from './tool-helpers.js';
+import { classNameToEntryPath, sortByPriority, resolveProjectSafely, requireDependencies, returnError, stripLocateResult, stripLocateFailure, getDependenciesForTool, getRootPathForScope } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
 import { resolveJarId } from '../project/namespace-resolver.js';
 import type { LocateFailure } from './tool-helpers.js';
@@ -51,6 +51,9 @@ export function registerLocateInSourceTool(server: McpServer): void {
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
+
+			const depCheck = requireDependencies(loadedProject, scope);
+			if (depCheck) return depCheck;
 
 			const entryPath = classNameToEntryPath(className);
 
