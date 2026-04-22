@@ -3,7 +3,7 @@ import { resolve, join } from 'node:path';
 import { DomainError } from '../errors/domain-error.js';
 import { logger } from '../logging/logger.js';
 import { parseGradleProperties, parseBuildGradle } from './gradle-parser.js';
-import { resolveSourcesJarPath } from './loom-cache.js';
+import { resolveSourcesJarPath, resolveCompiledJarPath } from './loom-cache.js';
 import { parseFabricMod } from './fabric-mod.js';
 import { discoverDependencies } from './dependency-discovery.js';
 import type { FabricModChild } from './types.js';
@@ -57,9 +57,11 @@ export async function reloadFabricModConfig(mod: FabricModChild): Promise<{ warn
 
 	// Resolve new sources jar path
 	const newSourcesJarPath = resolveSourcesJarPath(newGradleConfig);
+	const newCompiledJarPath = resolveCompiledJarPath(newGradleConfig);
 
 	// Check if sources jar exists (warn instead of throw)
 	const sourcesJarExists = await fileExists(newSourcesJarPath);
+	const compiledJarExists = await fileExists(newCompiledJarPath);
 
 	// Read fabric.mod.json
 	let fabricModContent: string;
@@ -94,6 +96,7 @@ export async function reloadFabricModConfig(mod: FabricModChild): Promise<{ warn
 	// Mutate mod in place
 	mod.gradleConfig = newGradleConfig;
 	mod.sourcesJar = { path: newSourcesJarPath, exists: sourcesJarExists };
+	mod.compiledJar = { path: newCompiledJarPath, exists: compiledJarExists };
 	mod.fabricMod = newFabricMod;
 
 	return { warnings };
@@ -161,6 +164,10 @@ export async function loadFabricMod(projectPath: string): Promise<FabricModChild
 	// Resolve sources jar path
 	const sourcesJarPath = resolveSourcesJarPath(gradleConfig);
 
+	// Resolve compiled jar path
+	const compiledJarPath = resolveCompiledJarPath(gradleConfig);
+	const compiledJarExists = await fileExists(compiledJarPath);
+
 	// Check sources jar exists
 	const sourcesJarExists = await fileExists(sourcesJarPath);
 	if (!sourcesJarExists) {
@@ -193,7 +200,7 @@ export async function loadFabricMod(projectPath: string): Promise<FabricModChild
 	const fabricMod = parseFabricMod(fabricModContent, properties);
 
 	// Discover dependencies
-	const discovery = await discoverDependencies(gradleConfig, sourcesJarPath, absolutePath, fabricMod.id);
+	const discovery = await discoverDependencies(gradleConfig, sourcesJarPath, compiledJarExists ? compiledJarPath : null, absolutePath, fabricMod.id);
 	logger.info(`Dependency discovery: ${discovery.summary.total} dependencies found (${discovery.summary.withSources} with sources, ${discovery.summary.withoutSources} without)`);
 
 	return {
@@ -202,6 +209,7 @@ export async function loadFabricMod(projectPath: string): Promise<FabricModChild
 		rootPath: absolutePath,
 		gradleConfig,
 		sourcesJar: { path: sourcesJarPath, exists: true },
+		compiledJar: { path: compiledJarPath, exists: compiledJarExists },
 		fabricMod,
 		dependencyJars: discovery.dependencies,
 		filterConfig: { mode: 'include-all', patterns: [] },

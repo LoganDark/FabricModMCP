@@ -46,6 +46,7 @@ export type DependencyEntry = {
 	version: string;
 	category: JarCategory;
 	sourcesJarPath: string | null;  // null = sources not available
+	compiledJarPath: string | null; // null = compiled jar not available
 	available: boolean;             // true if sourcesJarPath exists on disk
 	provenanceChains: string[][];   // paths of dependency IDs that led to this entry; seed entries have []
 }
@@ -64,6 +65,7 @@ export type StudyJarStats = {
 export type StudyJar = {
 	name: string;
 	jarPath: string;
+	compiledJarPath?: string;
 	mtime: number;
 	size: number;
 	autoInclude: boolean;
@@ -76,6 +78,7 @@ export type FabricModChild = {
 	rootPath: string;
 	gradleConfig: GradleConfig;
 	sourcesJar: ResolvedJar;
+	compiledJar: ResolvedJar;
 	fabricMod: FabricModJson;
 	dependencyJars: Map<string, DependencyEntry>;
 	filterConfig: FilterConfig;

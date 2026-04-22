@@ -16,3 +16,18 @@ export function resolveSourcesJarPath(config: GradleConfig): string {
 		return join(base, artifactId, version, `${artifactId}-${version}-sources.jar`);
 	}
 }
+
+export function resolveCompiledJarPath(config: GradleConfig): string {
+	const base = join(homedir(), '.gradle', 'caches', 'fabric-loom', 'minecraftMaven', 'net', 'minecraft');
+
+	if (config.mappingEra === 'mapped') {
+		const artifactId = 'minecraft-merged';
+		const sanitizedMcVersion = config.minecraftVersion.replace(/\./g, '_');
+		const version = `${config.minecraftVersion}-net.fabricmc.yarn.${sanitizedMcVersion}.${config.yarnMappings}`;
+		return join(base, artifactId, version, `${artifactId}-${version}.jar`);
+	} else {
+		const artifactId = 'minecraft-merged-deobf';
+		const version = config.minecraftVersion;
+		return join(base, artifactId, version, `${artifactId}-${version}.jar`);
+	}
+}

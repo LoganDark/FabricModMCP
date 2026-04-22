@@ -71,6 +71,7 @@ export function registerRefreshProjectTool(server: McpServer): void {
 				const result = await discoverDependencies(
 					mod.gradleConfig,
 					mod.sourcesJar.path,
+					mod.compiledJar.exists ? mod.compiledJar.path : null,
 					mod.rootPath,
 					mod.name,
 				);

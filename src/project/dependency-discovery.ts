@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { logger } from '../logging/logger.js';
 import { parsePomDependencies } from './pom-parser.js';
-import { findSourcesJar } from './source-jar-finder.js';
+import { findSourcesJar, findCompiledJar } from './source-jar-finder.js';
 import type { GradleConfig, DependencyEntry } from './types.js';
 
 export type DiscoveryResult = {
@@ -63,6 +63,7 @@ async function addDependencyEntry(
 	}
 
 	const sourcesJarPath = await findSourcesJar(group, artifact, version);
+	const compiledJarPath = await findCompiledJar(group, artifact, version);
 	deps.set(id, {
 		id,
 		group,
@@ -70,6 +71,7 @@ async function addDependencyEntry(
 		version,
 		category,
 		sourcesJarPath,
+		compiledJarPath,
 		available: sourcesJarPath !== null,
 		provenanceChains: chain.length > 0 ? [chain] : [],
 	});
@@ -115,6 +117,7 @@ async function followTransitiveDeps(
 export async function discoverDependencies(
 	config: GradleConfig,
 	sourcesJarPath: string,
+	compiledJarPath: string | null,
 	projectRootPath: string,
 	modName: string,
 ): Promise<DiscoveryResult> {
@@ -128,6 +131,7 @@ export async function discoverDependencies(
 		version: config.minecraftVersion,
 		category: 'minecraft',
 		sourcesJarPath,
+		compiledJarPath,
 		available: true,
 		provenanceChains: [],
 	});
@@ -139,6 +143,7 @@ export async function discoverDependencies(
 		version: '',
 		category: 'mod-source',
 		sourcesJarPath: null,
+		compiledJarPath: null,
 		available: true,
 		provenanceChains: [],
 	});
@@ -206,6 +211,7 @@ export async function discoverDependencies(
 				version: config.fabricApiVersion,
 				category: 'fabric-api',
 				sourcesJarPath: null,
+				compiledJarPath: null,
 				available: false,
 				provenanceChains: [],
 			});

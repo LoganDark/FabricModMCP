@@ -67,6 +67,7 @@ export async function createStudyJar(
 	jarPath: string,
 	name: string | undefined,
 	project: Project,
+	compiledJarPath?: string,
 ): Promise<StudyJar> {
 	// 1. Validate file exists
 	let resolvedPath: string;
@@ -98,7 +99,35 @@ export async function createStudyJar(
 	}
 	validateStudyJarId(finalName, project);
 
-	// 4. Open ZIP and compute stats
+	// 4. Validate compiled jar if provided
+	let resolvedCompiledPath: string | undefined;
+	if (compiledJarPath) {
+		try {
+			resolvedCompiledPath = await realpath(compiledJarPath);
+		} catch {
+			throw new DomainError(
+				'STUDY_JAR_COMPILED_NOT_FOUND',
+				`Compiled jar file not found: ${compiledJarPath}`,
+				[compiledJarPath],
+				['Check that the compiled jar file path is correct'],
+			);
+		}
+
+		try {
+			const zip = new StreamZip.async({ file: resolvedCompiledPath, storeEntries: true });
+			await zip.entries();
+			await zip.close();
+		} catch {
+			throw new DomainError(
+				'STUDY_JAR_COMPILED_INVALID_ZIP',
+				`Failed to open compiled jar as ZIP: ${resolvedCompiledPath}`,
+				[resolvedCompiledPath],
+				['Check that the file is a valid JAR/ZIP file'],
+			);
+		}
+	}
+
+	// 5. Open ZIP and compute stats
 	let entries: string[];
 	try {
 		const zip = new StreamZip.async({ file: resolvedPath, storeEntries: true });
@@ -117,6 +146,7 @@ export async function createStudyJar(
 	return {
 		name: finalName,
 		jarPath: resolvedPath,
+		compiledJarPath: resolvedCompiledPath,
 		mtime: fileStat.mtimeMs,
 		size: fileStat.size,
 		autoInclude: false,
@@ -144,6 +174,11 @@ export async function checkAndReopenIfStale(
 	await reader.close(studyJar.jarPath);
 	evictEntryIndex(studyJar.jarPath);
 
+	// Also close compiled jar handle if present
+	if (studyJar.compiledJarPath) {
+		await reader.close(studyJar.compiledJarPath);
+	}
+
 	// Update stored mtime/size
 	studyJar.mtime = fileStat.mtimeMs;
 	studyJar.size = fileStat.size;
@@ -159,6 +194,7 @@ export function studyJarToDependencyEntry(studyJar: StudyJar): DependencyEntry {
 		version: 'local',
 		category: 'study',
 		sourcesJarPath: studyJar.jarPath,
+		compiledJarPath: studyJar.compiledJarPath ?? null,
 		available: true,
 		provenanceChains: [],
 	};
