@@ -19,10 +19,11 @@ export function registerReadJarEntryTool(server: McpServer): void {
 				scope: PARAMS.scope,
 				jar: z.string().describe('Jar identifier (e.g., "minecraft", "com.google.code.gson:gson")'),
 				path: z.string().describe('File path within the jar (e.g., "net/minecraft/client/MinecraftClient.java")'),
+				source: z.enum(['sources', 'compiled']).default('sources').describe('Which jar to read from: "sources" for Java source files, "compiled" for resources (lang, shaders, textures, JSON)'),
 			},
 		},
-		async ({ project, scope, jar, path }) => {
-			logger.debug('read_jar_entry called', { project, jar, path });
+		async ({ project, scope, jar, path, source }) => {
+			logger.debug('read_jar_entry called', { project, jar, path, source });
 
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
@@ -44,6 +45,55 @@ export function registerReadJarEntryTool(server: McpServer): void {
 				);
 			}
 
+			if (source === 'compiled') {
+				if (!entry.compiledJarPath) {
+					return returnError(
+						'JAR_NO_COMPILED',
+						`Compiled jar for '${jar}' is not available`,
+						[jar],
+						['Not all dependencies have compiled jars available', 'Check if the dependency has a compiled jar in the Gradle cache'],
+					);
+				}
+
+				try {
+					const buffer = await jarReader.readEntry(entry.compiledJarPath, path);
+					const content = buffer.toString('utf-8');
+
+					const envelope = makeSuccess(
+						{
+							content,
+							jarId: jar,
+							entryPath: path,
+							source: 'compiled' as const,
+						},
+						{
+							provenance: {
+								tool: 'read_jar_entry',
+								project: loadedProject.name,
+								jar,
+								category: entry.category,
+								version: entry.version,
+								source: 'compiled',
+								compiledJarPath: entry.compiledJarPath,
+							},
+						},
+					);
+
+					return {
+						content: [{ type: 'text' as const, text: `Read ${path} from ${jar} [compiled] (${content.length} bytes)` }],
+						structuredContent: envelope,
+					};
+				} catch (err) {
+					return returnError(
+						'JAR_ENTRY_NOT_FOUND',
+						`Entry '${path}' not found in compiled jar '${jar}'`,
+						[jar, path],
+						['Check the file path -- compiled jars contain .class files, resources, and assets'],
+					);
+				}
+			}
+
+			// Default: read from sources jar
 			if (!entry.available || !entry.sourcesJarPath) {
 				return returnError(
 					'JAR_NO_SOURCES',
@@ -62,6 +112,7 @@ export function registerReadJarEntryTool(server: McpServer): void {
 						content,
 						jarId: jar,
 						entryPath: path,
+						source: 'sources' as const,
 					},
 					{
 						provenance: {
@@ -70,6 +121,7 @@ export function registerReadJarEntryTool(server: McpServer): void {
 							jar,
 							category: entry.category,
 							version: entry.version,
+							source: 'sources',
 							sourcesJarPath: entry.sourcesJarPath,
 						},
 					},

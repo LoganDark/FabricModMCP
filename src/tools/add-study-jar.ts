@@ -19,19 +19,25 @@ export function registerAddStudyJarTool(server: McpServer): void {
 				project: PARAMS.project,
 				path: z.string().describe('Absolute path to a sources JAR file'),
 				name: z.string().optional().describe('Display name for the study jar (auto-derived from filename if omitted)'),
+				compiledJar: z.string().optional().describe('Absolute path to a compiled/resources JAR file (for non-source resources like lang files, textures, shaders)'),
 			},
 		},
-		async ({ project, path, name }) => {
-			logger.debug('add_study_jar called', { project, path, name });
+		async ({ project, path, name, compiledJar }) => {
+			logger.debug('add_study_jar called', { project, path, name, compiledJar });
 
 			const resolved = resolveProjectSafely(project);
 			if (!resolved.ok) return resolved.error;
 			const loadedProject = resolved.project;
 
 			try {
-				const studyJar = await createStudyJar(path, name, loadedProject);
+				const studyJar = await createStudyJar(path, name, loadedProject, compiledJar);
 				loadedProject.children.set(studyJar.name, { kind: 'study-jar', ...studyJar });
 				jarReader.addProjectJar(loadedProject.name, studyJar.jarPath);
+
+				// Also register compiled jar with jar reader if provided
+				if (studyJar.compiledJarPath) {
+					jarReader.addProjectJar(loadedProject.name, studyJar.compiledJarPath);
+				}
 
 				// Sync to JDT LS workspace for semantic navigation
 				const syncResult = await syncStudyJarToWorkspace(studyJar, loadedProject.jdtls, jarReader);
@@ -39,6 +45,7 @@ export function registerAddStudyJarTool(server: McpServer): void {
 				const envelope = makeSuccess({
 					name: studyJar.name,
 					path: studyJar.jarPath,
+					compiledJarPath: studyJar.compiledJarPath ?? null,
 					autoInclude: studyJar.autoInclude,
 					stats: studyJar.stats,
 				}, {
@@ -46,7 +53,7 @@ export function registerAddStudyJarTool(server: McpServer): void {
 				});
 
 				return {
-					content: [{ type: 'text' as const, text: `Added study jar '${studyJar.name}' (${studyJar.stats.classCount} classes, ${studyJar.stats.packageCount} packages)` + (syncResult.warning ? `\n${syncResult.warning}` : '') }],
+					content: [{ type: 'text' as const, text: `Added study jar '${studyJar.name}' (${studyJar.stats.classCount} classes, ${studyJar.stats.packageCount} packages)` + (studyJar.compiledJarPath ? ` with compiled jar` : '') + (syncResult.warning ? `\n${syncResult.warning}` : '') }],
 					structuredContent: envelope,
 				};
 			} catch (err) {

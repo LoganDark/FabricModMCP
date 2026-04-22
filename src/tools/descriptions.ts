@@ -249,7 +249,7 @@ export const TOOL_DESCRIPTIONS = {
 		'Read the source of a specific method, constructor, or field by its member FQN (e.g., net.minecraft.client.MinecraftClient#tick()). Requires JDT LS (Java 21+ and JDTLS_HOME). Returns JDTLS_NOT_AVAILABLE if unavailable. Field FQNs use a trailing colon format (e.g., MinecraftClient#worldRenderer:). Returns the full declaration including Javadoc, annotations, signature, and body. When multiple overloads share the same FQN, returns all of them as separate entries. Get FQNs from list_members or search_symbols output. Use linesBefore and linesAfter to include surrounding source context without a separate read_source call. Pass details: { provenance: true } to include dependency provenance chains.',
 
 	read_jar_entry:
-		'Read any file from a source jar by its internal path (slash-separated, e.g. "net/minecraft/client/MinecraftClient.java"). Unlike read_source which takes a class FQN, this takes a raw entry path — useful for non-Java files or when you know the exact path.',
+		'Read any file from a jar by its internal path (slash-separated, e.g. "net/minecraft/client/MinecraftClient.java"). Unlike read_source which takes a class FQN, this takes a raw entry path — useful for non-Java files or when you know the exact path. By default reads from the sources jar (Java source files). Pass source: "compiled" to read from the compiled jar instead — useful for resources like lang files, shaders, textures, JSON data, and .class files that only exist in compiled jars.',
 
 	// -- Position ------------------------------------------------------------
 
@@ -279,7 +279,7 @@ export const TOOL_DESCRIPTIONS = {
 	// -- Study jar management -----------------------------------------------
 
 	add_study_jar:
-		'Add a source jar to a project for study. Provide a file path to a sources JAR and an optional name (auto-derived from filename if omitted). The name is used as the jar ID — it must not conflict with an existing dependency ID. The jar becomes available to all browsing and search tools. Use configure_study_jar to enable auto-include if you want it in default results.',
+		'Add a source jar to a project for study. Provide a file path to a sources JAR and an optional name (auto-derived from filename if omitted). Optionally provide a compiledJar path for a compiled/resources JAR (for reading non-source resources like lang files, textures, shaders). The name is used as the jar ID — it must not conflict with an existing dependency ID. The jar becomes available to all browsing and search tools. Use configure_study_jar to enable auto-include if you want it in default results.',
 
 	list_study_jars:
 		'List all study jars on a project with their names, file paths, auto-include status, and stats (package count, class count).',

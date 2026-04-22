@@ -88,6 +88,7 @@ export type StudyJarChild = {
 	kind: 'study-jar';
 	name: string;
 	jarPath: string;
+	compiledJarPath?: string;
 	mtime: number;
 	size: number;
 	autoInclude: boolean;
