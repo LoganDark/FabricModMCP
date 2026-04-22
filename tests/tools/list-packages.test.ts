@@ -231,6 +231,27 @@ describe('list_packages tool', () => {
 		expect(envelope.metadata.provenance.project).toBe('test');
 	});
 
+	it('returns EMPTY_WORKSPACE error for project with no children', async () => {
+		const emptyProject: Project = {
+			name: 'empty',
+			children: new Map(),
+		};
+		projectStore.set('empty', emptyProject);
+
+		const result = await pair.client.callTool({
+			name: 'list_packages',
+			arguments: { project: 'empty' },
+		});
+
+		const envelope = parseEnvelope(result);
+		expect(envelope.success).toBe(false);
+		expect(envelope.error.code).toBe('EMPTY_WORKSPACE');
+		expect(envelope.error.message).toContain('no fabric mods or study jars loaded');
+		expect(envelope.error.suggestions).toBeDefined();
+		expect(envelope.error.suggestions.some((s: string) => s.includes('add_fabric_mod'))).toBe(true);
+		expect(envelope.error.suggestions.some((s: string) => s.includes('add_study_jar'))).toBe(true);
+	});
+
 	it('returns DomainError for nonexistent project', async () => {
 		const result = await pair.client.callTool({
 			name: 'list_packages',
