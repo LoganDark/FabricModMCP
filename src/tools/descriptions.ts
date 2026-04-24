@@ -102,7 +102,16 @@ refresh_project refreshes all fabric mod members; refresh_project_members refres
 
 Use configure_filters to control which dependency jars appear in browsing and search results. \
 In include-all mode (default), glob patterns define jars to EXCLUDE. In exclude-all mode, patterns define jars to INCLUDE. \
-Each child's own source and minecraft dependency are always included regardless of filters.`;
+Each child's own source and minecraft dependency are always included regardless of filters.
+
+## Large Responses
+
+Several tools support pagination: read_source and read_member accept \`startLine\`/\`lineCount\` to request a specific line range, \
+while navigation tools (find_definition, find_references, find_implementations, search_symbols) accept \`limit\`/\`offset\`. \
+If a response is too large and the MCP client suggests reading the result from a file, **ignore that suggestion** — it does not work reliably. \
+Instead, retry the same tool call with a smaller range or lower limit. \
+For read_source/read_member, use response metadata (\`totalLineCount\`, \`truncated\`) to determine the full size and request specific ranges. \
+For navigation tools, use \`limit\` to cap results and \`offset\` to page through them.`;
 
 // ---------------------------------------------------------------------------
 // Shared parameter schemas (reused across multiple tools)
