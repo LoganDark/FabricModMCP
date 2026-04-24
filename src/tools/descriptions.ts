@@ -36,6 +36,11 @@ A fabric mod's own source uses just the mod name (e.g., "my-mod"). \
 Study jars use their given name (bare, no prefix). \
 Use get_project_info to see members, then get_member_info with a member name to see all available jars.
 
+**Sources vs compiled jars**: Each dependency can have two jar files — a **sources jar** (Java source files, \`.java\`) and a **compiled jar** (bytecode + resources: lang files, shaders, textures, JSON data). \
+Most browsing tools (list_packages, read_source, etc.) work with sources jars. \
+To read resources like \`assets/minecraft/lang/en_us.json\` or shader files, use \`read_jar_entry\` with \`source: "compiled"\`. \
+Minecraft always has both jars. Dependencies may have one or both. Study jars can optionally have a compiled jar alongside the sources jar.
+
 **scope parameter**: Most tools accept an optional \`scope\` to target a specific member (fabric mod). \
 When scoped, bare jar IDs like "minecraft" resolve within that member's namespace. \
 When omitted, bare IDs resolve automatically if only one fabric mod exists, or error if ambiguous. \
@@ -84,7 +89,8 @@ The \`code\` field is a machine-readable error code (e.g., JDTLS_NOT_AVAILABLE, 
 
 Workflow: add_study_jar (provide file path + optional name) -> configure_study_jar (set autoInclude to control default visibility) -> list_study_jars (see all study jars and stats). \
 Study jar names must not conflict with existing dependency IDs. \
-Study jars are available to all browsing and search tools. Use configure_filters to fine-tune which jars appear in results.
+Study jars are available to all browsing and search tools. Use configure_filters to fine-tune which jars appear in results. \
+Optionally provide a compiledJar path when adding a study jar to enable reading resources (lang files, textures, shaders) via read_jar_entry with source: "compiled".
 
 ## Refresh Guidance
 
@@ -212,7 +218,7 @@ export const TOOL_DESCRIPTIONS = {
 		'Set the active child (fabric mod) on a project. When set, bare jar IDs like "minecraft" resolve within that child\'s namespace without requiring the scope parameter. Does not affect which jars are searched — use the scope parameter on individual tools for that.',
 
 	add_fabric_mod:
-		'Add a Fabric/Loom Gradle project as a member of an existing project. Parses gradle.properties and build.gradle.kts to detect Minecraft version, Yarn mappings, and dependencies. Locates source jars in the Gradle cache. The member name is derived from fabric.mod.json id. If a member with the same name already exists, auto-suffixes with -2, -3, etc.',
+		'Add a Fabric/Loom Gradle project as a member of an existing project. Parses gradle.properties and build.gradle.kts to detect Minecraft version, Yarn mappings, and dependencies. Locates source jars and compiled jars in the Gradle cache. The member name is derived from fabric.mod.json id. If a member with the same name already exists, auto-suffixes with -2, -3, etc.',
 
 	remove_project_member:
 		'Remove one or more members (fabric mods or study jars) from a project by name. Closes jar handles, cleans up workspace entries, and frees resources. Accepts an array of names; fails on the first nonexistent name with no partial removal.',
