@@ -82,6 +82,14 @@ export async function resolveSourcesJarPath(
 	const { artifactPrefix, version } = artifactInfo(config);
 	const local = await probeProjectLocal(projectRoot, artifactPrefix, version, '-sources.jar');
 	if (local) return local;
+	// Newer Loom (1.16-SNAPSHOT) writes unmapped projects under the bare
+	// `minecraft-merged-<hash>` prefix instead of `minecraft-merged-deobf-<hash>`.
+	// The era is encoded by the version string (bare MC version vs yarn-suffixed),
+	// not by the artifact prefix. Try the bare prefix as a secondary probe.
+	if (config.mappingEra === 'unmapped') {
+		const localBare = await probeProjectLocal(projectRoot, 'minecraft-merged', version, '-sources.jar');
+		if (localBare) return localBare;
+	}
 	return globalCachePath(artifactPrefix, version, '-sources.jar');
 }
 
@@ -92,5 +100,9 @@ export async function resolveCompiledJarPath(
 	const { artifactPrefix, version } = artifactInfo(config);
 	const local = await probeProjectLocal(projectRoot, artifactPrefix, version, '.jar');
 	if (local) return local;
+	if (config.mappingEra === 'unmapped') {
+		const localBare = await probeProjectLocal(projectRoot, 'minecraft-merged', version, '.jar');
+		if (localBare) return localBare;
+	}
 	return globalCachePath(artifactPrefix, version, '.jar');
 }
