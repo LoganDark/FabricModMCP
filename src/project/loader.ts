@@ -55,9 +55,9 @@ export async function reloadFabricModConfig(mod: FabricModChild): Promise<{ warn
 	// Parse gradle config
 	const newGradleConfig = parseBuildGradle(buildGradleContent, properties);
 
-	// Resolve new sources jar path
-	const newSourcesJarPath = resolveSourcesJarPath(newGradleConfig);
-	const newCompiledJarPath = resolveCompiledJarPath(newGradleConfig);
+	// Resolve new sources jar path (probes project-local Loom cache first, then global cache)
+	const newSourcesJarPath = await resolveSourcesJarPath(newGradleConfig, rootPath);
+	const newCompiledJarPath = await resolveCompiledJarPath(newGradleConfig, rootPath);
 
 	// Check if sources jar exists (warn instead of throw)
 	const sourcesJarExists = await fileExists(newSourcesJarPath);
@@ -161,11 +161,11 @@ export async function loadFabricMod(projectPath: string): Promise<FabricModChild
 	// Parse gradle config
 	const gradleConfig = parseBuildGradle(buildGradleContent, properties);
 
-	// Resolve sources jar path
-	const sourcesJarPath = resolveSourcesJarPath(gradleConfig);
+	// Resolve sources jar path (probes project-local Loom cache first, then global cache)
+	const sourcesJarPath = await resolveSourcesJarPath(gradleConfig, absolutePath);
 
 	// Resolve compiled jar path
-	const compiledJarPath = resolveCompiledJarPath(gradleConfig);
+	const compiledJarPath = await resolveCompiledJarPath(gradleConfig, absolutePath);
 	const compiledJarExists = await fileExists(compiledJarPath);
 
 	// Check sources jar exists
@@ -174,10 +174,10 @@ export async function loadFabricMod(projectPath: string): Promise<FabricModChild
 		throw new DomainError(
 			'SOURCES_JAR_NOT_FOUND',
 			"Couldn't find Minecraft sources jar -- have you run genSources?",
-			[sourcesJarPath],
+			[sourcesJarPath, join(absolutePath, '.gradle', 'loom-cache', 'minecraftMaven', 'net', 'minecraft')],
 			[
 				'Run ./gradlew genSources in your project directory',
-				'Check that your Loom cache is at ~/.gradle/caches/fabric-loom/',
+				'Loom may write the sources jar to <projectRoot>/.gradle/loom-cache/ (per-project, newer Loom) or ~/.gradle/caches/fabric-loom/ (global, older Loom) depending on Loom version',
 			],
 		);
 	}
