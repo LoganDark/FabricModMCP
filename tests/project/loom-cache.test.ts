@@ -92,6 +92,25 @@ describe('resolveSourcesJarPath', () => {
 		expect(result).toContain('minecraft-merged-deobf-cafebabe11');
 	});
 
+	it('returns project-local path when unmapped-era jar exists under bare minecraft-merged-<hash> with bare version (newer Loom)', async () => {
+		const version = '26.1';
+		const artifactDir = 'minecraft-merged-374c84699f';
+		const versionDir = join(tmpRoot, '.gradle', 'loom-cache', 'minecraftMaven', 'net', 'minecraft', artifactDir, version);
+		await mkdir(versionDir, { recursive: true });
+		const expectedJar = join(versionDir, `${artifactDir}-${version}-sources.jar`);
+		await writeFile(expectedJar, '');
+
+		const config: GradleConfig = {
+			minecraftVersion: '26.1',
+			mappingEra: 'unmapped',
+			dependencies: [],
+		};
+		const result = await resolveSourcesJarPath(config, tmpRoot);
+		expect(result).toBe(expectedJar);
+		expect(result).toContain('minecraft-merged-374c84699f');
+		expect(result).not.toContain('minecraft-merged-deobf');
+	});
+
 	it('does not match minecraft-merged-deobf-* when looking for minecraft-merged-* (mapped era)', async () => {
 		// Set up a deobf dir that should NOT match the mapped query.
 		const version = '1.19-net.fabricmc.yarn.1_19.1.19+build.4';
@@ -141,6 +160,25 @@ describe('resolveCompiledJarPath', () => {
 		const result = await resolveCompiledJarPath(config, tmpRoot);
 		expect(result).toBe(expectedJar);
 		expect(result).not.toContain('-sources.jar');
+	});
+
+	it('returns project-local compiled jar under bare minecraft-merged-<hash> for unmapped era (newer Loom)', async () => {
+		const version = '26.1';
+		const artifactDir = 'minecraft-merged-374c84699f';
+		const versionDir = join(tmpRoot, '.gradle', 'loom-cache', 'minecraftMaven', 'net', 'minecraft', artifactDir, version);
+		await mkdir(versionDir, { recursive: true });
+		const expectedJar = join(versionDir, `${artifactDir}-${version}.jar`);
+		await writeFile(expectedJar, '');
+
+		const config: GradleConfig = {
+			minecraftVersion: '26.1',
+			mappingEra: 'unmapped',
+			dependencies: [],
+		};
+		const result = await resolveCompiledJarPath(config, tmpRoot);
+		expect(result).toBe(expectedJar);
+		expect(result).not.toContain('-sources.jar');
+		expect(result).not.toContain('minecraft-merged-deobf');
 	});
 
 	it('falls back to global cache compiled path when project-local probe misses', async () => {
