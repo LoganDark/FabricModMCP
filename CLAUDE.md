@@ -55,7 +55,11 @@ An MCP (Model Context Protocol) server that gives Claude Code deep access to Min
 |------------|---------|---------|-----|------------|
 | Custom parser (properties + regex) | N/A | Extract Minecraft version, mappings, loader version, Fabric API version | Fabric Loom projects follow a rigid convention: `gradle.properties` contains `minecraft_version`, `yarn_mappings`, `loader_version`, `fabric_api_version` as simple key=value pairs. `build.gradle.kts` references these via `val x: String by project`. No need for Gradle Tooling API -- just parse the properties file. | HIGH |
 # gradle.properties -- Java Properties format, trivially parseable
-- **Sources jar path:** `~/.gradle/caches/fabric-loom/minecraftMaven/net/minecraft/minecraft-merged/{mc_version}-net.fabricmc.yarn.{yarn_mappings_sanitized}.{yarn_mappings}/{artifact}-sources.jar`
+- **Sources jar path:** Loom writes the merged Minecraft sources jar to one of two locations depending on Loom version:
+  - **Per-project cache (newer Loom, e.g. 1.16-SNAPSHOT used by MC 1.19+):** `<projectRoot>/.gradle/loom-cache/minecraftMaven/net/minecraft/minecraft-merged-<hash>/{version}/minecraft-merged-<hash>-{version}-sources.jar`. The `<hash>` is a 10-hex-char fingerprint of the project's Loom configuration and is NOT derivable from gradle.properties — the resolver globs `minecraft-merged-*` to find it.
+  - **Global cache (older Loom, fallback):** `~/.gradle/caches/fabric-loom/minecraftMaven/net/minecraft/minecraft-merged/{version}/minecraft-merged-{version}-sources.jar`.
+  - Where `{version}` = `{mc_version}-net.fabricmc.yarn.{yarn_mappings_sanitized}.{yarn_mappings}` for mapped era, or just `{mc_version}` for unmapped era (artifact id becomes `minecraft-merged-deobf`).
+  - `resolveSourcesJarPath` (in `src/project/loom-cache.ts`) probes the per-project cache first, then falls back to the global cache.
 - **Dependency source jars:** Located via Gradle cache at `~/.gradle/caches/modules-2/files-2.1/` using Maven coordinates
 ### Build & Development
 | Technology | Version | Purpose | Why | Confidence |
