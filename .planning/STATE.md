@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed quick-260424-hn5
-last_updated: "2026-04-24T19:45:08.997Z"
+stopped_at: Completed quick-260426-2bj
+last_updated: "2026-04-26T08:48:00.000Z"
 progress:
   total_phases: 0
   completed_phases: 0
@@ -54,9 +54,10 @@ None.
 | 260421-qah | Improve empty workspace error messages | 2026-04-21 | 6b6fe8c | [260421-qah-improve-empty-workspace-error-messages-f](./quick/260421-qah-improve-empty-workspace-error-messages-f/) |
 | 260421-tes | Support reading resource files from jars | 2026-04-21 | 9900aec | [260421-tes-support-reading-resource-files-from-jars](./quick/260421-tes-support-reading-resource-files-from-jars/) |
 | 260424-hn5 | Add Large Responses pagination guidance to SERVER_INSTRUCTIONS | 2026-04-24 | 9bcbe1d | [260424-hn5-in-the-server-instructions-be-clear-that](./quick/260424-hn5-in-the-server-instructions-be-clear-that/) |
+| 260426-2bj | Fix Minecraft source jar detection for per-project Loom cache | 2026-04-26 | 9826d30 | [260426-2bj-fix-minecraft-source-jar-detection-for-p](./quick/260426-2bj-fix-minecraft-source-jar-detection-for-p/) |
 
 ## Session Continuity
 
-Last session: 2026-04-24T19:45:08.994Z
-Stopped at: Completed quick-260424-hn5
+Last session: 2026-04-26T08:48:00.000Z
+Stopped at: Completed quick-260426-2bj
 Resume file: None
