@@ -167,18 +167,10 @@ export function registerRefreshProjectMembersTool(server: McpServer): void {
 				withoutSources: combinedSummaries.reduce((sum, s) => sum + s.withoutSources, 0),
 			};
 
-			const suggestions: string[] = [];
-			if (totalSummary.withoutSources > 0) {
-				suggestions.push(
-					`${totalSummary.withoutSources} dependencies are missing source jars. Run ./gradlew downloadSources in the project directory to download them, then refresh again.`,
-				);
-			}
-
 			const envelope = makeSuccess(
 				{
 					summary: totalSummary,
 					refreshedChildren: modsToRefresh.map(m => m.name),
-					suggestions,
 					...(allWarnings.length > 0 ? { warnings: allWarnings } : {}),
 					...(unloadedNames.length > 0 ? { autoUnloaded: unloadedNames } : {}),
 				},
