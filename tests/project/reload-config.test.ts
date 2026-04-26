@@ -126,8 +126,8 @@ describe('reloadFabricModConfig', () => {
 
 		mockParseGradleProperties.mockReturnValue(new Map([['minecraft_version', newGradle.minecraftVersion]]));
 		mockParseBuildGradle.mockReturnValue(newGradle);
-		mockResolveSourcesJarPath.mockReturnValue('/fake/new-sources.jar');
-		mockResolveCompiledJarPath.mockReturnValue('/fake/new-compiled.jar');
+		mockResolveSourcesJarPath.mockResolvedValue('/fake/new-sources.jar');
+		mockResolveCompiledJarPath.mockResolvedValue('/fake/new-compiled.jar');
 		mockParseFabricMod.mockReturnValue(newFabric);
 		mockAccess.mockResolvedValue(undefined); // jars exist
 	}
@@ -159,6 +159,7 @@ describe('reloadFabricModConfig', () => {
 		await reloadFabricModConfig(mod);
 
 		expect(mockResolveSourcesJarPath).toHaveBeenCalled();
+		expect(mockResolveSourcesJarPath).toHaveBeenCalledWith(expect.any(Object), '/fake/project');
 		expect(mod.sourcesJar.path).toBe('/fake/new-sources.jar');
 		expect(mod.sourcesJar.exists).toBe(true);
 	});
