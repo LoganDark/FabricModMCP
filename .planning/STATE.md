@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed quick-260426-jwh
-last_updated: "2026-04-26T21:25:04Z"
+stopped_at: Completed quick-260426-kwv
+last_updated: "2026-04-26T22:08:06.052Z"
 progress:
   total_phases: 0
   completed_phases: 0
@@ -56,9 +56,10 @@ None.
 | 260424-hn5 | Add Large Responses pagination guidance to SERVER_INSTRUCTIONS | 2026-04-24 | 9bcbe1d |  | [260424-hn5-in-the-server-instructions-be-clear-that](./quick/260424-hn5-in-the-server-instructions-be-clear-that/) |
 | 260426-2bj | Fix Minecraft source jar detection for per-project Loom cache | 2026-04-26 | 9826d30 | Verified | [260426-2bj-fix-minecraft-source-jar-detection-for-p](./quick/260426-2bj-fix-minecraft-source-jar-detection-for-p/) |
 | 260426-jwh | Fix sources detection for newer-Loom unmapped bare-prefix layout (Pockets) | 2026-04-26 | 5989bd1 |  | [260426-jwh-the-minecraft-sources-in-users-logandark](./quick/260426-jwh-the-minecraft-sources-in-users-logandark/) |
+| 260426-kwv | Drop downloadSources suggestion from MCP tool response envelopes | 2026-04-26 | c195fa6 |  | [260426-kwv-llms-keep-getting-confused-by-the-sugges](./quick/260426-kwv-llms-keep-getting-confused-by-the-sugges/) |
 
 ## Session Continuity
 
-Last session: 2026-04-26T21:25:04Z
-Stopped at: Completed quick-260426-jwh
+Last session: 2026-04-26T22:08:06.050Z
+Stopped at: Completed quick-260426-kwv
 Resume file: None
