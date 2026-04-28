@@ -19,6 +19,14 @@ export type DiscoveryResult = {
  * Locate a POM for the given coordinate. Probes the supplied Maven roots
  * (standard layout, group-as-path) first in declaration order, then falls
  * back to the Gradle modules-2 sha1-bucketed cache.
+ *
+ * Note: findPom intentionally does NOT probe the Loom remapped_mods cache.
+ * The .pom files Loom emits there are byproducts of the remapping pipeline
+ * and are not authoritative for transitive resolution -- the original POMs
+ * from the upstream repos (Maven roots / modules-2) carry the correct
+ * dependency-tree metadata. Loom-cache-first ordering only applies to the
+ * jars themselves (sources + compiled), which the IDE displays and the
+ * project compiles against.
  */
 async function findPom(
 	group: string,
@@ -66,19 +74,24 @@ async function findPom(
 /**
  * Format the warn-log message for a sources-resolution miss. The message
  * names the coord and lists every root that was tried, so the silent miss
- * is no longer invisible at load time.
+ * is no longer invisible at load time. When projectRootPath is provided, the
+ * loom-cache remapped_mods root is listed FIRST (matching probe order).
  */
 function formatUnresolvedSourcesWarn(
 	group: string,
 	artifact: string,
 	version: string,
 	mavenRoots: readonly string[],
+	projectRootPath: string | null,
 ): string {
 	const modules2 = '~/.gradle/caches/modules-2/files-2.1';
-	const tried = mavenRoots.length > 0
-		? `${mavenRoots.join(', ')}, ${modules2}`
-		: modules2;
-	return `Could not resolve sources for ${group}:${artifact}:${version} (tried roots: ${tried})`;
+	const roots: string[] = [];
+	if (projectRootPath) {
+		roots.push(join(projectRootPath, '.gradle', 'loom-cache', 'remapped_mods', 'remapped'));
+	}
+	roots.push(...mavenRoots);
+	roots.push(modules2);
+	return `Could not resolve sources for ${group}:${artifact}:${version} (tried roots: ${roots.join(', ')})`;
 }
 
 async function addDependencyEntry(
@@ -89,6 +102,7 @@ async function addDependencyEntry(
 	version: string,
 	category: DependencyEntry['category'],
 	mavenRoots: readonly string[],
+	projectRoot: string | null,
 	chain: string[] = [],
 ): Promise<void> {
 	const id = `${modName}/${group}:${artifact}`;
@@ -100,11 +114,11 @@ async function addDependencyEntry(
 		return;
 	}
 
-	const sourcesJarPath = await findSourcesJar(group, artifact, version, mavenRoots);
-	const compiledJarPath = await findCompiledJar(group, artifact, version, mavenRoots);
+	const sourcesJarPath = await findSourcesJar(group, artifact, version, mavenRoots, projectRoot);
+	const compiledJarPath = await findCompiledJar(group, artifact, version, mavenRoots, projectRoot);
 
 	if (sourcesJarPath === null) {
-		logger.warn(formatUnresolvedSourcesWarn(group, artifact, version, mavenRoots));
+		logger.warn(formatUnresolvedSourcesWarn(group, artifact, version, mavenRoots, projectRoot));
 	}
 
 	deps.set(id, {
@@ -130,6 +144,7 @@ async function followTransitiveDeps(
 	depth: number,
 	chain: string[],
 	mavenRoots: readonly string[],
+	projectRoot: string | null,
 ): Promise<void> {
 	if (depth > 5) return;
 
@@ -150,8 +165,8 @@ async function followTransitiveDeps(
 
 			const depId = `${dep.groupId}:${dep.artifactId}`;
 			const newChain = [...chain, depId];
-			await addDependencyEntry(deps, modName, dep.groupId, dep.artifactId, dep.version, 'library', mavenRoots, newChain);
-			await followTransitiveDeps(deps, modName, dep.groupId, dep.artifactId, dep.version, visited, depth + 1, newChain, mavenRoots);
+			await addDependencyEntry(deps, modName, dep.groupId, dep.artifactId, dep.version, 'library', mavenRoots, projectRoot, newChain);
+			await followTransitiveDeps(deps, modName, dep.groupId, dep.artifactId, dep.version, visited, depth + 1, newChain, mavenRoots, projectRoot);
 		}
 	} catch {
 		// Malformed POM or read error -- skip
@@ -207,7 +222,7 @@ export async function discoverDependencies(
 			for (const lib of mojangInfo.libraries) {
 				const parts = (lib.name as string).split(':');
 				if (parts.length >= 3) {
-					await addDependencyEntry(deps, modName, parts[0], parts[1], parts[2], 'library', mavenRoots, ['minecraft']);
+					await addDependencyEntry(deps, modName, parts[0], parts[1], parts[2], 'library', mavenRoots, projectRootPath, ['minecraft']);
 				}
 			}
 		}
@@ -245,7 +260,7 @@ export async function discoverDependencies(
 			const fabricDeps = parsePomDependencies(fabricPomContent);
 			for (const dep of fabricDeps) {
 				if (dep.scope !== 'compile') continue;
-				await addDependencyEntry(deps, modName, dep.groupId, dep.artifactId, dep.version, 'fabric-api', mavenRoots, ['net.fabricmc.fabric-api:fabric-api']);
+				await addDependencyEntry(deps, modName, dep.groupId, dep.artifactId, dep.version, 'fabric-api', mavenRoots, projectRootPath, ['net.fabricmc.fabric-api:fabric-api']);
 			}
 		} else {
 			// Could not find Fabric API POM -- add single entry
@@ -274,8 +289,8 @@ export async function discoverDependencies(
 		if (skipArtifacts.has(dep.artifact)) continue;
 
 		const depId = `${dep.group}:${dep.artifact}`;
-		await addDependencyEntry(deps, modName, dep.group, dep.artifact, dep.version, 'library', mavenRoots, [depId]);
-		await followTransitiveDeps(deps, modName, dep.group, dep.artifact, dep.version, visited, 1, [depId], mavenRoots);
+		await addDependencyEntry(deps, modName, dep.group, dep.artifact, dep.version, 'library', mavenRoots, projectRootPath, [depId]);
+		await followTransitiveDeps(deps, modName, dep.group, dep.artifact, dep.version, visited, 1, [depId], mavenRoots, projectRootPath);
 	}
 
 	// Calculate summary (excluding minecraft and mod-source)

@@ -1,6 +1,7 @@
 import { readdir, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { resolveLoomRemappedJarPath } from './loom-cache.js';
 
 function gradleCacheBase(): string {
 	return join(homedir(), '.gradle', 'caches', 'modules-2', 'files-2.1');
@@ -68,7 +69,17 @@ export async function findSourcesJar(
 	artifact: string,
 	version: string,
 	mavenRoots: readonly string[] = [],
+	projectRoot: string | null = null,
 ): Promise<string | null> {
+	// Loom remaps every Fabric mod dependency from intermediary into the project's
+	// mappings (yarn) and writes the result to <projectRoot>/.gradle/loom-cache/
+	// remapped_mods/remapped/. These remapped jars match what the IDE shows and
+	// what the project compiles against, so they MUST be preferred over the
+	// intermediary-mapped sources in declared Maven roots / modules-2.
+	if (projectRoot !== null) {
+		const fromLoom = await resolveLoomRemappedJarPath(projectRoot, group, artifact, version, '-sources.jar');
+		if (fromLoom) return fromLoom;
+	}
 	const expectedName = `${artifact}-${version}-sources.jar`;
 	const fromMaven = await probeMavenRoots(mavenRoots, group, artifact, version, expectedName);
 	if (fromMaven) return fromMaven;
@@ -80,7 +91,14 @@ export async function findCompiledJar(
 	artifact: string,
 	version: string,
 	mavenRoots: readonly string[] = [],
+	projectRoot: string | null = null,
 ): Promise<string | null> {
+	// Same loom-cache-first logic as findSourcesJar -- the binary jar is also
+	// remapped to the project's mappings.
+	if (projectRoot !== null) {
+		const fromLoom = await resolveLoomRemappedJarPath(projectRoot, group, artifact, version, '.jar');
+		if (fromLoom) return fromLoom;
+	}
 	const expectedName = `${artifact}-${version}.jar`;
 	const fromMaven = await probeMavenRoots(mavenRoots, group, artifact, version, expectedName);
 	if (fromMaven) return fromMaven;
