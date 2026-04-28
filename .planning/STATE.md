@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed quick-260428-4zp
-last_updated: "2026-04-28T10:45:07.878Z"
+stopped_at: Completed quick-260428-59m
+last_updated: "2026-04-28T10:59:16Z"
 progress:
   total_phases: 0
   completed_phases: 0
@@ -58,9 +58,10 @@ None.
 | 260426-jwh | Fix sources detection for newer-Loom unmapped bare-prefix layout (Pockets) | 2026-04-26 | 5989bd1 |  | [260426-jwh-the-minecraft-sources-in-users-logandark](./quick/260426-jwh-the-minecraft-sources-in-users-logandark/) |
 | 260426-kwv | Drop downloadSources suggestion from MCP tool response envelopes | 2026-04-26 | c195fa6 |  | [260426-kwv-llms-keep-getting-confused-by-the-sugges](./quick/260426-kwv-llms-keep-getting-confused-by-the-sugges/) |
 | 260428-4zp | Investigate auxcommands dep-source failure (CreatorCore/Claude) | 2026-04-28 | 157439d | Investigation | [260428-4zp-investigate-why-the-users-logandark-docu](./quick/260428-4zp-investigate-why-the-users-logandark-docu/) |
+| 260428-59m | Support local Maven repositories (file://, mavenLocal) for dep sources | 2026-04-28 | 26602d2 | Verified | [260428-59m-support-local-maven-repositories](./quick/260428-59m-support-local-maven-repositories/) |
 
 ## Session Continuity
 
-Last session: 2026-04-28T10:45:07.876Z
-Stopped at: Completed quick-260428-4zp
+Last session: 2026-04-28T10:59:16Z
+Stopped at: Completed quick-260428-59m
 Resume file: None
