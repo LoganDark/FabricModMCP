@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed quick-260426-kwv
-last_updated: "2026-04-26T22:08:06.052Z"
+stopped_at: Completed quick-260428-4zp
+last_updated: "2026-04-28T10:45:07.878Z"
 progress:
   total_phases: 0
   completed_phases: 0
@@ -57,9 +57,10 @@ None.
 | 260426-2bj | Fix Minecraft source jar detection for per-project Loom cache | 2026-04-26 | 9826d30 | Verified | [260426-2bj-fix-minecraft-source-jar-detection-for-p](./quick/260426-2bj-fix-minecraft-source-jar-detection-for-p/) |
 | 260426-jwh | Fix sources detection for newer-Loom unmapped bare-prefix layout (Pockets) | 2026-04-26 | 5989bd1 |  | [260426-jwh-the-minecraft-sources-in-users-logandark](./quick/260426-jwh-the-minecraft-sources-in-users-logandark/) |
 | 260426-kwv | Drop downloadSources suggestion from MCP tool response envelopes | 2026-04-26 | c195fa6 |  | [260426-kwv-llms-keep-getting-confused-by-the-sugges](./quick/260426-kwv-llms-keep-getting-confused-by-the-sugges/) |
+| 260428-4zp | Investigate auxcommands dep-source failure (CreatorCore/Claude) | 2026-04-28 | 157439d | Investigation | [260428-4zp-investigate-why-the-users-logandark-docu](./quick/260428-4zp-investigate-why-the-users-logandark-docu/) |
 
 ## Session Continuity
 
-Last session: 2026-04-26T22:08:06.050Z
-Stopped at: Completed quick-260426-kwv
+Last session: 2026-04-28T10:45:07.876Z
+Stopped at: Completed quick-260428-4zp
 Resume file: None
