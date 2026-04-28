@@ -137,4 +137,102 @@ describe('findSourcesJar default modules-2 path', () => {
 		const result = await findSourcesJar('absolutely.not.real', 'no-such-artifact', '0.0.0-never');
 		expect(result).toBeNull();
 	});
+
+	it('returns null when projectRoot is null and Maven roots / modules-2 do not match', async () => {
+		const result = await findSourcesJar('absolutely.not.real', 'no-such-artifact', '0.0.0-never', [], null);
+		expect(result).toBeNull();
+	});
+});
+
+describe('findSourcesJar / findCompiledJar with projectRoot (loom-cache probe)', () => {
+	let tmpRoot: string;
+
+	beforeAll(async () => {
+		tmpRoot = await mkdtemp(join(tmpdir(), 'fmm-loomprobe-'));
+	});
+
+	afterAll(async () => {
+		await rm(tmpRoot, { recursive: true, force: true });
+	});
+
+	const LOOM_GROUP = 'net.example';
+	const LOOM_ARTIFACT = 'mod';
+	const LOOM_VERSION = '1.0.0';
+	const LOOM_HASH = 'abc1234567';
+	const LOOM_DIR_NAME = `${LOOM_ARTIFACT}-${LOOM_HASH}`;
+	const LOOM_SOURCES = `${LOOM_DIR_NAME}-${LOOM_VERSION}-sources.jar`;
+	const LOOM_JAR = `${LOOM_DIR_NAME}-${LOOM_VERSION}.jar`;
+
+	async function makeLoomLayout(projectRoot: string): Promise<{ sourcesPath: string; jarPath: string }> {
+		const dir = join(
+			projectRoot, '.gradle', 'loom-cache', 'remapped_mods', 'remapped',
+			...LOOM_GROUP.split('.'), LOOM_DIR_NAME, LOOM_VERSION,
+		);
+		await mkdir(dir, { recursive: true });
+		const sourcesPath = join(dir, LOOM_SOURCES);
+		const jarPath = join(dir, LOOM_JAR);
+		await writeFile(sourcesPath, 'fake loom-remapped sources');
+		await writeFile(jarPath, 'fake loom-remapped jar');
+		return { sourcesPath, jarPath };
+	}
+
+	it('Test A: findSourcesJar returns the loom-cache path even when a Maven root also has it', async () => {
+		const projectRoot = join(tmpRoot, 'projA');
+		const mavenRoot = join(tmpRoot, 'maven-A');
+		// Maven layout for the same coord (using Loom's group/artifact/version).
+		const mavenDir = join(mavenRoot, ...LOOM_GROUP.split('.'), LOOM_ARTIFACT, LOOM_VERSION);
+		await mkdir(mavenDir, { recursive: true });
+		await writeFile(join(mavenDir, `${LOOM_ARTIFACT}-${LOOM_VERSION}-sources.jar`), 'maven sources');
+
+		const { sourcesPath } = await makeLoomLayout(projectRoot);
+
+		const result = await findSourcesJar(LOOM_GROUP, LOOM_ARTIFACT, LOOM_VERSION, [mavenRoot], projectRoot);
+		expect(result).toBe(sourcesPath);
+		expect(result).toContain('loom-cache/remapped_mods/remapped');
+	});
+
+	it('Test B: findCompiledJar returns the loom-cache path when both loom and Maven have it', async () => {
+		const projectRoot = join(tmpRoot, 'projB');
+		const mavenRoot = join(tmpRoot, 'maven-B');
+		const mavenDir = join(mavenRoot, ...LOOM_GROUP.split('.'), LOOM_ARTIFACT, LOOM_VERSION);
+		await mkdir(mavenDir, { recursive: true });
+		await writeFile(join(mavenDir, `${LOOM_ARTIFACT}-${LOOM_VERSION}.jar`), 'maven jar');
+
+		const { jarPath } = await makeLoomLayout(projectRoot);
+
+		const result = await findCompiledJar(LOOM_GROUP, LOOM_ARTIFACT, LOOM_VERSION, [mavenRoot], projectRoot);
+		expect(result).toBe(jarPath);
+		expect(result).toContain('loom-cache/remapped_mods/remapped');
+	});
+
+	it('Test C: falls through to Maven roots when projectRoot has no loom-remapped fixture', async () => {
+		const projectRoot = join(tmpRoot, 'projC');
+		await mkdir(projectRoot, { recursive: true }); // exists, but no .gradle/loom-cache
+		const mavenRoot = join(tmpRoot, 'maven-C');
+		const mavenDir = join(mavenRoot, ...LOOM_GROUP.split('.'), LOOM_ARTIFACT, LOOM_VERSION);
+		await mkdir(mavenDir, { recursive: true });
+		const expected = join(mavenDir, `${LOOM_ARTIFACT}-${LOOM_VERSION}-sources.jar`);
+		await writeFile(expected, 'maven sources');
+
+		const result = await findSourcesJar(LOOM_GROUP, LOOM_ARTIFACT, LOOM_VERSION, [mavenRoot], projectRoot);
+		expect(result).toBe(expected);
+	});
+
+	it('Test D: returns null when neither loom-cache nor Maven roots nor modules-2 has the coord', async () => {
+		const projectRoot = join(tmpRoot, 'projD');
+		await mkdir(projectRoot, { recursive: true });
+		const result = await findSourcesJar('absolutely.not.real', 'no-such-artifact', '0.0.0-never', [], projectRoot);
+		expect(result).toBeNull();
+	});
+
+	it('Test E: when projectRoot is null, behaviour matches the existing implementation (Maven root then modules-2)', async () => {
+		const mavenRoot = join(tmpRoot, 'maven-E');
+		const mavenDir = join(mavenRoot, ...LOOM_GROUP.split('.'), LOOM_ARTIFACT, LOOM_VERSION);
+		await mkdir(mavenDir, { recursive: true });
+		const expected = join(mavenDir, `${LOOM_ARTIFACT}-${LOOM_VERSION}-sources.jar`);
+		await writeFile(expected, 'maven sources');
+
+		const result = await findSourcesJar(LOOM_GROUP, LOOM_ARTIFACT, LOOM_VERSION, [mavenRoot], null);
+		expect(result).toBe(expected);
+	});
 });

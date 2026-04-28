@@ -615,6 +615,67 @@ describe('discoverDependencies', () => {
 			expect(matching).toBeUndefined();
 		});
 
+		it('lists the loom-cache root as the FIRST tried root in the warn message when projectRoot is provided', async () => {
+			const config = makeConfig({
+				dependencies: [
+					{ configuration: 'minecraft', group: 'com.mojang', artifact: 'minecraft', version: '1.21.11', raw: 'com.mojang:minecraft:1.21.11' },
+					{ configuration: 'modImplementation', group: 'no.sources', artifact: 'lib', version: '1.0.0', raw: 'no.sources:lib:1.0.0' },
+				],
+				fabricApiVersion: undefined,
+				mavenRoots: ['/fake/root1'],
+			});
+
+			mockedFindSourcesJar.mockResolvedValue(null);
+
+			const warnSpy = vi.spyOn(logger, 'warn');
+			let matching: string | undefined;
+			try {
+				await discoverDependencies(config, FAKE_MC_SOURCES, null, '/fake/projectroot', MOD_NAME);
+				const found = warnSpy.mock.calls.find(call =>
+					typeof call[0] === 'string' && call[0].includes('no.sources:lib:1.0.0'),
+				);
+				matching = found ? found[0] as string : undefined;
+			} finally {
+				warnSpy.mockRestore();
+			}
+
+			expect(matching).toBeDefined();
+			// loom-cache root must appear as the FIRST entry in `tried roots: ...`.
+			const expectedLoomRoot = '/fake/projectroot/.gradle/loom-cache/remapped_mods/remapped';
+			expect(matching!).toContain(expectedLoomRoot);
+			const triedMatch = matching!.match(/tried roots:\s*([^)]+)\)/);
+			expect(triedMatch).not.toBeNull();
+			const firstRoot = triedMatch![1].split(',')[0].trim();
+			expect(firstRoot).toBe(expectedLoomRoot);
+			// Existing roots still present.
+			expect(matching!).toContain('/fake/root1');
+			expect(matching!).toContain('~/.gradle/caches/modules-2/files-2.1');
+		});
+
+		it('threads projectRoot into findSourcesJar / findCompiledJar as the 5th argument', async () => {
+			const config = makeConfig({
+				dependencies: [
+					{ configuration: 'minecraft', group: 'com.mojang', artifact: 'minecraft', version: '1.21.11', raw: 'com.mojang:minecraft:1.21.11' },
+					{ configuration: 'modImplementation', group: 'with.proj', artifact: 'lib', version: '1.0.0', raw: 'with.proj:lib:1.0.0' },
+				],
+				fabricApiVersion: undefined,
+				mavenRoots: [],
+			});
+
+			mockedFindSourcesJar.mockResolvedValue('/fake/sources.jar');
+			mockedFindCompiledJar.mockResolvedValue('/fake/compiled.jar');
+
+			await discoverDependencies(config, FAKE_MC_SOURCES, null, '/fake/projectroot', MOD_NAME);
+
+			const sourcesCall = mockedFindSourcesJar.mock.calls.find(c => c[0] === 'with.proj');
+			expect(sourcesCall).toBeDefined();
+			expect(sourcesCall![4]).toBe('/fake/projectroot');
+
+			const compiledCall = mockedFindCompiledJar.mock.calls.find(c => c[0] === 'with.proj');
+			expect(compiledCall).toBeDefined();
+			expect(compiledCall![4]).toBe('/fake/projectroot');
+		});
+
 		it('threads mavenRoots from config into findSourcesJar / findCompiledJar', async () => {
 			const config = makeConfig({
 				dependencies: [
