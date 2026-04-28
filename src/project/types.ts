@@ -17,6 +17,12 @@ export type GradleConfig = {
 	loaderVersion?: string;
 	fabricApiVersion?: string;
 	dependencies: DependencyCoordinate[];
+	// Absolute filesystem paths of file:// Maven repositories declared in
+	// build.gradle.kts repositories { ... }, in declaration order.
+	// Includes mavenLocal() (mapped to ~/.m2/repository). Empty when no
+	// local repos are declared. Used by source-jar-finder / dependency-discovery
+	// to probe Maven layout (group-as-path) before falling back to modules-2.
+	mavenRoots: string[];
 }
 
 export type FabricModJson = {
