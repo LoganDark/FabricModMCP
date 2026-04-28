@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFile } from 'node:fs/promises';
-import { resolve, dirname } from 'node:path';
+import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { homedir } from 'node:os';
 import { parseGradleProperties, parseBuildGradle } from '../../src/project/gradle-parser.js';
 import { DomainError } from '../../src/errors/domain-error.js';
 
@@ -140,5 +141,156 @@ describe('parseBuildGradle', () => {
 		} catch (e) {
 			expect((e as DomainError).code).toBe('GRADLE_PARSE_MISSING_MINECRAFT');
 		}
+	});
+
+	describe('parseBuildGradle.mavenRoots', () => {
+		// All inputs include a minimal valid minecraft(...) dep so parseBuildGradle does not throw.
+		const minDeps = `
+dependencies {
+	minecraft("com.mojang:minecraft:1.21.11")
+}
+`;
+
+		function buildContent(repoBlock: string): string {
+			return repoBlock + '\n' + minDeps;
+		}
+
+		it('extracts maven { url = uri("file:///abs/path") } block form', () => {
+			const content = buildContent(`
+repositories {
+	maven {
+		name = "Local"
+		url = uri("file:///abs/path/to/repo")
+	}
+}
+`);
+			const config = parseBuildGradle(content, new Map());
+			expect(config.mavenRoots).toContain('/abs/path/to/repo');
+		});
+
+		it('expands ${System.getProperty("user.home")} in uri() form', () => {
+			const content = buildContent(`
+repositories {
+	maven {
+		url = uri("file://\${System.getProperty("user.home")}/maven")
+	}
+}
+`);
+			const config = parseBuildGradle(content, new Map());
+			expect(config.mavenRoots).toContain(join(homedir(), 'maven'));
+		});
+
+		it('extracts maven { url = "file:///abs/path" } (plain string, no uri() wrapper)', () => {
+			const content = buildContent(`
+repositories {
+	maven {
+		url = "file:///abs/string-path"
+	}
+}
+`);
+			const config = parseBuildGradle(content, new Map());
+			expect(config.mavenRoots).toContain('/abs/string-path');
+		});
+
+		it('extracts shorthand maven("file:///abs/path") call form', () => {
+			const content = buildContent(`
+repositories {
+	maven("file:///abs/shorthand")
+}
+`);
+			const config = parseBuildGradle(content, new Map());
+			expect(config.mavenRoots).toContain('/abs/shorthand');
+		});
+
+		it('extracts mavenLocal() to ~/.m2/repository', () => {
+			const content = buildContent(`
+repositories {
+	mavenLocal()
+}
+`);
+			const config = parseBuildGradle(content, new Map());
+			expect(config.mavenRoots).toContain(join(homedir(), '.m2', 'repository'));
+		});
+
+		it('does NOT include mavenCentral() or other non-file repos', () => {
+			const content = buildContent(`
+repositories {
+	mavenCentral()
+	maven("https://maven.fabricmc.net/")
+	maven { url = "https://example.com/repo" }
+}
+`);
+			const config = parseBuildGradle(content, new Map());
+			expect(config.mavenRoots).toEqual([]);
+		});
+
+		it('preserves declaration order across multiple repos', () => {
+			const content = buildContent(`
+repositories {
+	maven { url = uri("file:///first") }
+	mavenLocal()
+	maven("file:///third")
+}
+`);
+			const config = parseBuildGradle(content, new Map());
+			expect(config.mavenRoots).toEqual([
+				'/first',
+				join(homedir(), '.m2', 'repository'),
+				'/third',
+			]);
+		});
+
+		it('returns [] when no repositories block', () => {
+			const content = minDeps;
+			const config = parseBuildGradle(content, new Map());
+			expect(config.mavenRoots).toEqual([]);
+		});
+
+		it('returns [] for empty repositories block', () => {
+			const content = buildContent(`
+repositories {
+}
+`);
+			const config = parseBuildGradle(content, new Map());
+			expect(config.mavenRoots).toEqual([]);
+		});
+
+		it('expands literal ~/something to homedir', () => {
+			const content = buildContent(`
+repositories {
+	maven { url = uri("file://~/relative-maven") }
+}
+`);
+			const config = parseBuildGradle(content, new Map());
+			expect(config.mavenRoots).toContain(join(homedir(), 'relative-maven'));
+		});
+
+		it('deduplicates same path declared twice while preserving first-occurrence order', () => {
+			const content = buildContent(`
+repositories {
+	maven { url = uri("file:///dup") }
+	maven { url = "file:///dup" }
+	maven("file:///other")
+}
+`);
+			const config = parseBuildGradle(content, new Map());
+			expect(config.mavenRoots).toEqual(['/dup', '/other']);
+		});
+
+		it('matches the real CreatorCore/Claude repo declaration shape', () => {
+			// Verbatim shape from FINDINGS — uri() with ${System.getProperty("user.home")}
+			const content = buildContent(`
+repositories {
+	maven {
+		name = "LocalMaven"
+		url = uri("file://\${System.getProperty("user.home")}/maven")
+	}
+
+	mavenCentral()
+}
+`);
+			const config = parseBuildGradle(content, new Map());
+			expect(config.mavenRoots).toEqual([join(homedir(), 'maven')]);
+		});
 	});
 });
