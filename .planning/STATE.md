@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed quick-260428-59m
-last_updated: "2026-04-28T10:59:16Z"
+stopped_at: Completed quick-260428-5ol
+last_updated: "2026-04-28T11:16:10Z"
 progress:
   total_phases: 0
   completed_phases: 0
@@ -59,9 +59,10 @@ None.
 | 260426-kwv | Drop downloadSources suggestion from MCP tool response envelopes | 2026-04-26 | c195fa6 |  | [260426-kwv-llms-keep-getting-confused-by-the-sugges](./quick/260426-kwv-llms-keep-getting-confused-by-the-sugges/) |
 | 260428-4zp | Investigate auxcommands dep-source failure (CreatorCore/Claude) | 2026-04-28 | 157439d | Investigation | [260428-4zp-investigate-why-the-users-logandark-docu](./quick/260428-4zp-investigate-why-the-users-logandark-docu/) |
 | 260428-59m | Support local Maven repositories (file://, mavenLocal) for dep sources | 2026-04-28 | 26602d2 | Verified | [260428-59m-support-local-maven-repositories](./quick/260428-59m-support-local-maven-repositories/) |
+| 260428-5ol | Prefer Loom-cache remapped sources for mod deps | 2026-04-28 | 3319de9 | Verified | [260428-5ol-prefer-loom-cache-remapped-sources-for-m](./quick/260428-5ol-prefer-loom-cache-remapped-sources-for-m/) |
 
 ## Session Continuity
 
-Last session: 2026-04-28T10:59:16Z
-Stopped at: Completed quick-260428-59m
+Last session: 2026-04-28T11:16:10Z
+Stopped at: Completed quick-260428-5ol
 Resume file: None
