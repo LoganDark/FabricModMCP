@@ -106,3 +106,56 @@ export async function resolveCompiledJarPath(
 	}
 	return globalCachePath(artifactPrefix, version, '.jar');
 }
+
+// Probe the project-local Loom remapped_mods cache for a Fabric mod dependency
+// jar. Loom remaps mod deps from intermediary into the project's mappings (yarn)
+// and writes them to:
+//
+//   <projectRoot>/.gradle/loom-cache/remapped_mods/remapped/
+//     <group-as-path>/<artifact>-<hex>/<version>/<artifact>-<hex>-<version>[<suffix>]
+//
+// Group is split on '.' and joined with slashes (standard Maven layout, NOT
+// modules-2 dotted-name shape). The <hex> hash is a per-project Loom
+// fingerprint and must be globbed (not derivable from gradle.properties).
+// A bare `<artifact>` dir without a `-<hex>` suffix would not be Loom output
+// and is intentionally rejected.
+export async function resolveLoomRemappedJarPath(
+	projectRoot: string,
+	group: string,
+	artifact: string,
+	version: string,
+	filenameSuffix: '-sources.jar' | '.jar',
+): Promise<string | null> {
+	const groupDir = join(
+		projectRoot, '.gradle', 'loom-cache', 'remapped_mods', 'remapped',
+		...group.split('.'),
+	);
+
+	let entries: string[];
+	try {
+		entries = await readdir(groupDir);
+	} catch {
+		return null;
+	}
+
+	const prefix = `${artifact}-`;
+	const hexOnly = /^[a-f0-9]+$/;
+
+	for (const dirName of entries) {
+		if (!dirName.startsWith(prefix)) continue;
+		const hash = dirName.slice(prefix.length);
+		if (hash.length === 0) continue;
+		if (!hexOnly.test(hash)) continue;
+
+		const versionDir = join(groupDir, dirName, version);
+		const filename = `${dirName}-${version}${filenameSuffix}`;
+		const candidate = join(versionDir, filename);
+		try {
+			await access(candidate);
+			return candidate;
+		} catch {
+			continue;
+		}
+	}
+	return null;
+}
