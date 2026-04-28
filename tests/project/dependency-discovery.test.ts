@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { logger } from '../../src/logging/logger.js';
 import type { GradleConfig } from '../../src/project/types.js';
 
 // Mock fs/promises
@@ -39,6 +40,7 @@ function makeConfig(overrides: Partial<GradleConfig> = {}): GradleConfig {
 			{ configuration: 'modImplementation', group: 'net.fabricmc', artifact: 'fabric-loader', version: '0.16.14', raw: 'net.fabricmc:fabric-loader:0.16.14' },
 			{ configuration: 'modImplementation', group: 'net.fabricmc.fabric-api', artifact: 'fabric-api', version: '0.141.3+1.21.11', raw: 'net.fabricmc.fabric-api:fabric-api:0.141.3+1.21.11' },
 		],
+		mavenRoots: [],
 		...overrides,
 	};
 }
@@ -522,6 +524,113 @@ describe('discoverDependencies', () => {
 			expect(target!.provenanceChains).toHaveLength(2);
 			expect(target!.provenanceChains[0]).toEqual(['first:route', 'shared:target']);
 			expect(target!.provenanceChains[1]).toEqual(['second:route', 'shared:target']);
+		});
+	});
+
+	describe('unresolved-sources warn log', () => {
+		it('emits a warn log naming coord and roots tried when sources resolution returns null', async () => {
+			const config = makeConfig({
+				dependencies: [
+					{ configuration: 'minecraft', group: 'com.mojang', artifact: 'minecraft', version: '1.21.11', raw: 'com.mojang:minecraft:1.21.11' },
+					{ configuration: 'modImplementation', group: 'no.sources', artifact: 'lib', version: '1.0.0', raw: 'no.sources:lib:1.0.0' },
+				],
+				fabricApiVersion: undefined,
+				mavenRoots: ['/fake/root1', '/fake/root2'],
+			});
+
+			mockedFindSourcesJar.mockResolvedValue(null);
+
+			const warnSpy = vi.spyOn(logger, 'warn');
+			try {
+				await discoverDependencies(config, FAKE_MC_SOURCES, null, '/fake/project', MOD_NAME);
+			} finally {
+				warnSpy.mockRestore();
+			}
+
+			const matching = warnSpy.mock.calls.find(call =>
+				typeof call[0] === 'string' && call[0].includes('no.sources:lib:1.0.0'),
+			);
+			expect(matching).toBeDefined();
+			expect(matching![0]).toContain('/fake/root1');
+			expect(matching![0]).toContain('/fake/root2');
+			expect(matching![0]).toContain('~/.gradle/caches/modules-2/files-2.1');
+		});
+
+		it('omits the leading comma in the warn message when mavenRoots is empty', async () => {
+			const config = makeConfig({
+				dependencies: [
+					{ configuration: 'minecraft', group: 'com.mojang', artifact: 'minecraft', version: '1.21.11', raw: 'com.mojang:minecraft:1.21.11' },
+					{ configuration: 'modImplementation', group: 'no.sources', artifact: 'lib', version: '1.0.0', raw: 'no.sources:lib:1.0.0' },
+				],
+				fabricApiVersion: undefined,
+				mavenRoots: [],
+			});
+
+			mockedFindSourcesJar.mockResolvedValue(null);
+
+			const warnSpy = vi.spyOn(logger, 'warn');
+			try {
+				await discoverDependencies(config, FAKE_MC_SOURCES, null, '/fake/project', MOD_NAME);
+			} finally {
+				warnSpy.mockRestore();
+			}
+
+			const matching = warnSpy.mock.calls.find(call =>
+				typeof call[0] === 'string' && call[0].includes('no.sources:lib:1.0.0'),
+			);
+			expect(matching).toBeDefined();
+			// Should NOT have a leading comma -- "(tried roots: ~/.gradle..." not "(tried roots: , ~/.gradle..."
+			expect(matching![0]).not.toMatch(/tried roots:\s*,/);
+			expect(matching![0]).toContain('~/.gradle/caches/modules-2/files-2.1');
+		});
+
+		it('does NOT emit warn when sources resolution succeeds', async () => {
+			const config = makeConfig({
+				dependencies: [
+					{ configuration: 'minecraft', group: 'com.mojang', artifact: 'minecraft', version: '1.21.11', raw: 'com.mojang:minecraft:1.21.11' },
+					{ configuration: 'modImplementation', group: 'has.sources', artifact: 'lib', version: '1.0.0', raw: 'has.sources:lib:1.0.0' },
+				],
+				fabricApiVersion: undefined,
+				mavenRoots: [],
+			});
+
+			mockedFindSourcesJar.mockResolvedValue('/fake/sources.jar');
+
+			const warnSpy = vi.spyOn(logger, 'warn');
+			try {
+				await discoverDependencies(config, FAKE_MC_SOURCES, null, '/fake/project', MOD_NAME);
+			} finally {
+				warnSpy.mockRestore();
+			}
+
+			const matching = warnSpy.mock.calls.find(call =>
+				typeof call[0] === 'string' && call[0].includes('has.sources:lib:1.0.0'),
+			);
+			expect(matching).toBeUndefined();
+		});
+
+		it('threads mavenRoots from config into findSourcesJar / findCompiledJar', async () => {
+			const config = makeConfig({
+				dependencies: [
+					{ configuration: 'minecraft', group: 'com.mojang', artifact: 'minecraft', version: '1.21.11', raw: 'com.mojang:minecraft:1.21.11' },
+					{ configuration: 'modImplementation', group: 'with.roots', artifact: 'lib', version: '1.0.0', raw: 'with.roots:lib:1.0.0' },
+				],
+				fabricApiVersion: undefined,
+				mavenRoots: ['/maven/a', '/maven/b'],
+			});
+
+			mockedFindSourcesJar.mockResolvedValue('/fake/sources.jar');
+			mockedFindCompiledJar.mockResolvedValue('/fake/compiled.jar');
+
+			await discoverDependencies(config, FAKE_MC_SOURCES, null, '/fake/project', MOD_NAME);
+
+			const sourcesCall = mockedFindSourcesJar.mock.calls.find(c => c[0] === 'with.roots');
+			expect(sourcesCall).toBeDefined();
+			expect(sourcesCall![3]).toEqual(['/maven/a', '/maven/b']);
+
+			const compiledCall = mockedFindCompiledJar.mock.calls.find(c => c[0] === 'with.roots');
+			expect(compiledCall).toBeDefined();
+			expect(compiledCall![3]).toEqual(['/maven/a', '/maven/b']);
 		});
 	});
 
