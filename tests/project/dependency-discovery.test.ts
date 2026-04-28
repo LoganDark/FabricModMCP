@@ -541,19 +541,21 @@ describe('discoverDependencies', () => {
 			mockedFindSourcesJar.mockResolvedValue(null);
 
 			const warnSpy = vi.spyOn(logger, 'warn');
+			let matching: string | undefined;
 			try {
 				await discoverDependencies(config, FAKE_MC_SOURCES, null, '/fake/project', MOD_NAME);
+				const found = warnSpy.mock.calls.find(call =>
+					typeof call[0] === 'string' && call[0].includes('no.sources:lib:1.0.0'),
+				);
+				matching = found ? found[0] as string : undefined;
 			} finally {
 				warnSpy.mockRestore();
 			}
 
-			const matching = warnSpy.mock.calls.find(call =>
-				typeof call[0] === 'string' && call[0].includes('no.sources:lib:1.0.0'),
-			);
 			expect(matching).toBeDefined();
-			expect(matching![0]).toContain('/fake/root1');
-			expect(matching![0]).toContain('/fake/root2');
-			expect(matching![0]).toContain('~/.gradle/caches/modules-2/files-2.1');
+			expect(matching!).toContain('/fake/root1');
+			expect(matching!).toContain('/fake/root2');
+			expect(matching!).toContain('~/.gradle/caches/modules-2/files-2.1');
 		});
 
 		it('omits the leading comma in the warn message when mavenRoots is empty', async () => {
@@ -569,19 +571,21 @@ describe('discoverDependencies', () => {
 			mockedFindSourcesJar.mockResolvedValue(null);
 
 			const warnSpy = vi.spyOn(logger, 'warn');
+			let matching: string | undefined;
 			try {
 				await discoverDependencies(config, FAKE_MC_SOURCES, null, '/fake/project', MOD_NAME);
+				const found = warnSpy.mock.calls.find(call =>
+					typeof call[0] === 'string' && call[0].includes('no.sources:lib:1.0.0'),
+				);
+				matching = found ? found[0] as string : undefined;
 			} finally {
 				warnSpy.mockRestore();
 			}
 
-			const matching = warnSpy.mock.calls.find(call =>
-				typeof call[0] === 'string' && call[0].includes('no.sources:lib:1.0.0'),
-			);
 			expect(matching).toBeDefined();
 			// Should NOT have a leading comma -- "(tried roots: ~/.gradle..." not "(tried roots: , ~/.gradle..."
-			expect(matching![0]).not.toMatch(/tried roots:\s*,/);
-			expect(matching![0]).toContain('~/.gradle/caches/modules-2/files-2.1');
+			expect(matching!).not.toMatch(/tried roots:\s*,/);
+			expect(matching!).toContain('~/.gradle/caches/modules-2/files-2.1');
 		});
 
 		it('does NOT emit warn when sources resolution succeeds', async () => {
@@ -597,15 +601,17 @@ describe('discoverDependencies', () => {
 			mockedFindSourcesJar.mockResolvedValue('/fake/sources.jar');
 
 			const warnSpy = vi.spyOn(logger, 'warn');
+			let matching: string | undefined;
 			try {
 				await discoverDependencies(config, FAKE_MC_SOURCES, null, '/fake/project', MOD_NAME);
+				const found = warnSpy.mock.calls.find(call =>
+					typeof call[0] === 'string' && call[0].includes('has.sources:lib:1.0.0'),
+				);
+				matching = found ? found[0] as string : undefined;
 			} finally {
 				warnSpy.mockRestore();
 			}
 
-			const matching = warnSpy.mock.calls.find(call =>
-				typeof call[0] === 'string' && call[0].includes('has.sources:lib:1.0.0'),
-			);
 			expect(matching).toBeUndefined();
 		});
 
