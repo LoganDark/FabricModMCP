@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
-import { resolveSourcesJarPath, resolveCompiledJarPath } from '../../src/project/loom-cache.js';
+import { resolveSourcesJarPath, resolveCompiledJarPath, resolveLoomRemappedJarPath } from '../../src/project/loom-cache.js';
 import type { GradleConfig } from '../../src/project/types.js';
 
 describe('resolveSourcesJarPath', () => {
@@ -191,5 +191,106 @@ describe('resolveCompiledJarPath', () => {
 		const result = await resolveCompiledJarPath(config, tmpRoot);
 		expect(result.startsWith(`${homedir()}/`)).toBe(true);
 		expect(result).toContain('minecraft-merged/1.21.11-net.fabricmc.yarn.1_21_11.1.21.11+build.4/minecraft-merged-1.21.11-net.fabricmc.yarn.1_21_11.1.21.11+build.4.jar');
+	});
+});
+
+describe('resolveLoomRemappedJarPath', () => {
+	let tmpRoot: string;
+
+	beforeEach(async () => {
+		tmpRoot = await mkdtemp(join(tmpdir(), 'loom-remap-'));
+	});
+
+	afterEach(async () => {
+		await rm(tmpRoot, { recursive: true, force: true });
+	});
+
+	function remappedRoot(root: string): string {
+		return join(root, '.gradle', 'loom-cache', 'remapped_mods', 'remapped');
+	}
+
+	it('returns the sources jar when present under <artifact>-<hex> dir', async () => {
+		const versionDir = join(remappedRoot(tmpRoot), 'net', 'example', 'lib-abc1234567', '1.0.0');
+		await mkdir(versionDir, { recursive: true });
+		const expected = join(versionDir, 'lib-abc1234567-1.0.0-sources.jar');
+		await writeFile(expected, '');
+
+		const result = await resolveLoomRemappedJarPath(tmpRoot, 'net.example', 'lib', '1.0.0', '-sources.jar');
+		expect(result).toBe(expected);
+	});
+
+	it('returns the compiled jar when present under <artifact>-<hex> dir', async () => {
+		const versionDir = join(remappedRoot(tmpRoot), 'net', 'example', 'lib-abc1234567', '1.0.0');
+		await mkdir(versionDir, { recursive: true });
+		const expected = join(versionDir, 'lib-abc1234567-1.0.0.jar');
+		await writeFile(expected, '');
+
+		const result = await resolveLoomRemappedJarPath(tmpRoot, 'net.example', 'lib', '1.0.0', '.jar');
+		expect(result).toBe(expected);
+	});
+
+	it('uses group-as-path (slashes), NOT a literal dotted directory', async () => {
+		// Place a fixture under a literal "net.example" dir (modules-2 shape).
+		// The resolver MUST split on '.' and use slashes, so this should NOT match.
+		const versionDir = join(remappedRoot(tmpRoot), 'net.example', 'lib-abc1234567', '1.0.0');
+		await mkdir(versionDir, { recursive: true });
+		await writeFile(join(versionDir, 'lib-abc1234567-1.0.0-sources.jar'), '');
+
+		const result = await resolveLoomRemappedJarPath(tmpRoot, 'net.example', 'lib', '1.0.0', '-sources.jar');
+		expect(result).toBeNull();
+	});
+
+	it('returns null without throwing when remapped_mods dir is absent', async () => {
+		const result = await resolveLoomRemappedJarPath(tmpRoot, 'net.example', 'lib', '1.0.0', '-sources.jar');
+		expect(result).toBeNull();
+	});
+
+	it('returns null when the group/artifact subtree does not exist', async () => {
+		// Create remapped_mods/remapped/ but no group dirs underneath.
+		await mkdir(remappedRoot(tmpRoot), { recursive: true });
+		const result = await resolveLoomRemappedJarPath(tmpRoot, 'net.logandark', 'auxcommands', '1.0.0+1.21.11', '-sources.jar');
+		expect(result).toBeNull();
+	});
+
+	it('does not match a bare <artifact> dir without a -<hex> hash suffix', async () => {
+		// Loom-remapped artifacts always have a hash. A bare-artifact dir would
+		// not be Loom output and must be rejected.
+		const versionDir = join(remappedRoot(tmpRoot), 'net', 'example', 'lib', '1.0.0');
+		await mkdir(versionDir, { recursive: true });
+		await writeFile(join(versionDir, 'lib-1.0.0-sources.jar'), '');
+
+		const result = await resolveLoomRemappedJarPath(tmpRoot, 'net.example', 'lib', '1.0.0', '-sources.jar');
+		expect(result).toBeNull();
+	});
+
+	it('returns one of the matching dirs when multiple <artifact>-<hex> siblings exist', async () => {
+		const groupDir = join(remappedRoot(tmpRoot), 'net', 'example');
+		const dirA = join(groupDir, 'lib-abc1234567', '1.0.0');
+		const dirB = join(groupDir, 'lib-deadbeef00', '1.0.0');
+		await mkdir(dirA, { recursive: true });
+		await mkdir(dirB, { recursive: true });
+		const jarA = join(dirA, 'lib-abc1234567-1.0.0-sources.jar');
+		const jarB = join(dirB, 'lib-deadbeef00-1.0.0-sources.jar');
+		await writeFile(jarA, '');
+		await writeFile(jarB, '');
+
+		const result = await resolveLoomRemappedJarPath(tmpRoot, 'net.example', 'lib', '1.0.0', '-sources.jar');
+		// Don't over-specify which one (readdir order is not stable across platforms).
+		expect([jarA, jarB]).toContain(result);
+	});
+
+	it('resolves the verbatim CreatorCore/Claude auxcommands shape', async () => {
+		const versionDir = join(
+			remappedRoot(tmpRoot),
+			'net', 'logandark', 'auxcommands-12761da6', '1.0.0+1.21.11',
+		);
+		await mkdir(versionDir, { recursive: true });
+		const expected = join(versionDir, 'auxcommands-12761da6-1.0.0+1.21.11-sources.jar');
+		await writeFile(expected, '');
+
+		const result = await resolveLoomRemappedJarPath(
+			tmpRoot, 'net.logandark', 'auxcommands', '1.0.0+1.21.11', '-sources.jar',
+		);
+		expect(result).toBe(expected);
 	});
 });
