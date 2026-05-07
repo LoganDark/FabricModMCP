@@ -29,6 +29,7 @@ import { registerAddStudyJarTool } from './add-study-jar.js';
 import { registerListStudyJarsTool } from './list-study-jars.js';
 import { registerConfigureStudyJarTool } from './configure-study-jar.js';
 import { registerReadMemberTool } from './read-member.js';
+import { registerRecordFeedbackTool } from './record-feedback.js';
 
 export function registerAllTools(server: McpServer): void {
 	// Project lifecycle
@@ -66,4 +67,6 @@ export function registerAllTools(server: McpServer): void {
 	// Study jars
 	registerAddStudyJarTool(server);
 	registerListStudyJarsTool(server);
+	// Feedback
+	registerRecordFeedbackTool(server);
 }

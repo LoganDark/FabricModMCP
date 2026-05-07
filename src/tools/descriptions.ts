@@ -149,6 +149,9 @@ export const PARAMS = {
 	/** Optional child name to scope to. */
 	scope: z.string().optional()
 		.describe('Child name to scope to (e.g., fabric mod name). Bare jar IDs resolve within this child\'s namespace.'),
+	/** Free-form feedback message body. */
+	feedbackMessage: z.string().min(1)
+		.describe('Free-form feedback text. Multi-line is fine. Describe the issue, papercut, or suggestion in your own words.'),
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -301,4 +304,14 @@ export const TOOL_DESCRIPTIONS = {
 
 	configure_study_jar:
 		'Configure one or more study jars on a project. Currently supports setting the auto-include flag, which controls whether the jar appears in default tool results when the jars parameter is omitted. Accepts an array of names; fails on the first nonexistent name with no partial update.',
+
+	// -- Feedback ------------------------------------------------------------
+
+	record_feedback:
+		'Record free-form feedback about FabricModMCP itself — papercuts, bugs, unintuitive behavior, missing ' +
+		'features, anything an agent notices while using these tools during Minecraft mod development. Each call ' +
+		'appends a single entry to FEEDBACK.txt at the MCP server\'s installation root (NOT the agent\'s cwd, ' +
+		'which is the downstream Fabric project). The entry records the timestamp, the agent\'s current working ' +
+		'directory, and the verbatim message. Existing entries are never modified. Use this whenever something ' +
+		'surprises you, blocks you, or could be smoother — the maintainers review FEEDBACK.txt to drive improvements.',
 } as const;
