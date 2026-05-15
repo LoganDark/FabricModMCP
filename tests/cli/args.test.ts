@@ -35,4 +35,19 @@ describe('parseCli', () => {
 	it('unknown flag --project throws', () => {
 		expect(() => parseCli(['--project', '/path'])).toThrow();
 	});
+
+	it('javaHome is undefined by default', () => {
+		const args = parseCli([]);
+		expect(args.javaHome).toBeUndefined();
+	});
+
+	it('--java-home sets javaHome', () => {
+		const args = parseCli(['--java-home', '/opt/java/jdk-21']);
+		expect(args.javaHome).toEqual('/opt/java/jdk-21');
+	});
+
+	it('--java-home does not affect logLevel', () => {
+		const args = parseCli(['--java-home', '/opt/java/jdk-21']);
+		expect(args.logLevel).toEqual('info');
+	});
 });

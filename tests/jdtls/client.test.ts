@@ -1,5 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { parseJavaVersion } from '../../src/jdtls/client.js';
+import { execSync } from 'node:child_process';
+import { parseJavaVersion, detectJava, setJavaHome } from '../../src/jdtls/client.js';
+
+vi.mock('node:child_process', async () => {
+	const actual = await vi.importActual<typeof import('node:child_process')>('node:child_process');
+	return {
+		...actual,
+		execSync: vi.fn(),
+	};
+});
 
 describe('parseJavaVersion', () => {
 	it('parses OpenJDK 21 output', () => {
@@ -33,18 +42,70 @@ describe('parseJavaVersion', () => {
 
 describe('detectJava', () => {
 	const originalEnv = { ...process.env };
+	const mockExecSync = vi.mocked(execSync);
 
 	beforeEach(() => {
-		// Reset env to avoid leaking between tests
+		mockExecSync.mockReset();
+		setJavaHome(undefined);
 	});
 
 	afterEach(() => {
 		process.env = { ...originalEnv };
+		setJavaHome(undefined);
 	});
 
 	it('is exported as a function', async () => {
 		const mod = await import('../../src/jdtls/client.js');
 		expect(typeof mod.detectJava).toBe('function');
+	});
+
+	it('uses setJavaHome override before JAVA_HOME', () => {
+		process.env.JAVA_HOME = '/env/java';
+		setJavaHome('/cli/java');
+
+		mockExecSync.mockReturnValueOnce('openjdk 21.0.1 2023-10-17');
+
+		const result = detectJava();
+
+		expect(result.javaPath).toBe('/cli/java/bin/java');
+		expect((result as any).version).toBe(21);
+		const firstCall = mockExecSync.mock.calls[0][0] as string;
+		expect(firstCall).toContain('/cli/java/bin/java');
+	});
+
+	it('falls back to JAVA_HOME when no override is set', () => {
+		process.env.JAVA_HOME = '/env/java';
+		setJavaHome(undefined);
+
+		mockExecSync.mockReturnValueOnce('openjdk 21.0.1 2023-10-17');
+
+		const result = detectJava();
+
+		expect(result.javaPath).toBe('/env/java/bin/java');
+		expect((result as any).version).toBe(21);
+	});
+
+	it('falls back to java on PATH when neither override nor JAVA_HOME is set', () => {
+		delete process.env.JAVA_HOME;
+		setJavaHome(undefined);
+
+		mockExecSync.mockReturnValueOnce('openjdk 21.0.1 2023-10-17');
+
+		const result = detectJava();
+
+		expect(result.javaPath).toBe('java');
+	});
+
+	it('setJavaHome(undefined) clears a previous override', () => {
+		process.env.JAVA_HOME = '/env/java';
+		setJavaHome('/cli/java');
+		setJavaHome(undefined);
+
+		mockExecSync.mockReturnValueOnce('openjdk 21.0.1 2023-10-17');
+
+		const result = detectJava();
+
+		expect(result.javaPath).toBe('/env/java/bin/java');
 	});
 });
 
