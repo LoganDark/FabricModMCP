@@ -3,6 +3,7 @@ import type { LogLevel } from '../logging/logger.js';
 
 export type CliArgs = {
 	logLevel: LogLevel;
+	javaHome?: string;
 }
 
 const VALID_LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
@@ -17,6 +18,7 @@ export function parseCli(argv: string[]): CliArgs {
 		options: {
 			verbose: { type: 'boolean', short: 'v' },
 			'log-level': { type: 'string' },
+			'java-home': { type: 'string' },
 		},
 		strict: true,
 	});
@@ -42,5 +44,6 @@ export function parseCli(argv: string[]): CliArgs {
 
 	return {
 		logLevel,
+		javaHome: values['java-home'],
 	};
 }

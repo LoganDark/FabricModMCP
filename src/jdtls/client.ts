@@ -45,17 +45,29 @@ export type JdtLsStartResult = {
 	dataDir: string;
 }
 
+let configuredJavaHome: string | undefined;
+
+/**
+ * Override the Java home used by detectJava. Takes precedence over JAVA_HOME.
+ * Pass undefined to clear the override.
+ */
+export function setJavaHome(javaHome: string | undefined): void {
+	configuredJavaHome = javaHome;
+}
+
 /**
  * Detect a Java 21+ installation.
  *
- * Checks JAVA_HOME first, then falls back to java on PATH.
+ * Checks the configured override (set via setJavaHome) first, then JAVA_HOME,
+ * then falls back to java on PATH.
  * Returns the java binary path and major version, or an error message.
  */
 export function detectJava(): JavaDetectResult {
 	const candidates: string[] = [];
 
-	if (process.env.JAVA_HOME) {
-		candidates.push(join(process.env.JAVA_HOME, 'bin', 'java'));
+	const javaHome = configuredJavaHome ?? process.env.JAVA_HOME;
+	if (javaHome) {
+		candidates.push(join(javaHome, 'bin', 'java'));
 	}
 	candidates.push('java');
 

@@ -7,9 +7,11 @@ import { projectStore } from './state/project-store.js';
 import type { Project } from './project/types.js';
 import { initJdtLsSession } from './jdtls/startup.js';
 import { cleanupTempDir } from './jdtls/workspace.js';
+import { setJavaHome } from './jdtls/client.js';
 
 const args = parseCli(process.argv.slice(2));
 logger.setLevel(args.logLevel);
+setJavaHome(args.javaHome);
 
 const initialProject: Project = {
 	name: 'default',
