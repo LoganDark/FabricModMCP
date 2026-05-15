@@ -115,7 +115,9 @@
   2. `resolveJavaExecutable(candidate)` helper in the JDT LS layer accepts an absolute Java path and returns a real file path on Windows (appending `.exe` if missing and the `.exe` variant exists on disk); bare `'java'` PATH lookups pass through unchanged on both platforms.
   3. `detectJava` candidate construction uses `javaBinaryName()` / `javaBinaryInHome()` so a Windows-resolved `javaPath` is always a literal file `spawn` can exec (no ENOENT on `C:\…\bin\java`).
   4. Existing v1.5 Unix `detectJava` tests pass unchanged; new tests with mocked `process.platform = 'win32'` verify `.exe` resolution and PATH-fallback behavior.
-**Plans**: TBD
+**Plans**: 2 plans
+  - [ ] 35-01-PLAN.md — Create `src/platform/index.ts` (pure module with 5 platform-branched exports) + unit tests covering both Windows and Unix branches
+  - [ ] 35-02-PLAN.md — Wire platform helpers into `src/jdtls/client.ts` `detectJava`, add new `resolveJavaExecutable` helper, and augment `tests/jdtls/client.test.ts` with Windows-mocked describes
 
 ### Phase 36: Path / URI Handling Audit
 
@@ -178,7 +180,7 @@
 | 19-22 | v1.3 | 9/9 | Complete | 2026-04-15 |
 | 23-27 | v1.4 | 15/15 | Complete | 2026-04-15 |
 | 28-34 | v1.5 | 7/7 | Complete | 2026-04-16 |
-| 35 | v1.6 | 0/? | Not started | — |
+| 35 | v1.6 | 0/2 | Planned | — |
 | 36 | v1.6 | 0/? | Not started | — |
 | 37 | v1.6 | 0/? | Not started | — |
 | 38 | v1.6 | 0/? | Not started | — |
