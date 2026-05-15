@@ -143,6 +143,84 @@ describe('parseBuildGradle', () => {
 		}
 	});
 
+	describe('buildscript wrapper handling', () => {
+		it('skips buildscript { dependencies { classpath(...) } } and parses top-level dependencies block', () => {
+			const content = `
+buildscript {
+	dependencies {
+		classpath("net.fabricmc:fabric-loader:0.18.6")
+	}
+	repositories {
+		mavenCentral()
+	}
+}
+
+dependencies {
+	minecraft("com.mojang:minecraft:1.21.11")
+	modImplementation("net.fabricmc:fabric-loader:0.18.6")
+}
+`;
+			const config = parseBuildGradle(content, new Map());
+			expect(config.minecraftVersion).toBe('1.21.11');
+			const configs = config.dependencies.map(d => d.configuration);
+			expect(configs).toContain('minecraft');
+			expect(configs).toContain('modImplementation');
+			expect(configs).not.toContain('classpath');
+		});
+
+		it('handles nested for-loop braces inside top-level dependencies block', () => {
+			const content = `
+dependencies {
+	minecraft("com.mojang:minecraft:1.21.11")
+	for (mod in listOf("a", "b")) {
+		modImplementation("group:artifact:1.0")
+	}
+}
+`;
+			let config;
+			expect(() => { config = parseBuildGradle(content, new Map()); }).not.toThrow();
+			expect(config!.minecraftVersion).toBe('1.21.11');
+		});
+
+		it('extractMavenRoots returns top-level repositories, ignoring buildscript repositories', () => {
+			const content = `
+buildscript {
+	repositories {
+		maven { url = uri("file:///should-not-appear") }
+	}
+	dependencies {
+		classpath("x:y:1")
+	}
+}
+
+repositories {
+	maven("file:///top-level")
+}
+
+dependencies {
+	minecraft("com.mojang:minecraft:1.21.11")
+}
+`;
+			const config = parseBuildGradle(content, new Map());
+			expect(config.mavenRoots).toEqual(['/top-level']);
+			expect(config.mavenRoots).not.toContain('/should-not-appear');
+		});
+
+		it('string literals containing { or } do not confuse depth tracking', () => {
+			const content = `
+dependencies {
+	minecraft("com.mojang:minecraft:1.21.11")
+	modImplementation("group:artifact:1.0+{weird}")
+}
+`;
+			const config = parseBuildGradle(content, new Map());
+			expect(config.minecraftVersion).toBe('1.21.11');
+			const modDep = config.dependencies.find(d => d.configuration === 'modImplementation');
+			expect(modDep).toBeDefined();
+			expect(modDep!.raw).toBe('group:artifact:1.0+{weird}');
+		});
+	});
+
 	describe('parseBuildGradle.mavenRoots', () => {
 		// All inputs include a minimal valid minecraft(...) dep so parseBuildGradle does not throw.
 		const minDeps = `
