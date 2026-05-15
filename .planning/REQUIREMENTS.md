@@ -60,20 +60,20 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| WIN-01 | _TBD_ | Open |
-| WIN-02 | _TBD_ | Open |
-| WIN-03 | _TBD_ | Open |
-| WIN-04 | _TBD_ | Open |
-| WIN-05 | _TBD_ | Open |
-| WIN-06 | _TBD_ | Open |
-| WIN-07 | _TBD_ | Open |
-| JAVA-01 | _TBD_ | Open |
-| JAVA-02 | _TBD_ | Open |
-| JAVA-03 | _TBD_ | Open |
-| JAVA-04 | _TBD_ | Open |
-| JAVA-05 | _TBD_ | Open |
-| UNIX-01 | _TBD_ | Open |
-| UNIX-02 | _TBD_ | Open |
-| UNIX-03 | _TBD_ | Open |
+| WIN-01 | Phase 35 | Open |
+| WIN-02 | Phase 38 | Open |
+| WIN-03 | Phase 36 | Open |
+| WIN-04 | Phase 36 | Open |
+| WIN-05 | Phase 36 | Open |
+| WIN-06 | Phase 36 | Open |
+| WIN-07 | Phase 36 | Open |
+| JAVA-01 | Phase 37 | Open |
+| JAVA-02 | Phase 37 | Open |
+| JAVA-03 | Phase 37 | Open |
+| JAVA-04 | Phase 37 | Open |
+| JAVA-05 | Phase 37 | Open |
+| UNIX-01 | Phase 35 | Open |
+| UNIX-02 | Phase 36 | Open |
+| UNIX-03 | Phase 39 | Open |
 
-_(Phase column filled by roadmapper.)_
+_(Phase column filled by roadmapper. UNIX-01 is structurally a cross-phase constraint — it is anchored to Phase 35 where the Java code first changes, and the constraint is reiterated in the Phase 36 and Phase 37 goal statements. UNIX-02 is anchored to Phase 36 where the URI sweep happens. UNIX-03 is the end-to-end regression checkpoint validated in Phase 39.)_
