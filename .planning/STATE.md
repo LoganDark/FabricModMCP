@@ -1,15 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: unknown
-stopped_at: Completed quick-260515-6c5
-last_updated: "2026-05-15T11:42:00Z"
+milestone: v1.6
+milestone_name: Windows Support
+status: planning
+last_updated: "2026-05-15T16:47:51.890Z"
+last_activity: 2026-05-15
 progress:
   total_phases: 0
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -23,8 +24,10 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 
 ## Current Position
 
-Milestone: v1.5 complete
-Next: `/gsd:new-milestone` to plan v1.6+
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-15 — Milestone v1.6 started
 
 ## Accumulated Context
 

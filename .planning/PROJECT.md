@@ -64,7 +64,19 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 
 ### Active
 
-(None — planning next milestone)
+Milestone v1.6 — see "Current Milestone" below.
+
+## Current Milestone: v1.6 Windows Support
+
+**Goal:** Make FabricModMCP work out-of-the-box on Windows, with smarter Java discovery that prefers the JDK the user's mod project actually builds against.
+
+**Target features:**
+- JDK invocation on Windows: `detectJava` + JDT LS spawn must work when `javaPath` lacks `.exe` (currently breaks on Windows because `spawn`/`CreateProcess` does not apply PATHEXT).
+- Smarter Java discovery: priority chain `--java-home` → `org.gradle.java.home` (from project gradle.properties) → `JAVA_HOME` → `java` on PATH → common install locations. Probe each candidate for Java 21+ and pick the first compatible one.
+- JDT LS discovery on Windows: extend `findJdtLs` with Windows-friendly install locations.
+- Path / URI handling audit: identify and fix Windows-specific breakages in `uri-mapper`, `workspace-sync`, jar reading, and Loom-cache resolution.
+
+**Constraint — Linux/Unix is still the priority.** Windows support is a platform-guarded special case (`process.platform === 'win32'` branches), not a generic path-abstraction refactor. Existing Unix code paths must remain unchanged unless an audit finding shows they're broken on Unix too. The smarter Java discovery feature is the one exception — it's cross-platform and improves Unix behavior as well.
 
 ### Out of Scope
 
@@ -80,7 +92,7 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 ## Current State
 
 **Latest shipped:** v1.5 Quality & Consistency (2026-04-16)
-**Next milestone:** TBD — run `/gsd:new-milestone` to plan
+**Active milestone:** v1.6 Windows Support (started 2026-05-15)
 
 ## Context
 
@@ -156,4 +168,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-16 after v1.5 milestone*
+*Last updated: 2026-05-15 — v1.6 milestone started*
