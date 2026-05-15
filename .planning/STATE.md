@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed quick-260507-nff
-last_updated: "2026-05-07T16:58:00Z"
+stopped_at: Completed quick-260515-6c5
+last_updated: "2026-05-15T11:42:00Z"
 progress:
   total_phases: 0
   completed_phases: 0
@@ -61,9 +61,10 @@ None.
 | 260428-59m | Support local Maven repositories (file://, mavenLocal) for dep sources | 2026-04-28 | 26602d2 | Verified | [260428-59m-support-local-maven-repositories](./quick/260428-59m-support-local-maven-repositories/) |
 | 260428-5ol | Prefer Loom-cache remapped sources for mod deps | 2026-04-28 | 3319de9 | Verified | [260428-5ol-prefer-loom-cache-remapped-sources-for-m](./quick/260428-5ol-prefer-loom-cache-remapped-sources-for-m/) |
 | 260507-nff | Add record_feedback tool inspired by lldb-mcp | 2026-05-07 | 057e0cb |  | [260507-nff-add-record-feedback-tool-inspired-by-lld](./quick/260507-nff-add-record-feedback-tool-inspired-by-lld/) |
+| 260515-6c5 | Fix gradle-parser top-level block extraction (buildscript wrapper) | 2026-05-15 | 1fa14c8 |  | [260515-6c5-fix-gradle-parser-top-level-block-extrac](./quick/260515-6c5-fix-gradle-parser-top-level-block-extrac/) |
 
 ## Session Continuity
 
-Last session: 2026-05-07T16:58:00Z
-Stopped at: Completed quick-260507-nff
+Last session: 2026-05-15T11:42:00Z
+Stopped at: Completed quick-260515-6c5
 Resume file: None
