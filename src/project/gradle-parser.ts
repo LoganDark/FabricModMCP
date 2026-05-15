@@ -42,20 +42,98 @@ function fileUriToPath(uri: string): string {
 }
 
 /**
+ * Locate a top-level `<name> { ... }` block in Kotlin-DSL source and return
+ * its body (the text between the matching braces, exclusive).
+ *
+ * Scans `content` character-by-character while tracking:
+ *  - `inString`: whether we are inside a `"..."` Kotlin string literal
+ *    (handles `\`-escape so `\"` does not terminate the string),
+ *  - `depth`: current brace nesting depth at the cursor.
+ *
+ * A block is "top-level" when its opening `{` is encountered at `depth === 0`.
+ * The character immediately before `name` must be either start-of-string or a
+ * non-identifier character, so `subDependencies {` does NOT match `name='dependencies'`.
+ *
+ * Returns the block body (excluding the outer braces) on first match, or `null`
+ * if no top-level block with that name exists. Comments are assumed to already
+ * be stripped by the caller.
+ */
+function extractTopLevelBlock(content: string, name: string): string | null {
+	const isIdentChar = (c: string): boolean => /[A-Za-z0-9_]/.test(c);
+	let inString = false;
+	let depth = 0;
+	const len = content.length;
+	const nameLen = name.length;
+	for (let i = 0; i < len; i++) {
+		const c = content[i];
+		if (inString) {
+			if (c === '\\' && i + 1 < len) { i++; continue; }
+			if (c === '"') { inString = false; }
+			continue;
+		}
+		if (c === '"') { inString = true; continue; }
+		if (c === '{') { depth++; continue; }
+		if (c === '}') { depth--; continue; }
+		if (depth === 0 && c === name[0]) {
+			// Check word boundary before name
+			const prev = i === 0 ? '' : content[i - 1];
+			if (prev !== '' && isIdentChar(prev)) continue;
+			// Check name match
+			if (content.slice(i, i + nameLen) !== name) continue;
+			// Check char after name is not an identifier char
+			const after = i + nameLen < len ? content[i + nameLen] : '';
+			if (after !== '' && isIdentChar(after)) continue;
+			// Skip whitespace after name, then require `{`
+			let j = i + nameLen;
+			while (j < len && (content[j] === ' ' || content[j] === '\t' || content[j] === '\n' || content[j] === '\r')) j++;
+			if (j >= len || content[j] !== '{') {
+				// Not the block form; advance past name to avoid re-matching
+				i += nameLen - 1;
+				continue;
+			}
+			// Found: scan from inside the opening brace for the matching `}`
+			const openBraceIndex = j;
+			let innerDepth = 1;
+			let innerInString = false;
+			let k = openBraceIndex + 1;
+			for (; k < len; k++) {
+				const ck = content[k];
+				if (innerInString) {
+					if (ck === '\\' && k + 1 < len) { k++; continue; }
+					if (ck === '"') { innerInString = false; }
+					continue;
+				}
+				if (ck === '"') { innerInString = true; continue; }
+				if (ck === '{') { innerDepth++; continue; }
+				if (ck === '}') {
+					innerDepth--;
+					if (innerDepth === 0) {
+						return content.slice(openBraceIndex + 1, k);
+					}
+				}
+			}
+			// Unbalanced — bail out
+			return null;
+		}
+	}
+	return null;
+}
+
+/**
  * Extract absolute filesystem paths of file:// Maven repositories (and
  * mavenLocal()) from a `repositories { ... }` block. Returns an empty array
  * when no such block exists or when no local-file repos are declared.
  */
 function extractMavenRoots(substituted: string): string[] {
-	const repoMatch = substituted.match(/repositories\s*\{([\s\S]*?)\n\}/);
-	if (!repoMatch) return [];
+	const repoBlockRaw = extractTopLevelBlock(substituted, 'repositories');
+	if (repoBlockRaw === null) return [];
 
 	// Expand the Kotlin-DSL placeholder ${System.getProperty("user.home")}
 	// (or single-quoted variant) BEFORE running the URI regexes. This is a
 	// literal substring substitution -- the existing properties map only
 	// handles ${var_name} style, which is unrelated.
 	const home = homedir();
-	const repoBlock = repoMatch[1]
+	const repoBlock = repoBlockRaw
 		.replace(/\$\{System\.getProperty\("user\.home"\)\}/g, home)
 		.replace(/\$\{System\.getProperty\('user\.home'\)\}/g, home);
 
@@ -129,8 +207,7 @@ export function parseBuildGradle(content: string, properties: Map<string, string
 	const mavenRoots = extractMavenRoots(substituted);
 
 	// Step 4: Extract dependencies block
-	const depsMatch = substituted.match(/dependencies\s*\{([\s\S]*?)\n\}/);
-	const depsBlock = depsMatch ? depsMatch[1] : '';
+	const depsBlock = extractTopLevelBlock(substituted, 'dependencies') ?? '';
 
 	// Step 4: Extract individual dependency calls
 	const depCallRegex = /(\w+)\(\s*"([^"]+)"\s*\)/g;
