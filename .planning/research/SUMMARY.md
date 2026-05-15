@@ -1,173 +1,209 @@
-# Project Research Summary
+# Project Research Summary — v1.6 Windows Support
 
-**Project:** FabricModMCP — v1.4 Rearchitecture
-**Domain:** MCP server internal rearchitecture — monolithic project model to composable named containers
-**Researched:** 2026-04-15
+**Project:** FabricModMCP
+**Domain:** Cross-platform Node.js MCP server (Unix-first) adding Windows support + smarter cross-platform Java discovery
+**Researched:** 2026-05-15
 **Confidence:** HIGH
 
 ## Executive Summary
 
-The v1.4 milestone is a pure internal rearchitecture: no new libraries required, no new external integrations, no new MCP protocol features. The existing TypeScript/Node.js/Zod/MCP SDK stack is confirmed appropriate and all current package versions remain current. The core change is decomposing `LoadedProject` (one project = one Fabric mod) into `Project` (named container) + `FabricModChild` + `StudyJarChild` children, with dependency IDs namespaced by child name (`my-mod/minecraft` instead of bare `minecraft`). This enables multiple Fabric mods per project without name collisions, while preserving complete backward compatibility for the single-mod case via short-form resolution.
+v1.6 is a **targeted, surgical milestone**, not a platform-abstraction refactor. The four researchers converged: the codebase has 6–9 concrete sites that break on Windows, clustered into three independent fix domains — Java binary resolution (`spawn` does not honor PATHEXT), `file://` URI construction (`'file://' + path` is malformed on Windows), and JDT LS install-path discovery (`process.env.HOME` and Unix-only directories). Fixes are mechanical; discipline is keeping them mechanical and `process.platform === 'win32'`-guarded. The one intentional cross-platform improvement is smarter Java discovery — priority chain `--java-home` → `org.gradle.java.home` → `JAVA_HOME` → PATH → common install locations — which improves Unix too by skipping incompatible JDKs and consulting the JDK the project is actually built against.
 
-The recommended approach is a strict bottom-up build order across 5 phases: type foundation first, dependency namespacing second, child management tools third, JDT LS workspace unification fourth, and cleanup last. Every phase must be independently shippable with all 592 tests passing. The key design insight is that `getDependenciesForTool` becomes the single choke point for all namespace resolution — tools never directly access children. The adapter/compatibility pattern for `LoadedProject` is critical: remove it only in the final cleanup phase after all consumers are migrated.
+**No new runtime dependencies.** Node 22 LTS stdlib (`node:url`'s `pathToFileURL`/`fileURLToPath`, `node:os`'s `homedir`, `node:child_process`) covers everything. Existing `parseGradleProperties` reads `org.gradle.java.home` verbatim — only consumer-side backslash unescape is added. All four researchers explicitly rejected the candidate npm libraries (`locate-java-home` family inactive, `cross-spawn`/`which` solve problems we don't have, `slash`/`upath` push toward forbidden generic refactor).
 
-The main risk is attempting too much simultaneously. The codebase has 25 tools, 20+ domain modules, and 592 tests all coupled to `LoadedProject`. A big-bang type replacement that touches all of these at once would produce an undebuggable disaster. The mitigation is the compatibility layer: keep `LoadedProject` as an alias or adapter during migration, and migrate tools one-by-one. The second significant risk is the JDT LS workspace for multi-mod projects — when two mods target different Minecraft versions, their classes overlap in the workspace and JDT LS produces incorrect semantic results. This requires a dedicated research spike before Phase 4 implementation, not an assumption that adding more classpath entries handles it.
+**Key risks:** (1) `spawn` ENOENT for absolute `.exe`-less Java paths — detection passes via `execSync` → cmd.exe → PATHEXT, then JDT LS launch fails on the same path. Single most important fix. (2) URI malformation — `'file://' + 'C:\…'` produces `file://C:\…` which JDT LS rejects; 7 forward + 2 reverse sites. (3) `.properties` backslash semantics — targeted consumer-side unescape. (4) Mixed-separator corruption when ZIP entries meet `path.join` on Windows.
 
 ## Key Findings
 
 ### Recommended Stack
 
-No new dependencies are needed for this milestone. The existing stack handles everything: TypeScript 6.0.2 (exceeds 5.7+ requirement), `@modelcontextprotocol/sdk@^1.29.0`, `zod@^4.3.6`, `node-stream-zip@^1.15.0`, `ts-lsp-client@^1.1.1`, `picomatch@^4.0.4`, and `glob@^13.0.6` are all confirmed current and appropriate.
+**Zero new dependencies.**
 
-One research question was explicitly investigated and closed: whether JDT LS can operate without extracting sources to a tmpdir (via `textDocument/didOpen` or `kind="lib"` source attachments). Both approaches fail. JDT LS requires files on disk for indexing (confirmed by issue #1815), and source attachments via `kind="lib"` are view-only and not indexed for find-references. Tmpdir extraction remains the correct and only viable approach.
+- `node:url` (`pathToFileURL`/`fileURLToPath`) — replaces all `'file://' + path` and `uri.replace('file://', '')` sites.
+- `node:os` (`homedir()`) — replaces `process.env.HOME ?? ''` at `src/jdtls/client.ts:139`.
+- `node:child_process` — `execSync` (shell, applies PATHEXT) vs `spawn` (no PATHEXT) asymmetry is PITFALL-1.
+- Existing `parseGradleProperties` at `src/project/gradle-parser.ts:179` — unchanged. Backslash unescape at consumer site only.
+- `glob` 11.x (existing) — expands `jdk-*` / `jdt-language-server-*` wildcards.
 
-**Core technologies:**
-- TypeScript 6.0.2: primary language — type-safe refactor of discriminated union types across all modules
-- Zod 4.x: runtime validation — tool schema changes for optional `scope` parameter across all 25 tools
-- node-stream-zip: jar reading — unchanged; operates at jar-file level independent of container structure
-- ts-lsp-client + JDT LS: semantic analysis — single workspace per project; extraction dirs become namespace-aware (`my-mod__minecraft` from `my-mod/minecraft`)
+**Rejected:** `locate-java-home` (inactive), `cross-spawn`/`which` (we spawn absolute resolved paths), `slash`/`upath`/`normalize-path` (push toward generic refactor), `properties-reader`/`dot-properties` (replace graceful fallback with hard error), `winreg`/`node-windows`/`regedit` (Gradle itself doesn't probe registry).
+
+See `.planning/research/STACK.md`.
 
 ### Expected Features
 
-The milestone has a well-defined feature set derived from direct codebase analysis, not external research. Priority order is fixed by the dependency chain.
-
 **Must have (table stakes):**
-- Project as pure named container (no rootPath) — core milestone goal, enables multi-mod support
-- FabricModChild type with its own rootPath, gradleConfig, deps — decouples mod identity from project identity
-- Dependency namespacing by mod name (`{mod-name}/{jar-id}`) — prevents collision when multiple mods share dep IDs
-- `getDependenciesForTool` rewrite with `scope` parameter — single entry point for all namespace-aware resolution
-- Backward-compatible single-mod experience — bare IDs (`minecraft`, `src`) resolve via short-form when one mod loaded
-- Default "default" project at startup — eliminates "no project" error for common single-mod case
-- `load_project` remains usable (creates project + adds mod in one call) — preserves existing agent workflows
+- `.exe` suffix on explicit `<javaHome>/bin/java` candidates on win32.
+- Skip-on-version-mismatch loop in `detectJava` (Java 21+; older candidates `continue`).
+- Priority chain `--java-home` → `org.gradle.java.home` → `JAVA_HOME` → PATH → scanned locations, **sequential in priority order** (parallel races destroy semantics).
+- Scan Windows install locations: `C:\Program Files\Eclipse Adoptium\jdk-*`, `C:\Program Files\Microsoft\jdk-*`, `C:\Program Files\Java\jdk-*`, `C:\Program Files\Amazon Corretto\jdk*`, `%LOCALAPPDATA%\Programs\Eclipse Adoptium\jdk-*`, `%USERPROFILE%\scoop\apps\openjdk*\current\`, `%USERPROFILE%\.jdks\`.
+- JDT LS Windows fallback paths in `findJdtLs`: `%LOCALAPPDATA%\jdtls`, `%PROGRAMFILES%\jdtls`, `%USERPROFILE%\jdtls`, `%LOCALAPPDATA%\nvim-data\mason\packages\jdtls\`.
+- Replace `process.env.HOME` with `os.homedir()` in `findJdtLs`.
+- Read `org.gradle.java.home` from project `gradle.properties`; apply consumer-side backslash unescape.
+- Use `pathToFileURL`/`fileURLToPath` globally (Unix output byte-identical; consolidation avoids divergent surfaces).
+- Drive-letter case tolerance in `fromFileUri` round-trip on Windows.
 
-**Should have (differentiators):**
-- `add_fabric_mod` tool for adding additional mods to an existing project
-- Optional `scope` parameter on all 25 tools for explicit child targeting
-- Cross-mod navigation via single JDT LS workspace
-- Shared dependency deduplication via JarReader ref-counting (already exists; extend to multi-child)
-- Per-mod dep refresh via `refresh_dependencies` with fabric mod child targeting
+**Deferred to v1.7+:** Surface `javaSource` in JDT LS status; improved error messages listing attempted paths; `org.gradle.java.installations.paths` toolchain discovery; macOS Apple Silicon refinements.
 
-**Defer to later:**
-- Persistence/serialization of project state — projects load fast; stale state bugs outweigh benefit
-- Auto-discovery of Fabric mods in multi-mod repos — Gradle multi-project layouts are too varied to handle reliably
-- Project/child renaming after creation — unload + reload is sufficient; identity tracking is complex
-- Cross-project references between separate ProjectStore entries — load both mods into the same project instead
+**Explicit anti-features (DO NOT do):**
+- Windows registry probing — Gradle itself doesn't.
+- `wmic`/`where`/PowerShell shellouts — `wmic` deprecated in Windows 11.
+- Auto-download / bundle a JDK or JDT LS — out of scope; ~150MB; redistribution licensing.
+- `shell: true` on `spawn` — breaks signal/quoting semantics.
+- `cross-spawn` — solves PATHEXT-for-shell-scripts; we spawn Java with absolute paths.
+- Generic `JavaResolver` / `PathFormat` / `slash`/`upath`-style refactor — milestone explicitly forbids.
+- `JDK_HOME`/`JRE_HOME`/`JAVA_TOOL_OPTIONS` probing.
+- VS Code's bundled JDT LS.
+- Custom URI scheme.
+- Strip drive letter / UNC `\\?\` long-path conversion.
+- `gradlew --version` shellout.
+- Cygwin/MSYS2/WSL detection (WSL is Linux to Node).
+- CRLF conversion of extracted .java files.
+- Parallel race for first-valid Java.
+- `-version` (use `--version`).
+
+See `.planning/research/FEATURES.md`.
 
 ### Architecture Approach
 
-The architecture decomposes `LoadedProject` into a two-level hierarchy: `Project` (container) holds a `Map<string, ProjectChild>` where children are a discriminated union of `FabricModChild` (kind: 'fabric-mod') and `StudyJarChild` (kind: 'study-jar'). The `ProjectStore` changes from `Map<string, LoadedProject>` to `Map<string, Project>`. Dependency resolution funnels through a single rewritten `getDependenciesForTool(project, scope?, jars?)` that namespaces fabric mod dependencies with their child name and leaves study jar names flat. The JDT LS workspace remains one process per project with all children's sources extracted into namespace-prefixed directories (`my-mod__minecraft/`, `other-mod__minecraft/`).
+**Two new files; surgical edits to four existing files. No layer rearrangement.**
 
-**Major components:**
-1. `project/types.ts` — new `Project`, `ProjectChild`, `FabricModChild`, `StudyJarChild` types (add alongside existing; remove `LoadedProject` only in Phase 5)
-2. `project/dependency-resolver.ts` — namespace-aware merging: `getProjectDependencies(project)` prefixes each fabric mod's deps with `{childName}/`
-3. `tools/tool-helpers.ts` — `getDependenciesForTool` gains `scope` param; `resolveClassSource` and `processNavigationLocations` use project-level jdtls with namespaced URI mapping
-4. `jdtls/uri-mapper.ts` — `jarIdToDirName` handles `/` separator: `my-mod/minecraft` → `my-mod__minecraft`
-5. `browsing/source-adapter.ts` — `createSourceAdapter` detects `category === 'mod-source'` (not bare `id === 'src'`) and resolves rootPath from the owning FabricModChild
+**New files:**
+1. `src/platform/index.ts` (~80 LOC) — `isWindows`, `javaBinaryName()`, `javaBinaryInHome(home)`, `jdtlsCandidateDirs()`, `commonJavaLocations()`. Unix branches return today's literals verbatim.
+2. `src/jdtls/java-discovery.ts` — extracts `setJavaHome`/`detectJava`/`parseJavaVersion` from `client.ts`; adds async `discoverJava({ projectRoot? })`. `client.ts` keeps old symbols as re-exports for one milestone.
+
+**Modified files:**
+- `src/jdtls/client.ts` — `detectJava` and `findJdtLs` call platform helpers; `startJdtLs` workspace URIs use `pathToFileURL`. `resolveJavaExecutable` ensures `spawn` gets a real file (`.exe` on Windows).
+- `src/jdtls/uri-mapper.ts` — `pathToFileURL`/`fileURLToPath`; case-insensitive drive-letter prefix match on Windows; ZIP-entry split-and-spread.
+- `src/jdtls/workspace-sync.ts` — four `'file://' + tempDir` sites swap to `pathToFileURL`.
+- `src/tools/remove-project-member.ts:83`, `src/tools/tool-helpers.ts:350` — same URI helper swap.
+- `src/project/gradle-parser.ts` — **unchanged.**
+- `src/index.ts`, `src/jdtls/startup.ts` — thread optional `projectRoot`.
+
+**Code-site impact (collated):**
+
+| Concern | Sites |
+|---------|-------|
+| Java spawn `.exe` resolution | `src/jdtls/client.ts:65-104,70,72,193` |
+| URI forward construction | `src/jdtls/client.ts:214,247`; `src/jdtls/workspace-sync.ts:103,141,206,255`; `src/jdtls/uri-mapper.ts:77`; `src/tools/remove-project-member.ts:83` |
+| URI reverse construction | `src/jdtls/uri-mapper.ts:81`; `src/tools/tool-helpers.ts:350` |
+| ZIP-entry × `path.join` | `src/jdtls/workspace.ts:55`; `src/jdtls/workspace-sync.ts:40,184` |
+| JDT LS install locations | `src/jdtls/client.ts:128-144` |
+| JDT LS config dir per platform | `src/jdtls/client.ts:185-189` — **already correct**, leave alone |
+| `.properties` `org.gradle.java.home` unescape | New consumer in `src/jdtls/java-discovery.ts` |
+| Temp-dir cleanup `EBUSY` retries on Windows | `src/jdtls/workspace.ts:81` |
+| ZIP path-traversal guard | `src/jdtls/workspace.ts:55` |
+
+See `.planning/research/ARCHITECTURE.md`.
 
 ### Critical Pitfalls
 
-1. **Big-bang type replacement** — replacing `LoadedProject` everywhere at once produces an undebuggable diff with all 592 tests failing simultaneously; keep `LoadedProject` as compatibility alias during migration, migrate tools one-by-one, remove alias only in Phase 5 cleanup
+1. **PITFALL-1: `spawn(javaPath, …)` ENOENT for `.exe`-less absolute paths on Windows.** `detectJava` succeeds via `execSync` → cmd.exe → PATHEXT, then JDT LS launch fails on the same path. **Fix:** `resolveJavaExecutable` helper; append `.exe` for explicit absolute candidates. **DO NOT** `shell: true`.
+2. **PITFALL-3: `'file://' + windowsPath` produces malformed URIs.** Drive letter parsed as host (`file://C:`); JDT LS rejects with `IllegalArgumentException` for `rootUri`/`workspaceFolders`. **Fix:** `pathToFileURL`/`fileURLToPath` globally; Unix output byte-identical.
+3. **PITFALL-4: Mixed-separator path corruption at ZIP → FS boundary.** ZIP entries are `/`; `path.join(depDir, 'net/minecraft/Foo.java')` on Windows produces `…\depDir\net/minecraft/Foo.java`. **Fix:** `join(depDir, ...entryPath.split('/'))` at every boundary.
+4. **PITFALL-5: `.properties` backslash unescaping for `org.gradle.java.home`.** `=C:\Users\new\jdk` parses to `C:Users<newline>ew\jdk` under spec. **Fix:** `unescapePropertiesValue` at consumption site; parser unchanged.
+5. **PITFALL-6: Probe latency on Windows.** 5+ serial `execSync` probes × 300-800ms = 2-4s cold start (Defender first-run worse). **Fix:** async `execFile` with 3s per-candidate timeout; sequential.
 
-2. **`src` dep ID collision across mods** — when two fabric mods both produce a dep with `id: 'src'`, the second silently shadows the first; fix by using the mod's own name as the source dep ID (`my-mod` instead of `src`) and updating `createSourceAdapter` to check `category === 'mod-source'` instead of `id === 'src'`
-
-3. **JDT LS workspace class duplication** — two mods targeting different MC versions both contribute `net.minecraft.client.MinecraftClient`; JDT LS semantic results become silently incorrect; this REQUIRES a research spike before Phase 4 implementation, not an assumption that adding more classpath entries works
-
-4. **Backward-incompatible tool schemas** — adding a required `child` or `scope` param breaks every existing agent workflow; `scope` must be optional with auto-resolve when exactly one child exists, mirroring the existing `resolveProject` pattern in `project-store.ts` lines 74-113
-
-5. **rootPath removal at 18+ call sites** — `rootPath` moves from project to fabric mod child; create a helper that resolves rootPath given a dep entry's owning child; do NOT make it optional on the project type (TypeScript cannot catch all `!` assertions across 18 sites)
+See `.planning/research/PITFALLS.md` for full 15-pitfall catalog.
 
 ## Implications for Roadmap
 
-Based on research, the dependency chain is strictly ordered: types → namespacing → child tools → JDT LS → cleanup. Each phase must leave all tests passing.
+Recommended phase ordering (all four researchers converged after Phase 1/Phase 2 swap reconciliation):
 
-### Phase 1: Type Foundation and ProjectStore
+### Phase 1: Platform Helpers + Java Executable Resolution
 
-**Rationale:** Everything else depends on the new types existing. The compatibility layer here is what makes incremental migration possible without a big-bang rewrite.
-**Delivers:** `Project`, `FabricModChild`, `StudyJarChild` types in `project/types.ts`; `ProjectStore` stores `Project`; `loader.ts` refactored to return `FabricModChild`; default "default" project created on startup; `load_project` kept as a sugar wrapper (creates project + adds fabric mod in one call)
-**Addresses:** Project container model, backward compatibility contract, default project at startup (FEATURES.md items 1-3, 8, 10)
-**Avoids:** Big-bang type replacement (Pitfall 1) — `LoadedProject` alias preserved throughout this phase
+Foundation. Establishes `src/platform/index.ts` and makes Windows able to spawn `java.exe` at all. Without this, every subsequent Windows fix is unobservable.
 
-### Phase 2: Dependency Namespacing and Scope
+**Delivers:** `src/platform/index.ts`; `resolveJavaExecutable(candidate)` helper; `detectJava` candidates use `javaBinaryName()`/`javaBinaryInHome()`.
+**Addresses:** `.exe` suffix; foundation under priority chain.
+**Avoids:** PITFALL-1, PITFALL-2.
+**Unix guard:** Snapshot tests with mocked `process.platform`; existing `detectJava` Unix tests unchanged via re-export shim.
 
-**Rationale:** Namespacing is the core semantic change that unlocks multi-mod correctness. All tool resolution must funnel through the updated `getDependenciesForTool` before child management tools can be built on top.
-**Delivers:** Namespace-aware `getProjectDependencies` in `dependency-resolver.ts`; `getDependenciesForTool` with optional `scope` param; updated `uri-mapper.ts` (`/` → `__`); updated `source-adapter.ts` (mod-source category check with explicit rootPath); `resolveClassSource` for namespaced deps; optional `scope` param added to all 25 tool schemas with auto-resolve logic
-**Addresses:** Dependency namespacing, `src` ID collision, tool scoping, filterConfig scope rules, short-form backward compat (FEATURES.md items 4-7, backward compatibility contract)
-**Avoids:** Namespace collision (Pitfall 3), src abstraction loss (Pitfall 2), getDependenciesForTool shadowing (Pitfall 8), filterConfig ambiguity (Pitfall 9), backward-incompatible schemas (Pitfall 10)
+### Phase 2: Path / URI Handling Audit
 
-### Phase 3: Child Management Tools
+Wholesale move to `pathToFileURL`/`fileURLToPath`. Single sweeping change across 7 forward + 2 reverse sites — easier reviewed and tested as one PR.
 
-**Rationale:** User-facing API changes come after the internal model is stable. These tools expose the new container model to agents.
-**Delivers:** `add_fabric_mod` tool; `create_project` tool; `remove_child` tool; `list_children` tool; study jar tools updated to use `project.children`; `get_project_metadata` shows namespaced dep inventory per child; `refresh_dependencies` targets specific fabric mod child
-**Addresses:** Multiple fabric mods per project, tool surface expansion, study jar ownership shift (FEATURES.md: multiple mods, load_project refactor, study jar items)
-**Avoids:** load_project semantics shift (Pitfall 14), study jar collision detection with namespaced deps (Pitfall 7), two-level default confusion (Pitfall 13)
+**Delivers:** Every `'file://' + path` → `pathToFileURL(path).href`; every `uri.replace('file://', '')` → `fileURLToPath(uri)`; `uri-mapper.ts` `fromFileUri` case-insensitive prefix on Windows; ZIP-entry × `path.join` boundary fix; ZIP path-traversal guard; temp-cleanup `EBUSY` retry loop on Windows.
+**Avoids:** PITFALL-3, PITFALL-4, PITFALL-9, PITFALL-10, PITFALL-15.
+**Unix guard:** Round-trip test on representative paths including `/private/var/folders/x y/file.java`. Output byte-identical for absolute paths without special chars.
 
-### Phase 4: JDT LS Workspace Unification
+### Phase 3: Smarter Java Discovery (cross-platform)
 
-**Rationale:** JDT LS is the riskiest integration point. This phase must begin with a research spike on whether JDT LS headless mode supports multiple fabric mods sharing one workspace when their classes overlap. Only proceed to implementation after that question is answered.
-**Delivers:** Single JDT LS workspace per project with all children's sources in namespaced extraction dirs; `extractSourcesToTemp` iterates all children; incremental sync generalized for any child type (not just study jars); JDT LS init deferred until first child with sources; `processNavigationLocations` uses project-level jdtls with namespaced URI mapping
-**Addresses:** Cross-mod navigation, multiple mods in one workspace, URI mapper for namespaced IDs (FEATURES.md: multiple fabric mods per project, cross-mod navigation differentiator)
-**Avoids:** Single-workspace class duplication (Pitfall 4), UriMapper breakage with multiple workspaces (Pitfall 15)
+The cross-platform feature. Depends on Phase 1's `resolveJavaExecutable`.
 
-### Phase 5: Cleanup and Migration Completion
+**Delivers:** `src/jdtls/java-discovery.ts` with async `discoverJava({ projectRoot? })`; per-project `gradle.properties` read for `org.gradle.java.home`; `unescapePropertiesValue` at consumption site; skip-on-version-mismatch loop; async `execFile` probes 3s timeout sequential; common-Java-locations probe; old symbols retained as re-exports.
+**Avoids:** PITFALL-5, PITFALL-6.
+**Unix guard:** Priority-chain unit tests; existing `--java-home` precedence test (commit `4e94b4b`) extended. Users without `org.gradle.java.home` see no behavioral change.
 
-**Rationale:** Cleanup is always last. Only remove compatibility shims after all consumers are verified working with new types.
-**Delivers:** `LoadedProject` alias removed; `load_project` wrapper finalized or removed (decision based on Phase 3 outcome); `project.studyJars` field removed (study jars now in `project.children`); `makeFakeProject` test factory updated to new shape; all 592+ tests passing against new types; all deprecated aliases gone
-**Addresses:** Test factory coupling, full migration of all 21 test files referencing the old factory
-**Avoids:** Factory coupling cascade failure (Pitfall 6)
+### Phase 4: JDT LS Discovery on Windows
+
+Smallest, most isolated change. Without this, Windows users must set `JDTLS_HOME` manually.
+
+**Delivers:** `jdtlsCandidateDirs()` Windows branch returns `%LOCALAPPDATA%\jdtls`, `%PROGRAMFILES%\jdtls`, `%USERPROFILE%\jdtls`, `%LOCALAPPDATA%\nvim-data\mason\packages\jdtls`; `findJdtLs` uses `homedir()`; improved error message listing attempted paths.
+**Avoids:** PITFALL-7, PITFALL-12.
+**Unix guard:** Unix branch returns the existing three paths verbatim.
+
+### Phase 5: End-to-End Windows Validation
+
+Milestone-completion checkpoint, not a code phase.
+
+**Delivers:** Manual run on Windows: `create_project`, `add_fabric_mod`, `find_definition` round-trip, cross-mod navigation. README "Windows Support" section. CLAUDE.md update for the priority chain.
 
 ### Phase Ordering Rationale
 
-- Types must precede everything because TypeScript will not compile without them. The compatibility alias lets existing tests continue passing while consumers migrate one-by-one.
-- Namespacing must precede child management tools because without it, adding a second mod immediately corrupts the flat dependency map.
-- Child management tools must precede JDT LS changes because the data model must be stable before reworking the most complex integration.
-- JDT LS is explicitly the last feature phase because it is the highest-risk component and benefits from stable types, stable namespacing, and stable tools before being touched.
-- Cleanup is last to allow compatibility shims to carry the codebase through the migration without forcing any simultaneous mass change.
+- **Phase 1 before everything:** No Java spawn = no JDT LS = nothing observable on Windows.
+- **Phase 2 (URIs) before Phase 3 (smarter Java):** Phase 3 first would leave Windows half-broken while shipping a cross-platform feature hard to validate.
+- **Phase 4 last among code phases:** `JDTLS_HOME` is documented manual workaround.
+- **Phases 2, 3, 4 are independent of each other after Phase 1** — parallelizable.
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-
-- **Phase 4 (JDT LS workspace unification):** The multi-Eclipse-project-in-one-workspace scenario for mods targeting different MC versions is unvalidated. Must spike whether JDT LS headless mode supports multiple `.project` files in one workspace, and whether class duplication causes incorrect semantic results or explicit errors. If multiple `.project` entries do not work, the fallback is one JDT LS process per fabric mod child (simpler, memory-heavier). Do NOT proceed to Phase 4 implementation without answering this.
-
-Phases with standard patterns (skip research-phase):
-
-- **Phase 1 (Type foundation):** Pure TypeScript type modeling with compatibility alias — well-understood pattern, direct codebase analysis was sufficient
-- **Phase 2 (Namespacing):** String prefixing and Map operations — deterministic, no external API uncertainty
-- **Phase 3 (Child management tools):** Tool registration via existing MCP SDK patterns — identical to existing tool authoring in the codebase
-- **Phase 5 (Cleanup):** Mechanical removal of deprecated aliases and test migration — no design uncertainty
+- **Phase 2 (URIs):** JDT LS drive-letter casing behavior on Windows is inferred. Worth a small spike during planning to verify case-preservation.
+- **Phase 1, 3, 4:** Standard patterns; well-documented behaviors. No deeper research.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All existing packages confirmed current; JDT LS in-memory file question definitively closed via issue #1815 and source attachment behavior research |
-| Features | HIGH | Derived from direct codebase analysis of v1.3 source; feature set is tightly scoped with no external dependencies on third-party API changes |
-| Architecture | HIGH | All findings from direct reading of all modules in `src/project/`, `src/state/`, `src/tools/`, `src/jdtls/`, `src/browsing/` — no inference needed |
-| Pitfalls | HIGH | All 15 pitfalls identified from direct code analysis with specific file and line references; no guesswork |
+| Stack | HIGH | No new deps; rejected libraries have unambiguous inactivity signals. |
+| Features | HIGH for 1/3/4, MEDIUM for 2 | No formally documented Windows JDT LS install convention exists. |
+| Architecture | HIGH | Codebase inventoried; modified files have exact lines; no layer rearrangement. |
+| Pitfalls | HIGH | All 15 pitfalls have file:line manifestations verified by direct read. |
 
-**Overall confidence:** HIGH
+### Gaps / Open Questions
 
-### Gaps to Address
-
-- **JDT LS multi-project workspace behavior:** Whether JDT LS in headless mode supports multiple Eclipse `.project` entries within one workspace when mods share class names is unvalidated. The Phase 4 research spike must answer this before implementation begins. If multiple `.project` files do not work, the fallback is one JDT LS process per fabric mod child.
-
-- **`jarReader.registerProject` additive behavior:** The current API registers all jar paths in one shot. Incremental add (mod-a first, then mod-b) needs additive registration without deregistering mod-a's jars. This is a small change but must be explicitly addressed before Phase 4 when multiple adds happen at different times.
-
-- **filterConfig pattern semantics with namespaced IDs:** Whether bare glob patterns like `minecraft` match namespaced IDs like `my-mod/minecraft` must be decided before Phase 2 implementation. Research recommends bare patterns match across all children, namespaced patterns match specific children — but this must be the authoritative rule before any code is written.
+- **Windows CI runner:** None exists. Unit tests are mockable on macOS/Linux. Recommend adding Windows CI in Phase 5; out-of-scope to fully wire if time-constrained.
+- **JDT LS drive-letter case behavior:** Phase 2 spike against real JDT LS.
+- **Relative-path resolution for `org.gradle.java.home`:** v1.6 resolves relative to project root only; defer user-level (`~/.gradle/gradle.properties`) to v1.7.
+- **Windows long-path support:** Defer until empirically observed; document as known limitation.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Direct codebase analysis: `src/project/types.ts`, `src/state/project-store.ts`, `src/project/loader.ts`, `src/project/dependency-resolver.ts`, `src/tools/tool-helpers.ts`, `src/browsing/source-adapter.ts`, `src/project/study-jar.ts`, `src/project/jar-registry.ts`, `src/jdtls/workspace.ts`, `src/jdtls/workspace-sync.ts`, `src/jdtls/uri-mapper.ts`, `src/jdtls/client.ts`, `tests/helpers/factories.ts` — FabricModMCP v1.3 (592 tests, 25 tools, 7,281 LOC)
-- [JDT LS Issue #1815](https://github.com/eclipse-jdtls/eclipse.jdt.ls/issues/1815) — JDT LS requires files on disk for indexing; rules out in-memory file approach
-- [Eclipse classpath entry kinds](https://help.eclipse.org/latest/topic/org.eclipse.jdt.doc.isv/guide/jdt_api_classpath.htm) — kind=src vs kind=lib semantic differences (src is indexed, lib sourcepath is view-only)
+- Direct codebase read: `src/jdtls/client.ts`, `src/jdtls/uri-mapper.ts`, `src/jdtls/workspace-sync.ts`, `src/jdtls/workspace.ts`, `src/project/gradle-parser.ts`, `src/project/loom-cache.ts`, `src/browsing/source-adapter.ts`, `src/tools/tool-helpers.ts`, `src/tools/remove-project-member.ts`, `src/index.ts`.
+- [Node.js `child_process` documentation](https://nodejs.org/api/child_process.html)
+- [Node.js `url` module — `pathToFileURL`/`fileURLToPath`](https://nodejs.org/api/url.html#urlpathtofileurlpath-options)
+- [nodejs/node#6671 — `spawn` ignores PATHEXT on Windows](https://github.com/nodejs/node/issues/6671)
+- [java.util.Properties.load spec](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Properties.html#load(java.io.Reader))
+- [Gradle Build Environment — `org.gradle.java.home`](https://docs.gradle.org/current/userguide/build_environment.html)
+- [LSP 3.17 — DocumentUri](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#uri)
 
-### Secondary (MEDIUM confidence)
-- [Eclipse .classpath source attachments](https://help.eclipse.org/latest/topic/org.eclipse.jdt.doc.user/reference/ref-properties-source-attachment.htm) — sourcepath is view-only, not indexed for find-references
-- [JDT LS Issue #657](https://github.com/eclipse-jdtls/eclipse.jdt.ls/issues/657) — jdt:// URI scheme adds complexity; requires classFileContentsSupport capability
-- [JDT LS Discussion #3191](https://github.com/eclipse-jdtls/eclipse.jdt.ls/discussions/3191) — classpath configuration without build tools
-- `.planning/PROJECT.md` v1.4 milestone requirements — feature scope and constraints
+### Secondary (MEDIUM)
+- [Adoptium Windows installation](https://adoptium.net/installation/windows)
+- [Microsoft Build of OpenJDK install](https://learn.microsoft.com/en-us/java/openjdk/install)
+- [Claude Code issue #20331 — jdtls Windows URI bug](https://github.com/anthropics/claude-code/issues/20331)
+- [mfussenegger/nvim-jdtls](https://github.com/mfussenegger/nvim-jdtls)
 
 ---
-*Research completed: 2026-04-15*
-*Ready for roadmap: yes*
+
+## Synthesizer Notes
+
+**Strong convergence:**
+- Zero new runtime dependencies.
+- Same 9 URI sites and same 4 Java-spawn sites in same files.
+- Phase 1 (`.exe`) precedes Phase 2 (URIs) precedes Phase 5 (validation).
+- Full anti-feature list.
+
+**Resolved divergences:**
+- *URI first vs `.exe` first.* Architecture and pitfalls researchers argued `.exe` first because Windows is unobservable without it. **Resolved:** `.exe` first.
+- *Parallel URI code paths vs global adoption.* Pitfalls researcher explicit on global to avoid drift; stack + architecture confirmed Unix output byte-identical. **Resolved:** global adoption.
+- *Parser-level vs consumer-level `.properties` unescape.* **Resolved:** consumer-side only in `java-discovery.ts`; preserves graceful fallback for malformed values and zero risk to existing dependency-parsing callers.

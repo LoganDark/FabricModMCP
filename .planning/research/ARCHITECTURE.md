@@ -1,434 +1,399 @@
-# Architecture Patterns
+# Architecture Research — v1.6 Windows Support
 
-**Domain:** MCP server project rearchitecture -- composable named containers (v1.4)
-**Researched:** 2026-04-15
-**Focus:** Restructuring from monolithic LoadedProject into composable Project containers with FabricMod and StudyJar children
+**Domain:** Cross-platform Java tooling for a stdio MCP server (TypeScript / Node.js 22)
+**Researched:** 2026-05-15
+**Confidence:** HIGH (codebase fully inventoried; no external API changes assumed)
+**Scope:** Architectural decisions for the v1.6 milestone only. Existing v1.0–v1.5 architecture (layered domain/tool/state) is settled and out of scope.
 
-## Current Architecture Summary
+---
 
-The current architecture is a monolithic `LoadedProject` that conflates "project" with "single Fabric mod + its study jars." Every `LoadedProject` has exactly one `rootPath`, one `gradleConfig`, one `fabricMod`, one `dependencyJars` map, one `studyJars` map, one `filterConfig`, and one optional `jdtls` session. The `ProjectStore` is a flat `Map<string, LoadedProject>`.
+## 1. Java Discovery — Integration Approach
 
-**Key coupling points in the current code:**
+### Recommendation
 
-| Module | What it touches on LoadedProject | How |
-|--------|----------------------------------|-----|
-| `tool-helpers.resolveProjectSafely` | `projectStore.resolveProject(name)` | Returns `LoadedProject` directly |
-| `tool-helpers.getDependenciesForTool` | `project.dependencyJars`, `project.studyJars`, `project.filterConfig` | Merges deps + study jars, applies filter |
-| `tool-helpers.resolveClassSource` | `project.rootPath`, deps via `getAllDependencies` | Creates SourceAdapter per dep |
-| `tool-helpers.processNavigationLocations` | `project.jdtls` (via caller), deps via `getAllDependencies` | Reads extracted files, maps URIs to jars |
-| `dependency-resolver` | `project.dependencyJars`, `project.studyJars` | Merges into unified dep map |
-| `jar-registry` | `FilterConfig` | Applies include/exclude patterns |
-| `JarReader` | `projectHandles` keyed by project name | Ref-counted handles per project |
-| `loader.loadProject` | Reads gradle.properties, build.gradle.kts, fabric.mod.json, discovers deps | Returns complete LoadedProject |
-| `load-project tool` | Calls loader, registers jars, starts JDT LS | Orchestrates everything |
-| `workspace.extractSourcesToTemp` | `dependencies` map, `rootPath`, `jarReader` | Extracts all deps to one tmpdir |
-| `workspace-sync` | `studyJar`, `jdtls.tempDir`, `jdtls.jarIdToDirName` | Incrementally adds/removes from workspace |
-| `uri-mapper` | `jdtls.tempDir`, `jdtls.jarIdToDirName` | Maps file URIs back to jar IDs |
-| `source-adapter` | `dep.id === 'src'` special case uses `rootPath` | Filesystem vs jar adapter |
+Extract Java discovery into a new module `src/jdtls/java-discovery.ts`. The existing `setJavaHome`/`detectJava` pair in `src/jdtls/client.ts` becomes a thin compatibility shim that delegates. Discovery moves from a single-shot startup probe to a **per-resolution call site** that accepts an optional `projectRoot` argument so it can consult that project's `gradle.properties`.
 
-## Recommended Architecture
-
-### New Type Hierarchy
+**Priority chain, in `src/jdtls/java-discovery.ts`:**
 
 ```
-Project (named container)
-  |-- name: string
-  |-- children: Map<string, ProjectChild>
-  |-- filterConfig: FilterConfig         (project-level, applies across all children)
-  |-- jdtls?: JdtLsSession              (single workspace for entire project)
-
-ProjectChild = FabricModChild | StudyJarChild
-
-FabricModChild
-  |-- kind: 'fabric-mod'
-  |-- name: string                       (user-chosen or derived from dir basename)
-  |-- rootPath: string
-  |-- gradleConfig: GradleConfig
-  |-- sourcesJar: ResolvedJar
-  |-- fabricMod: FabricModJson
-  |-- dependencyJars: Map<string, DependencyEntry>
-
-StudyJarChild
-  |-- kind: 'study-jar'
-  |-- name: string
-  |-- studyJar: StudyJar                 (existing StudyJar type, unchanged)
+1. --java-home CLI flag      (set once at startup via setCliJavaHome, module-level)
+2. org.gradle.java.home      (read from <projectRoot>/gradle.properties on demand)
+3. process.env.JAVA_HOME
+4. `java` on PATH            (via spawn with PATHEXT-aware binary name)
+5. Common install locations  (platform-branched; see §2)
 ```
 
-### Dependency Resolution Changes
+Each candidate is probed via `execSync` of `"<path>" --version` with a 10s timeout, parsed by the existing `parseJavaVersion`, and accepted only if `version >= 21`.
 
-**Current:** `getDependenciesForTool(project, jars?)` returns a flat merged map of `project.dependencyJars` + study jars.
+### New File
 
-**New:** Dependencies are namespaced by child name. A fabric mod named `my-mod` produces deps like `my-mod/minecraft`, `my-mod/src`, `my-mod/fabric-api:fabric-networking-api-v1`. Study jars at project level use plain names (no namespace prefix).
+**`src/jdtls/java-discovery.ts`** — exports:
 
-```
-getAllProjectDependencies(project: Project) -> Map<string, DependencyEntry>
-  For each FabricModChild:
-    prefix each dep ID with "{childName}/"
-  For each StudyJarChild:
-    keep plain name (same as today's study jar DependencyEntry)
-```
-
-**Scoping:** When `scope` is provided, only return deps from that child. When omitted, return all children's deps merged (with namespacing to avoid collisions).
-
-### Component Boundaries
-
-| Component | Responsibility | Communicates With |
-|-----------|---------------|-------------------|
-| `Project` (new type) | Named container holding children, filter config, JDT LS session | ProjectStore, tools |
-| `ProjectChild` (new union type) | Discriminated union of FabricModChild and StudyJarChild | Project, dependency resolution |
-| `ProjectStore` (modified) | Stores `Map<string, Project>` instead of `Map<string, LoadedProject>` | Tools via resolveProjectSafely |
-| `FabricModLoader` (renamed from loader) | Loads a Fabric mod dir into `FabricModChild` (no JDT LS, no study jars) | Called by new add_fabric_mod tool |
-| `dependency-resolver` (modified) | Namespace-aware merging across children | Tools, jar-registry |
-| `JarReader` (unchanged key semantics) | Ref-counted handles keyed by project name | SourceAdapter, workspace extraction |
-| `JDT LS workspace` (modified) | Single workspace per project, containing all children's sources | load/unload lifecycle, add/remove child |
-| `UriMapper` (modified) | Maps namespaced jar IDs through directory names | Navigation tools |
-| `tool-helpers` (modified) | Resolves project + optional scope to dependency map | All tools |
-
-### Data Flow
-
-**Loading a project (new):**
-```
-create_project(name) ->
-  ProjectStore.set(name, { name, children: new Map(), filterConfig: default, jdtls: undefined })
-```
-
-**Adding a fabric mod:**
-```
-add_fabric_mod(project, path, name?) ->
-  1. FabricModLoader.load(path) -> FabricModChild
-  2. project.children.set(childName, child)
-  3. Register all child's jar paths with JarReader under project name
-  4. If project.jdtls exists: extract child's deps to workspace, update .classpath, notify JDT LS
-  5. If project.jdtls does not exist: attempt JDT LS init for the whole project
-```
-
-**Adding a study jar:**
-```
-add_study_jar(project, path, name?) ->
-  1. createStudyJar(path, name, project) -> StudyJarChild
-  2. project.children.set(childName, child)
-  3. Register jar path with JarReader
-  4. Sync to JDT LS workspace (same as today)
-```
-
-**Tool dependency resolution (new flow):**
-```
-getDependenciesForTool(project, scope?, jars?) ->
-  1. If scope: get only that child's deps (namespaced for fabric-mod, plain for study-jar)
-  2. If no scope: merge all children's deps (namespaced)
-  3. Apply filter config
-  4. If jars param: apply glob pattern filtering
-  Return: Map<string, DependencyEntry>
-```
-
-**Jar ID resolution example:**
-```
-Project "dev"
-  FabricModChild "my-mod"
-    dependencyJars: minecraft, src, fabric-api:fabric-networking-api-v1
-  FabricModChild "my-lib"
-    dependencyJars: minecraft, src
-  StudyJarChild "sodium"
-
-Flat dependency map (no scope):
-  my-mod/minecraft -> ...
-  my-mod/src -> ...
-  my-mod/fabric-api:fabric-networking-api-v1 -> ...
-  my-lib/minecraft -> ...
-  my-lib/src -> ...
-  sodium -> ...
-
-With scope="my-mod":
-  my-mod/minecraft -> ...
-  my-mod/src -> ...
-  my-mod/fabric-api:fabric-networking-api-v1 -> ...
-```
-
-## Components: Modify vs Replace vs New
-
-### NEW components
-
-| Component | Purpose |
-|-----------|---------|
-| `project/types.ts` additions | `Project`, `ProjectChild`, `FabricModChild`, `StudyJarChild` type definitions |
-| `tools/create-project.ts` | Create a named empty project container |
-| `tools/add-fabric-mod.ts` | Load a Fabric mod directory as a child of a project |
-| `tools/remove-child.ts` | Remove a child (fabric mod or study jar) from a project |
-| `tools/list-children.ts` | List children of a project with their types and metadata |
-
-### MODIFIED components (adapt, not rewrite)
-
-| Component | What Changes | Scope of Change |
-|-----------|-------------|-----------------|
-| `project/types.ts` | Add new types alongside existing. `LoadedProject` becomes internal/deprecated alias or removed. | Medium -- add types, update exports |
-| `state/project-store.ts` | Store `Project` instead of `LoadedProject`. `resolveProject` returns `Project`. | Small -- type change, same logic |
-| `project/loader.ts` | Rename to `fabric-mod-loader.ts`. Returns `FabricModChild` instead of `LoadedProject`. Strip JDT LS and study jar concerns. | Medium -- remove orchestration, keep parsing |
-| `project/dependency-resolver.ts` | Add namespace-aware functions: `getProjectDependencies(project)`, `getScopedDependencies(project, scope)`. Keep old functions internally for per-child resolution. | Medium -- new functions wrapping existing |
-| `project/jar-reader.ts` | No structural change. Project name key still works since we keep one JarReader registration per project. | Minimal -- possibly no changes |
-| `project/jar-registry.ts` | No change. Filtering operates on any `Map<string, DependencyEntry>`. | None |
-| `project/study-jar.ts` | `validateStudyJarId` checks against all children's names, not just `dependencyJars`. `createStudyJar` takes `Project` instead of `LoadedProject`. | Small |
-| `tools/tool-helpers.ts` | `resolveProjectSafely` returns `Project`. `getDependenciesForTool` gains `scope` parameter. `resolveClassSource` takes `Project` + scope. `processNavigationLocations` uses project-level jdtls. | Medium-large -- most helpers gain scope param |
-| `tools/load-project.ts` | Becomes `create-project` + `add-fabric-mod` composition, or replaced entirely. May keep as convenience wrapper. | Large -- split or replace |
-| `tools/unload-project.ts` | Iterates `project.children` to clean up all jar handles, then shuts down single JDT LS session. | Small |
-| `tools/add-study-jar.ts` | Adds to `project.children` instead of `project.studyJars`. Collision check against all children. | Small |
-| `tools/remove-study-jar.ts` | Removes from `project.children`. | Small |
-| `tools/list-study-jars.ts` | Filters `project.children` by kind. | Small |
-| `tools/get-project-metadata.ts` | Iterates children, shows namespaced deps. | Medium |
-| `tools/refresh-dependencies.ts` | Operates on fabric mod children only. | Small |
-| `tools/configure-filters.ts` | Operates on `project.filterConfig` (project-level, unchanged concept). | None |
-| `tools/configure-study-jar.ts` | Finds study jar in `project.children` by kind filter. | Small |
-| `jdtls/workspace.ts` | `extractSourcesToTemp` takes all children's deps (namespaced dir names). | Medium -- iterate children |
-| `jdtls/workspace-sync.ts` | Incremental add/remove for any child type (not just study jars). Generalize to `syncChildToWorkspace`. | Medium |
-| `jdtls/uri-mapper.ts` | `jarIdToDirName` must handle namespaced IDs (`my-mod/minecraft` -> `my-mod__minecraft`). The `/` -> `__` mapping works alongside existing `:` -> `__`. | Small -- update separator logic |
-| `browsing/source-adapter.ts` | `createSourceAdapter` for `dep.id` ending in `/src` needs the correct child's `rootPath`. Pass rootPath explicitly rather than assuming one project rootPath. | Small |
-| All browsing/navigation tools | Pass `scope` through to `getDependenciesForTool`. Add `scope` to input schemas. | Small per tool, many tools (~15 tools) |
-
-### UNCHANGED components
-
-| Component | Why Unchanged |
-|-----------|--------------|
-| `browsing/cascading-regex.ts` | Operates on source text, no project awareness |
-| `browsing/entry-index.ts` | Operates on entry lists, no project awareness |
-| `browsing/entry-index-cache.ts` | Keyed by jar path, no project awareness |
-| `browsing/class-parser.ts` | Parses source text |
-| `browsing/member-extractor.ts` | Parses source text |
-| `browsing/member-enrichment.ts` | Enriches member data |
-| `browsing/member-fqn.ts` | FQN generation |
-| `browsing/symbol-transform.ts` | Symbol transformation |
-| `browsing/search.ts` | Search over entry index |
-| `browsing/import-resolver.ts` | Import resolution |
-| `browsing/line-slicer.ts` | Line range extraction |
-| `browsing/detail-parser.ts` | Detail flag parsing |
-| `jdtls/client.ts` | JDT LS process lifecycle (stateless helper functions) |
-| `jdtls/context-extractor.ts` | Parses source text |
-| `jdtls/symbol-kind.ts` | Enum mapping |
-| `errors/domain-error.ts` | Error type |
-| `types/envelope.ts` | Response envelope |
-| `logging/logger.ts` | Logging |
-| `tools/pagination.ts` | Pagination helpers |
-| `tools/echo.ts` | Diagnostic tool |
-
-## Patterns to Follow
-
-### Pattern 1: Discriminated Union for Children
-**What:** Use `kind` field discriminant on ProjectChild types.
-**When:** Any code that handles children generically.
-**Example:**
 ```typescript
-type ProjectChild = FabricModChild | StudyJarChild;
+export type JavaCandidate = { source: 'cli' | 'gradle' | 'env' | 'path' | 'common'; path: string };
+export type JavaDetectResult = JavaDetected | JavaNotFound;  // moved from client.ts
 
-interface FabricModChild {
-	kind: 'fabric-mod';
-	name: string;
-	rootPath: string;
-	gradleConfig: GradleConfig;
-	sourcesJar: ResolvedJar;
-	fabricMod: FabricModJson;
-	dependencyJars: Map<string, DependencyEntry>;
-}
-
-interface StudyJarChild {
-	kind: 'study-jar';
-	name: string;
-	studyJar: StudyJar;
-}
-
-function getChildDeps(child: ProjectChild): Map<string, DependencyEntry> {
-	switch (child.kind) {
-		case 'fabric-mod': return child.dependencyJars;
-		case 'study-jar': return new Map([[child.name, studyJarToDependencyEntry(child.studyJar)]]);
-	}
-}
+export function setCliJavaHome(home: string | undefined): void;  // replaces setJavaHome
+export function getCliJavaHome(): string | undefined;
+export function discoverJava(opts?: { projectRoot?: string }): Promise<JavaDetectResult>;
+export function probeJavaBinary(javaPath: string): JavaDetectResult | null;  // single-candidate probe
+export function listCommonJavaLocations(): string[];  // platform-branched
 ```
 
-### Pattern 2: Namespace Prefixing for Dependency IDs
-**What:** Prefix dependency IDs with `{childName}/` for fabric mods. Study jars keep plain names.
-**When:** Building the flat dependency map for a project.
-**Why:** Avoids collisions when two fabric mods both have `minecraft` or `src` dependencies. Study jars do not need namespacing because their names are globally unique within a project (collision checked at add time).
-**Example:**
+`discoverJava` is **async** (must `readFile` gradle.properties), unlike today's sync `detectJava`. This is a deliberate change — Java discovery is a startup/project-load cost amortized over the JDT LS session, not a per-tool-call hot path.
+
+### Modified Files
+
+**`src/jdtls/client.ts`** — keep the existing `setJavaHome`/`detectJava` symbols as a back-compat shim for one milestone (re-export from `java-discovery.ts`), then remove in v1.7. The `JavaDetected`/`JavaNotFound`/`JavaDetectResult` types move to `java-discovery.ts`; `client.ts` re-exports them so existing imports keep working.
+
+**`src/index.ts`** — `setJavaHome(args.javaHome)` becomes `setCliJavaHome(args.javaHome)`. `initJdtLsSession()` continues to be called for the default project at startup (no project root → no `org.gradle.java.home`).
+
+**`src/jdtls/startup.ts`** — `initJdtLsSession` gains an optional `projectRoot?: string` argument. When supplied, it threads through to `discoverJava({ projectRoot })`. The `detectJava()` call becomes `await discoverJava({ projectRoot })`.
+
+**Project-creation code path** (the create_project / add_fabric_mod handlers under `src/tools/`) — when a project with a Fabric mod child is created, `initJdtLsSession({ projectRoot: fabricMod.rootPath })` is called so the per-project Java picks up `org.gradle.java.home` from that mod's gradle.properties. Today these handlers either reuse the default project's JDT LS session or call `initJdtLsSession()` without a project root; the wire-up will need the exact call site identified during execution.
+
+### Project Context Reach
+
+The current architecture has `initJdtLsSession` called twice in the lifecycle:
+
+1. **Startup** (`src/index.ts:21`) — for the empty `default` project. No project root exists, so `gradle.properties` lookup is skipped. This call only needs the `--java-home` / `JAVA_HOME` / PATH / common-locations branches.
+2. **Project creation** — when a fabric mod is added, the JDT LS session for that project is initialized against the mod's root. This is where `org.gradle.java.home` becomes relevant.
+
+The key insight: **JDT LS sessions are per-project today** (see `Project.jdtls` field, one session per `Project`). The smarter Java discovery slots naturally into the per-project session initialization — no architectural shift is needed, only an argument addition.
+
+For the `default` startup project, `org.gradle.java.home` is structurally unavailable (no `gradle.properties` to read). This is acceptable: the default project exists for ad-hoc study jars, not for Fabric mod analysis. Users who care about JDK selection set `--java-home` explicitly or use `JAVA_HOME`.
+
+### Singleton vs Per-Project Resolver
+
+**Recommendation: keep the CLI flag global, make discovery per-call.**
+
+- `--java-home` is a process-wide CLI flag — there's exactly one. Keep it as module-level state in `java-discovery.ts` (renamed to `cliJavaHome` to disambiguate from the env var).
+- `discoverJava()` is a stateless function that reads the global flag + an optional project root. No instance state to carry around.
+- The previously-detected `JavaDetectResult` is stored on the `JdtLsSession` (already happens implicitly — JDT LS is already running by the time the session is built). No need for a "current Java" cache.
+
+This avoids creating a `JavaDiscoveryService` class that would be one-instance-per-process and provide nothing the function pair doesn't already.
+
+### Unix Regression Risk: **Minimal**
+
+The existing Unix code paths in `detectJava` (lines 65–104 of `client.ts`) become one of several branches in `discoverJava`. The CLI-flag-first → `JAVA_HOME` → PATH chain is preserved verbatim; only two new probes are inserted (`org.gradle.java.home` slots between CLI and `JAVA_HOME`; common locations slots after PATH). On Unix systems where the user has `JAVA_HOME` set or `java` on PATH (the documented prerequisite per v1.5), discovery short-circuits at the same place it does today.
+
+**Mitigation:**
+- Keep `setJavaHome`/`detectJava` as re-exports so existing tests and callers compile unchanged.
+- Add an explicit test that verifies the priority chain on Unix: CLI flag wins over `JAVA_HOME`, `JAVA_HOME` wins over PATH, etc. The existing `--java-home` precedence test (commit `4e94b4b`) is the template.
+- Async signature change for `discoverJava` is the only meaningful behavioral diff. Audit callers: today only `initJdtLsSession` calls `detectJava`, and it's already async-bodied, so the change is local.
+
+---
+
+## 2. Windows Branch Placement Strategy
+
+### Recommendation
+
+**Use a small `src/platform/` module that exposes named helpers, plus inline `process.platform === 'win32'` guards only at sites where the helper would be one-liner overkill.**
+
+Justification: the codebase has very few platform-sensitive sites (counted below), but those sites cluster around two concepts — Java binary resolution and JDT LS install locations — that benefit from a single canonical implementation. Scattering `if (process.platform === 'win32')` blocks across `client.ts` and `java-discovery.ts` invites drift between checks. A typed helper API is enforced once.
+
+### Branch Site Census
+
+A `grep` across `src/` for sites that need Windows-specific behavior (excluding test files):
+
+| # | File | Existing site | Windows change needed | Strategy |
+|---|------|---------------|----------------------|----------|
+| 1 | `src/jdtls/client.ts:70` | `join(javaHome, 'bin', 'java')` | Append `.exe` on Windows | **platform helper** (`javaBinaryInHome()`) |
+| 2 | `src/jdtls/client.ts:72` | `candidates.push('java')` (bare PATH) | `'java.exe'` on Windows (spawn does not apply PATHEXT) | **platform helper** (`javaBinaryName()`) |
+| 3 | `src/jdtls/client.ts:139–144` | Common JDT LS locations: `~/.local/share/jdtls`, `/usr/local/share/jdtls`, `~/jdtls` | Replace with `%LOCALAPPDATA%\jdtls`, `%PROGRAMFILES%\jdtls`, `%USERPROFILE%\jdtls` | **platform helper** (`jdtlsCandidateDirs()`) |
+| 4 | `src/jdtls/client.ts:139` | `process.env.HOME ?? ''` | `process.env.USERPROFILE` on Windows | **platform helper** (folded into `jdtlsCandidateDirs()`); also fix to use `os.homedir()` cross-platform |
+| 5 | `src/jdtls/client.ts:185–189` | Already platform-branched (`config_mac`/`config_win`/`config_linux`) | None — already correct | leave as-is (the existing pattern is fine here because it's local and exhaustive) |
+| 6 | `src/jdtls/java-discovery.ts` (new) | Common Java install locations | New: `C:\Program Files\Java\*`, `C:\Program Files\Eclipse Adoptium\*` on Win; `/usr/lib/jvm/*`, `/Library/Java/JavaVirtualMachines/*/Contents/Home` on Unix | **platform helper** (`commonJavaLocations()`) |
+
+**Total platform-sensitive sites: 6.** Of these, **4 share two helper functions** (`javaBinaryName()`/`javaBinaryInHome()` cover sites 1 and 2; `jdtlsCandidateDirs()` covers sites 3+4). The remaining 2 (site 5 already-correct, site 6 new code) each have one call site.
+
+### New File
+
+**`src/platform/index.ts`** — exports:
+
 ```typescript
-function getProjectDependencies(project: Project): Map<string, DependencyEntry> {
-	const merged = new Map<string, DependencyEntry>();
-	for (const [childName, child] of project.children) {
-		if (child.kind === 'fabric-mod') {
-			for (const [depId, dep] of child.dependencyJars) {
-				merged.set(`${childName}/${depId}`, { ...dep, id: `${childName}/${depId}` });
-			}
-		} else {
-			const entry = studyJarToDependencyEntry(child.studyJar);
-			merged.set(entry.id, entry);
-		}
-	}
-	return merged;
-}
+export const isWindows: boolean;  // process.platform === 'win32'
+
+/** "java.exe" on Windows, "java" elsewhere. Used for spawn argv[0] and PATH lookup. */
+export function javaBinaryName(): string;
+
+/** Resolve `<javaHome>/bin/java[.exe]` with platform-appropriate suffix. */
+export function javaBinaryInHome(javaHome: string): string;
+
+/** Directories to probe for JDT LS installation (excluding JDTLS_HOME). */
+export function jdtlsCandidateDirs(): string[];
+
+/** Directories or glob roots to probe for JDK installations. */
+export function commonJavaLocations(): string[];
 ```
 
-### Pattern 3: Scope Parameter Threading
-**What:** Add optional `scope` parameter to tool input schemas that threads down to dependency resolution.
-**When:** Any tool that currently accepts `project` and `jars` parameters.
-**Why:** Allows targeting a specific child without manually constructing jar glob patterns.
-**Example:**
+Implementation is dual-branch (`if (isWindows) { ... } else { ... }`) inside each helper. The Unix branch returns today's behavior verbatim where possible. No abstraction over `path.join` or `path.sep` — those already work cross-platform via Node's path module.
+
+### Modified Files
+
+- **`src/jdtls/client.ts`**: replace `'java'`-literal and `join(home, 'bin', 'java')` with `javaBinaryName()` / `javaBinaryInHome()`; replace the `commonLocations` array with `jdtlsCandidateDirs()`. The function-level platform branch at lines 185–189 (JDT LS config dir) stays inline.
+- **`src/jdtls/java-discovery.ts`** (new): uses `javaBinaryName()`, `javaBinaryInHome()`, `commonJavaLocations()`.
+
+### Rationale for Splitting (helper module vs inline)
+
+Inline `if (process.platform === 'win32')` is correct when the branch is:
+- Local to one function (the JDT LS `config_*` switch is the exemplar — it's an enum-like 3-way split that won't recur).
+- Trivially short (no shared logic).
+
+A helper module is correct when:
+- The same conditional appears in 2+ places (`javaBinaryName` would otherwise be duplicated between `detectJava`'s candidate building and any future spawn site).
+- The conditional encapsulates a stable concept named the same way every time (`jdtlsCandidateDirs`).
+- Tests want to mock the platform behavior in one place.
+
+Six sites is small but two of them share helpers and the helpers have meaningful names. A `src/platform/` module of ~80 lines is the right size — not a heavyweight abstraction layer, just a place to put the four Windows constants.
+
+### Unix Regression Risk: **None**
+
+Every helper's Unix branch returns exactly the literal string or array the current code uses. The transformation is mechanical:
+
+- `'java'` → `javaBinaryName()` → returns `'java'` on Unix.
+- `join(home, 'bin', 'java')` → `javaBinaryInHome(home)` → returns `join(home, 'bin', 'java')` on Unix.
+- `commonLocations` array literal → `jdtlsCandidateDirs()` → returns the same three paths on Unix.
+
+**Mitigation:**
+- Snapshot test the Unix helper outputs (`expect(jdtlsCandidateDirs()).toEqual([...])` with mocked homedir).
+- The existing `findJdtLs` tests need no changes — they stub `existsSync`, not the candidate list.
+
+---
+
+## 3. `file://` URI Construction
+
+### Recommendation
+
+**Adopt `url.pathToFileURL(path).toString()` globally for URI construction**, and `url.fileURLToPath(uri)` for the reverse. Drop the manual `'file://' + path` concatenation everywhere. This is safe on Unix and necessary on Windows.
+
+### Inventory of `file://` Construction Sites
+
+| File | Line | Construction | Direction |
+|------|------|--------------|-----------|
+| `src/jdtls/client.ts` | 214 | `'file://' + workspaceDir` (initialize.rootUri) | path → URI |
+| `src/jdtls/client.ts` | 247 | `'file://' + workspaceDir` (workspaceFolders) | path → URI |
+| `src/jdtls/workspace-sync.ts` | 103, 141, 206, 255 | `'file://' + resolvedTempDir + '/.classpath'` | path → URI |
+| `src/jdtls/uri-mapper.ts` | 77 | `file://${normalizedTempDir}/${dirName}/${entryPath}` (toFileUri) | path → URI |
+| `src/jdtls/uri-mapper.ts` | 81 | prefix `file://${normalizedTempDir}/` (fromFileUri) | URI → path |
+| `src/tools/remove-project-member.ts` | 83 | `'file://' + resolvedTempDir + '/.classpath'` | path → URI |
+| `src/tools/tool-helpers.ts` | 350 | `loc.uri.replace('file://', '')` | URI → path |
+
+**Total: 7 construction sites + 2 deconstruction sites = 9 sites to update.**
+
+### Why Global, Not Windows-Special-Case
+
+On Unix:
+- `pathToFileURL('/tmp/foo')` returns `URL { 'file:///tmp/foo' }`. Its `.toString()` is `'file:///tmp/foo'`.
+- Today's code produces `'file:///tmp/foo'` (note: `'file://' + '/tmp/foo'` = `'file:///tmp/foo'`). **Identical output.**
+- For `fromFileUri`, today's code strips `'file://'` from `'file:///tmp/foo/bar'` yielding `'/tmp/foo/bar'`. `fileURLToPath` on the same URI returns `'/tmp/foo/bar'`. **Identical output.**
+
+On Windows:
+- `pathToFileURL('C:\\foo\\bar')` returns `URL { 'file:///C:/foo/bar' }` (three slashes, drive letter, forward slashes, URL-encoded special chars).
+- Today's `'file://' + 'C:\\foo\\bar'` produces `'file://C:\\foo\\bar'` — **broken**: two slashes (not three), backslashes (not URL-encoded), no leading slash before the drive letter. JDT LS rejects this.
+- `fileURLToPath('file:///C:/foo/bar')` returns `'C:\\foo\\bar'`. Today's `.replace('file://', '')` returns `'/C:/foo/bar'` — **broken** for opening as a file.
+
+There's no Unix behavior worth preserving by branching: the WHATWG `pathToFileURL`/`fileURLToPath` round-trip is bit-equal to today's Unix output for the relevant inputs. The one edge case — paths containing characters that would be URL-encoded (spaces, `%`, `#`) — is **also a Unix bug today**, just unlikely to be hit because temp dirs are randomUUIDs. Adopting the standard library function fixes both platforms with one change.
+
+### Modified Files
+
+All 7 files above. The change pattern is mechanical:
+
 ```typescript
-// Tool schema addition (alongside existing project and jars params):
-scope: z.string().optional().describe('Limit to a specific child (fabric mod or study jar name)')
+// Before
+const uri = 'file://' + somePath;
 
-// In tool handler:
-const deps = getDependenciesForTool(project, scope, jars);
+// After
+import { pathToFileURL } from 'node:url';
+const uri = pathToFileURL(somePath).toString();
 ```
 
-### Pattern 4: Single JDT LS Workspace Per Project
-**What:** One JDT LS process per project, workspace contains all children's sources.
-**When:** Project creation/first child with sources triggers JDT LS init. Adding/removing children incrementally syncs.
-**Why:** JDT LS cross-references work best when all sources are in one workspace. Multiple JDT LS processes would waste memory and miss cross-child references.
+And for the reverse:
 
-### Pattern 5: Default Project on Startup
-**What:** Create an empty default project automatically when the MCP server starts.
-**When:** Server initialization, before any tool calls.
-**Why:** Eliminates the "no projects loaded" error for the common single-project case. User can immediately `add_fabric_mod` without first calling `create_project`.
-**Example:**
 ```typescript
-// In server.ts or index.ts initialization:
-const defaultProject: Project = {
-	name: 'default',
-	children: new Map(),
-	filterConfig: { mode: 'include-all', patterns: [] },
-};
-projectStore.set('default', defaultProject);
-projectStore.setDefault('default');
+// Before
+const path = uri.replace('file://', '');
+
+// After
+import { fileURLToPath } from 'node:url';
+const path = fileURLToPath(uri);
 ```
 
-### Pattern 6: SourceAdapter rootPath Resolution
-**What:** When creating a SourceAdapter for a namespaced dep like `my-mod/src`, look up the fabric mod child to get its `rootPath`.
-**When:** Any code path that creates a filesystem source adapter.
-**Why:** The `src` dep ID is special-cased in `createSourceAdapter` to use filesystem reading. With multiple fabric mods, each has a different rootPath.
-**Example:**
+### Special Consideration: `uri-mapper.ts`
+
+The mapper uses string-prefix matching to recognize "URIs under our temp dir":
+
 ```typescript
-function resolveRootPath(project: Project, namespacedDepId: string): string | undefined {
-	const slashIndex = namespacedDepId.indexOf('/');
-	if (slashIndex === -1) return undefined; // study jar, no rootPath needed
-	const childName = namespacedDepId.slice(0, slashIndex);
-	const child = project.children.get(childName);
-	if (child?.kind === 'fabric-mod') return child.rootPath;
-	return undefined;
-}
+const prefix = `file://${normalizedTempDir}/`;
+if (!uri.startsWith(prefix)) return null;
 ```
 
-## Anti-Patterns to Avoid
+This needs to become:
 
-### Anti-Pattern 1: Keeping LoadedProject as Intermediate
-**What:** Converting LoadedProject to the new types at tool boundaries instead of replacing it.
-**Why bad:** Two representations of the same data. Conversion bugs. Stale data if one is updated but not the other.
-**Instead:** Replace LoadedProject with the new types throughout. The loader returns FabricModChild; the store holds Project. A temporary deprecated alias is fine during migration, but must be removed.
+```typescript
+const prefix = pathToFileURL(normalizedTempDir + '/').toString();  // trailing slash matters
+if (!uri.startsWith(prefix)) return null;
+const rest = uri.slice(prefix.length);
+```
 
-### Anti-Pattern 2: Deep Nesting for Scope Resolution
-**What:** Making tools navigate `project.children.get(scope).dependencyJars` directly.
-**Why bad:** Couples every tool to the container structure. If the structure changes, every tool changes.
-**Instead:** Funnel all scope resolution through `getDependenciesForTool(project, scope?, jars?)`. Tools never see children directly.
+The "drive letter case" subtlety on Windows: JDT LS lowercases drive letters in some responses (`file:///c:/...`) but `pathToFileURL` produces uppercase (`file:///C:/...`). Compare case-insensitively for the prefix match on Windows. This is an inline guard, not a helper:
 
-### Anti-Pattern 3: Multiple JDT LS Sessions Per Project
-**What:** One JDT LS per fabric mod child.
-**Why bad:** Cross-mod references broken. Memory multiplied. Startup time multiplied. Workspace sync complexity explosion.
-**Instead:** Single JDT LS per project. All children's sources in one workspace.
+```typescript
+const matchesPrefix = isWindows
+  ? uri.toLowerCase().startsWith(prefix.toLowerCase())
+  : uri.startsWith(prefix);
+```
 
-### Anti-Pattern 4: Eager Namespace Stripping
-**What:** Stripping the `childName/` prefix from dep IDs before returning to tools/users.
-**Why bad:** Loses provenance information. Cannot tell which child a dependency came from.
-**Instead:** Keep namespaced IDs everywhere. Tools display them as-is. The namespace IS the identity.
+Note: `entryPath` segments inside the URI are URL-encoded by `pathToFileURL`. For typical Java entry paths (`net/minecraft/client/MinecraftClient.java`), no encoding is applied (alphanumerics and `/.-_` are URL-safe), so the existing slicing/splitting logic continues to work. If a future jar contains entries with `+`, space, or `#`, those will appear percent-encoded and the slice-after-prefix logic must `decodeURIComponent` each segment. Flag as a follow-up; not needed for v1.6.
 
-### Anti-Pattern 5: Separate ProjectStore Per Child Type
-**What:** Having `fabricModStore` and `studyJarStore` alongside `projectStore`.
-**Why bad:** Splits project state across multiple stores. Invariants (like "child names are unique within a project") are unenforceable.
-**Instead:** Single ProjectStore holding Project containers. Children live inside Project.
+### Unix Regression Risk: **Minimal**
 
-## Build Order (Suggested Phase Sequence)
+The `pathToFileURL`/`fileURLToPath` functions are part of Node's stable `node:url` API since v10.12, well within the Node 22 LTS baseline. For the temp-dir paths the project uses (randomUUID-generated, no special characters, absolute), Unix output is byte-equal to today's. The single edge case — paths containing `%`, `#`, or spaces — is currently broken on Unix anyway (any such path would produce a malformed URI today), so adopting the standard fixes a latent bug.
 
-The rearchitecture has clear dependency layers. Build bottom-up:
+**Mitigation:**
+- Add a round-trip test: `fromFileUri(toFileUri(jarId, entryPath))` must equal `{ jar: jarId, entryPath }` for representative inputs on both platforms.
+- The existing `uri-mapper` tests likely use mocked paths like `/tmp/mcp-test` — they continue to pass unchanged because the Unix output is identical.
+- Audit `tool-helpers.ts:350` carefully — the resulting `filePath` is passed to `readFile`. On Unix the output is identical; verify any test that checks the exact `filePath` string.
 
-### Phase 1: Type Foundation + ProjectStore
-- Define new types (`Project`, `ProjectChild`, `FabricModChild`, `StudyJarChild`)
-- `ProjectStore` stores `Project` instead of `LoadedProject`
-- `loader.ts` refactored to return `FabricModChild` (renamed or new function)
-- `create_project` tool creates empty container
-- Default project created on startup
-- Existing `load_project` preserved as compatibility wrapper (creates project + adds fabric mod in one call)
-- All existing tools continue to work via compatibility layer
+---
 
-**Why first:** Everything depends on the type foundation. The compatibility wrapper means existing tests keep passing while migration proceeds.
+## 4. Suggested Build Order
 
-### Phase 2: Dependency Namespacing + Scope
-- `dependency-resolver` gains namespace-aware functions
-- `getDependenciesForTool` gains `scope` parameter
-- `uri-mapper` handles namespaced dir names (`/` -> `__`)
-- `source-adapter` takes explicit rootPath resolution
-- `resolveClassSource` updated for namespaced deps
-- Add `scope` parameter to all jar-aware tool schemas
+### Phase Sequence
 
-**Why second:** Namespacing is the core semantic change. Once deps are namespaced, multiple fabric mods can coexist without collisions.
+```
+Phase A: Platform Helpers Foundation
+    ↓
+Phase B: Java Discovery Extraction
+    ↓
+Phase C: Windows Java Binary Resolution (.exe handling)
+    ↓
+Phase D: URI Construction Migration
+    ↓
+Phase E: JDT LS Probe Path Expansion
+    ↓
+Phase F: org.gradle.java.home Integration
+    ↓
+Phase G: End-to-end Windows Validation
+```
 
-### Phase 3: Child Management Tools
-- `add_fabric_mod` tool (loads a Fabric mod as a child)
-- Study jar tools operate on `project.children` instead of `project.studyJars`
-- `remove_child` tool (generic removal of any child type)
-- `list_children` tool (shows all children with types and metadata)
-- `get_project_metadata` shows children structure
-- `refresh_dependencies` operates per-fabric-mod child
+### Phase-by-Phase Rationale
 
-**Why third:** Depends on types (Phase 1) and namespacing (Phase 2) being in place. This is where the user-facing API changes.
+**Phase A — Platform Helpers Foundation** (new `src/platform/index.ts`, no behavior change)
 
-### Phase 4: JDT LS Workspace Unification
-- Single workspace per project containing all children's sources
-- `extractSourcesToTemp` iterates all children with namespaced dir names
-- Incremental sync generalized for any child type (not just study jars)
-- JDT LS init deferred until first child with sources is added
-- `processNavigationLocations` uses project-level jdtls and namespaced URI mapping
+Create the four-helper module with Unix branches returning today's literals. No call sites updated yet. Lands with snapshot tests for both branches.
 
-**Why fourth:** JDT LS is the most complex integration. It benefits from stable types and namespacing. The workspace extraction must produce namespaced directory names that match the URI mapper.
+- *Why first:* Establishes the file structure so subsequent phases have a place to put Windows code. Standalone — zero risk to existing behavior.
+- *Depends on:* nothing.
+- *Unblocks:* Phases B, C, E.
 
-### Phase 5: Cleanup + Migration Completion
-- Remove `LoadedProject` type alias
-- Remove or finalize `load_project` wrapper (decide: keep as convenience or remove)
-- Remove `project.studyJars` field (study jars now live in `project.children`)
-- Update all test fixtures
-- Verify all 592+ tests pass with new types
+**Phase B — Java Discovery Extraction** (new `src/jdtls/java-discovery.ts`, move types out of `client.ts`)
 
-**Why last:** Cleanup depends on everything else being stable. Tests validate the full migration.
+Move `JavaDetected`/`JavaNotFound`/`JavaDetectResult`/`detectJava`/`setJavaHome`/`parseJavaVersion` to `java-discovery.ts`. Re-export from `client.ts` for back-compat. Add `discoverJava` (async) alongside; `detectJava` (sync) keeps current behavior as a deprecation shim. **Do not yet** wire `org.gradle.java.home` — that's Phase F.
 
-**Phase ordering rationale:**
-- Types must exist before anything can use them (Phase 1 first)
-- Namespacing must work before tools can correctly address multi-child deps (Phase 2 before Phase 3)
-- Child management tools need both types and namespacing (Phase 3 after Phase 2)
-- JDT LS workspace changes are the riskiest and most isolated -- defer until the data model is stable (Phase 4)
-- Cleanup is always last
+- *Why second:* Reorganizes without changing behavior. Sets up the file that Phases C and F will edit.
+- *Depends on:* nothing structural (Phase A not strictly required but recommended for `javaBinaryName` use in C).
+- *Unblocks:* Phases C, F.
 
-**Key risk in ordering:** Phase 2 (namespacing) changes the shape of dependency IDs that all tools consume. If existing tools do exact-match on dep IDs like `minecraft`, those will break when IDs become `my-mod/minecraft`. The compatibility layer in Phase 1 must handle the single-child case (no namespace prefix when project has exactly one fabric mod child) OR Phase 2 must update all tool tests simultaneously.
+**Phase C — Windows Java Binary Resolution** (use `javaBinaryName()` everywhere)
 
-## Integration Points Summary
+Replace literal `'java'` and `join(home, 'bin', 'java')` in `java-discovery.ts` (and the back-compat path in `client.ts`) with platform helpers. This is the change that makes JDT LS spawn work on Windows.
 
-| Feature | Files Modified | Files Created | Key Integration Point |
-|---------|---------------|---------------|----------------------|
-| Type foundation | `project/types.ts`, `state/project-store.ts` | None | New types alongside existing |
-| Loader refactor | `project/loader.ts` | Possibly `project/fabric-mod-loader.ts` | Returns `FabricModChild` instead of `LoadedProject` |
-| Dependency namespacing | `project/dependency-resolver.ts`, `tools/tool-helpers.ts` | None | `getDependenciesForTool` gains scope param |
-| URI mapping | `jdtls/uri-mapper.ts` | None | `/` in jar IDs -> `__` in dir names |
-| Source adapter | `browsing/source-adapter.ts` | None | rootPath resolved from child, not project |
-| Child management | `tools/add-study-jar.ts`, `tools/remove-study-jar.ts`, `tools/list-study-jars.ts` | `tools/add-fabric-mod.ts`, `tools/create-project.ts`, `tools/remove-child.ts`, `tools/list-children.ts` | Children stored in `project.children` map |
-| JDT LS workspace | `jdtls/workspace.ts`, `jdtls/workspace-sync.ts` | None | Single workspace per project, namespaced extraction dirs |
-| Scope threading | ~15 tool files | None | Add `scope` param to input schemas |
+- *Why third:* The single most impactful Windows fix — without it, nothing else matters. Smallest possible diff with a verifiable result (Windows can now spawn `java.exe`).
+- *Depends on:* Phase A (helpers exist), Phase B (Java code lives in the new file).
+- *Unblocks:* Phase G (Windows can now start JDT LS).
+- *Validation gate:* On a Windows machine, JDT LS process spawns and `ServiceReady` arrives. On Unix, no behavioral change.
 
-## Scalability Considerations
+**Phase D — URI Construction Migration** (`pathToFileURL`/`fileURLToPath` everywhere)
 
-| Concern | 1 fabric mod | 3 fabric mods | 10+ fabric mods |
-|---------|-------------|---------------|-----------------|
-| JDT LS memory | ~1GB (current) | ~2-3GB (more source files) | May need -Xmx tuning |
-| Jar handle count | ~20-30 | ~60-90 (shared jars ref-counted) | Verify OS file handle limits |
-| Workspace extraction time | ~5-10s | ~15-30s | Consider lazy extraction per child |
-| Dependency map size | ~30 entries | ~90 entries (namespaced) | Glob matching stays fast (picomatch) |
-| Entry index cache | ~30 entries | ~90 entries (keyed by jar path, shared across children) | Memory bounded by unique jar count |
-| URI mapper reverse lookup | ~30 dir-to-jar mappings | ~90 mappings | Map lookup is O(1), no concern |
+Sweep all 9 sites identified in §3. Update `uri-mapper.ts` with the case-insensitive prefix match on Windows. Round-trip tests.
+
+- *Why fourth:* Independent of Java discovery — once JDT LS spawns (Phase C), the next thing that breaks on Windows is URI handling. Doing this before Phase E means JDT LS Windows install detection is the last thing wired up.
+- *Depends on:* Phase A only (for `isWindows`).
+- *Unblocks:* Phase G end-to-end (Windows JDT LS now sees correct URIs).
+- *Cross-platform:* Improves Unix latent edge cases (paths with special chars).
+
+**Phase E — JDT LS Probe Path Expansion** (`jdtlsCandidateDirs()` returns Windows paths)
+
+Implement the Windows branch of `jdtlsCandidateDirs()` to probe `%LOCALAPPDATA%\jdtls`, `%PROGRAMFILES%\jdtls`, `%USERPROFILE%\jdtls`. Update `findJdtLs` to use the helper.
+
+- *Why fifth:* Required for Windows out-of-box discovery but `JDTLS_HOME` env var works as a manual override even without this. Smaller user-facing impact than Phases C and D.
+- *Depends on:* Phase A.
+- *Unblocks:* Phase G (Windows can discover JDT LS without explicit env var).
+- *Unix regression risk:* None — Unix branch returns the existing three paths verbatim.
+
+**Phase F — `org.gradle.java.home` Integration**
+
+Add `gradle.properties` reading inside `discoverJava` (between CLI and `JAVA_HOME`). Thread `projectRoot` through `initJdtLsSession`. Wire the project-creation code path so per-project JDT LS sessions see their project's `org.gradle.java.home`.
+
+- *Why sixth:* This is a **cross-platform improvement**, not a Windows fix. It works without any of the prior phases but provides the most value when combined with the Windows phases — otherwise Linux users with `JAVA_HOME` already set see no benefit. Doing it after Windows works avoids confounding two large changes.
+- *Depends on:* Phase B (the `discoverJava` async function exists).
+- *Unblocks:* Phase G validation includes mixed-JDK scenarios.
+- *Unix regression risk:* Minimal — the lookup is read-only (`access` + `readFile` of `gradle.properties`), skipped silently if the file doesn't exist or doesn't contain `org.gradle.java.home`. On Unix, users without that property in `gradle.properties` see no change.
+
+**Phase G — End-to-End Windows Validation**
+
+Manual smoke test on Windows: create a project, load a Fabric mod, run `find_definition`, verify cross-mod navigation. Document the Windows install steps in README. Add to the GSD project's "validated" list.
+
+### Build Order Dependency Graph
+
+```
+A (platform helpers) ─┬─→ C (.exe handling)        ─┬─→ G (validation)
+                      ├─→ E (JDT LS probe paths)   ─┤
+                      └─→ D (URI migration)         ─┤
+                                                    │
+B (java-discovery)    ─┬─→ C                        │
+                      └─→ F (gradle.java.home)     ─┘
+```
+
+Phases C, D, E are independent of each other and **may be parallelized** if multiple developers are available. The recommended serial order above prioritizes user-facing impact: spawning JDT LS at all (C) > URIs working (D) > out-of-box discovery (E) > smarter Java selection (F).
+
+### Why Not "URI First"?
+
+A reasonable alternative is to do Phase D (URIs) before Phase C (.exe). Argument: URIs are a hot path that touches every navigation tool, while Java spawning happens once. **Counter-argument used here:** without Phase C, JDT LS doesn't start on Windows, so URIs are never exercised. Build order should make incremental progress observable — after C, a Windows user gets a JDT LS process and meaningful error messages. After D, navigation tools also work.
+
+### Why Not "Java Discovery First"?
+
+Phase F (`org.gradle.java.home`) is the largest architectural change but the smallest Windows fix — in fact, it's not a Windows fix at all. Doing it first would leave Windows still broken while shipping a cross-platform enhancement that's hard to test without Windows working. Deferring it lets the Windows phases ship first and validates the architecture incrementally.
+
+---
+
+## 5. Cross-Cutting Notes
+
+### Tests
+
+Each phase ships with tests in the existing vitest layout. The pattern:
+
+- **Phase A:** unit tests in `tests/platform.test.ts`, mock `process.platform`.
+- **Phase B:** rename/move existing `detectJava` tests; add `discoverJava` tests.
+- **Phase C:** add Windows-branch tests using `vi.stubGlobal('process', { platform: 'win32' })` or similar.
+- **Phase D:** round-trip test for URI mapping on both platforms.
+- **Phase E:** stub `existsSync` and `process.env`, verify candidate ordering.
+- **Phase F:** integration-style test with a fixture `gradle.properties` containing `org.gradle.java.home`.
+
+### Backward Compatibility
+
+The existing `setJavaHome` symbol exported from `src/jdtls/client.ts` is consumed by `src/index.ts:10,14` and by tests (per the recent commits `9179410`, `4e94b4b`). Keep this symbol as a re-export from `java-discovery.ts` through v1.6. Mark for removal in v1.7 with a planning note.
+
+### Documentation
+
+`CLAUDE.md`'s "Technology Stack" section currently describes Java detection as "JAVA_HOME → java on PATH". Update during Phase B to reflect the priority chain. Add a "Windows Support" subsection to the Stack notes during Phase G describing PATHEXT, JDT LS install locations, and `pathToFileURL` adoption.
+
+### Out of Scope
+
+- Mixed-mappings projects (a Fabric mod whose `org.gradle.java.home` differs between subprojects) — not encountered in practice.
+- Windows path-length limits (260-char MAX_PATH) — the existing temp-dir layout (`%TEMP%\mcp-jdtls-<uuid>\<jar-id>\<package>\<class>.java`) is well under the limit for typical Minecraft sources. Defer until empirically observed.
+- Cygwin/MSYS2/WSL detection — out of scope. WSL is Linux and works today. Native Windows is what v1.6 targets. Cygwin is too rare to support.
+
+---
 
 ## Sources
 
-- Direct codebase analysis of FabricModMCP v1.3 (592 tests, 25 tools, 7,281 LOC)
-- All source files in `src/project/`, `src/state/`, `src/tools/`, `src/jdtls/`, `src/browsing/` read and cross-referenced
-- Architecture patterns derived from existing code conventions (domain/tool separation, discriminated unions in types.ts, dependency resolution pipeline)
-- Confidence: HIGH -- all findings from direct source reading, no external references needed
+- Codebase inventory (this repository, files listed in the milestone-context `<files_to_read>`): direct read.
+- Node.js `node:url` API (`pathToFileURL`/`fileURLToPath`): stable since v10.12, documented at https://nodejs.org/api/url.html#urlpathtofileurlpath-options.
+- Windows PATHEXT behavior on `child_process.spawn`: documented at https://nodejs.org/api/child_process.html#spawning-bat-and-cmd-files-on-windows (the `.bat`/`.cmd` and PATHEXT discussion applies to `.exe` lookup as well).
+- Eclipse JDT LS Windows config dir naming (`config_win`): https://github.com/eclipse-jdtls/eclipse.jdt.ls (already correctly handled in `client.ts:187`).
+
+---
+*Architecture research for: FabricModMCP v1.6 Windows Support*
+*Researched: 2026-05-15*
