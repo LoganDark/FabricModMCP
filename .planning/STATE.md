@@ -62,9 +62,10 @@ None.
 | 260428-5ol | Prefer Loom-cache remapped sources for mod deps | 2026-04-28 | 3319de9 | Verified | [260428-5ol-prefer-loom-cache-remapped-sources-for-m](./quick/260428-5ol-prefer-loom-cache-remapped-sources-for-m/) |
 | 260507-nff | Add record_feedback tool inspired by lldb-mcp | 2026-05-07 | 057e0cb |  | [260507-nff-add-record-feedback-tool-inspired-by-lld](./quick/260507-nff-add-record-feedback-tool-inspired-by-lld/) |
 | 260515-6c5 | Fix gradle-parser top-level block extraction (buildscript wrapper) | 2026-05-15 | 1fa14c8 |  | [260515-6c5-fix-gradle-parser-top-level-block-extrac](./quick/260515-6c5-fix-gradle-parser-top-level-block-extrac/) |
+| 260515-d0i | Add --java-home CLI flag for JDT LS | 2026-05-15 | 4e94b4b | Verified | [260515-java-home-flag](./quick/260515-java-home-flag/) |
 
 ## Session Continuity
 
-Last session: 2026-05-15T11:42:00Z
-Stopped at: Completed quick-260515-6c5
+Last session: 2026-05-15T16:22:00Z
+Stopped at: Completed quick-260515-d0i
 Resume file: None
