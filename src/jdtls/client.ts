@@ -14,6 +14,7 @@ import { existsSync } from 'node:fs';
 import { glob } from 'glob';
 import { JSONRPCEndpoint, LspClient } from 'ts-lsp-client';
 import { logger } from '../logging/logger.js';
+import { javaBinaryName, javaBinaryInHome, isWindows } from '../platform/index.js';
 
 export type JavaDetected = {
 	javaPath: string;
@@ -67,11 +68,13 @@ export function detectJava(): JavaDetectResult {
 
 	const javaHome = configuredJavaHome ?? process.env.JAVA_HOME;
 	if (javaHome) {
-		candidates.push(join(javaHome, 'bin', 'java'));
+		candidates.push(javaBinaryInHome(javaHome));
 	}
-	candidates.push('java');
+	candidates.push(javaBinaryName());
 
-	for (const javaPath of candidates) {
+	for (const candidate of candidates) {
+		const javaPath = resolveJavaExecutable(candidate);
+		if (javaPath === null) continue;
 		try {
 			const output = execSync(`"${javaPath}" --version`, {
 				encoding: 'utf-8',
@@ -101,6 +104,34 @@ export function detectJava(): JavaDetectResult {
 		javaPath: null,
 		error: 'Java not found. Set JAVA_HOME or add java to PATH.',
 	};
+}
+
+/**
+ * Resolve a Java candidate path to a file that `child_process.spawn` can exec.
+ *
+ * Bare names (no path separator) pass through unchanged — libuv applies PATHEXT
+ * for PATH lookups in `spawn` on Windows even though it does NOT for absolute
+ * paths (see nodejs/node#6671). On Windows, candidates with a separator are
+ * probed via `existsSync`: returned as-is if present, suffixed with `.exe` and
+ * re-probed otherwise (case-insensitive guard against `.exe.exe`), or returned
+ * as `null` so the caller skips this candidate cleanly instead of letting
+ * `spawn` fail later with ENOENT. On non-Windows platforms the candidate is
+ * returned byte-identical with NO `existsSync` call — UNIX-01 commitment so
+ * existing v1.5 `detectJava` tests that assert exact fake paths like
+ * `'/cli/java/bin/java'` continue to pass without modification.
+ */
+export function resolveJavaExecutable(candidate: string): string | null {
+	const hasSeparator = candidate.includes('/') || candidate.includes('\\');
+	if (!hasSeparator) return candidate;
+
+	if (isWindows) {
+		if (existsSync(candidate)) return candidate;
+		if (!candidate.toLowerCase().endsWith('.exe') && existsSync(candidate + '.exe')) {
+			return candidate + '.exe';
+		}
+		return null;
+	}
+	return candidate;
 }
 
 /**
