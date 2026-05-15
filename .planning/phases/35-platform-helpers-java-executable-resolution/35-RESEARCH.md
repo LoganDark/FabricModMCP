@@ -626,27 +626,27 @@ describe('resolveJavaExecutable on Unix (UNIX-01)', () => {
 
 **If this table is empty:** N/A — table is not empty. The planner and any future discuss-phase should treat A1 as the most load-bearing — if `spawn('java', ...)` doesn't resolve via PATHEXT on Windows, the bare-`'java'` candidate construction needs `.exe` too. Test this explicitly on real Windows during Phase 39.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `resolveJavaExecutable` be exported from `client.ts` or kept private?**
    - What we know: It has exactly one production call site (`detectJava`'s loop).
    - What's unclear: Whether it warrants its own unit test (which requires export) vs. testing it transitively through `detectJava`.
-   - Recommendation: **Export it.** A pure helper with branchy logic deserves a direct unit test. Phase 37 will leave it in place (renamed module location TBD); not a churn cost.
+   - RESOLVED: **Export it.** A pure helper with branchy logic deserves a direct unit test. Phase 37 will leave it in place (renamed module location TBD); not a churn cost.
 
 2. **`path.join` vs `path.win32.join` in the Windows branches?**
    - What we know: On a macOS/Linux test host, `path.join('C:\\foo', 'bar')` uses POSIX semantics and produces unexpected output.
    - What's unclear: Whether tests should assert exact strings or use `path.win32.join` in the implementation.
-   - Recommendation: **Use `path.win32.join` in the Windows branch of `javaBinaryInHome`**, `path.posix.join` in the Unix branch. Lets tests assert exact strings cross-host. (Milestone STACK.md endorses this pattern.)
+   - RESOLVED: **Use `path.win32.join` in the Windows branch of `javaBinaryInHome`**, `path.posix.join` in the Unix branch. Lets tests assert exact strings cross-host. (Milestone STACK.md endorses this pattern.)
 
 3. **Should the `commonJavaLocations()` helper return parent dirs (for globbing in Phase 37) or fully-resolved candidate paths?**
    - What we know: Phase 37 will `glob('jdk-*', { cwd: location })` to enumerate JDK installs.
    - What's unclear: Whether `commonJavaLocations()` returns `'C:\\Program Files\\Eclipse Adoptium'` (parent) or `'C:\\Program Files\\Eclipse Adoptium\\jdk-*'` (glob pattern).
-   - Recommendation: **Return parent dirs.** Phase 37 owns the globbing; Phase 35 ships data, not glob logic. The contract is "directories that may contain JDK installations" — Phase 37 applies appropriate glob patterns. This keeps `src/platform/index.ts` free of `glob` dependency.
+   - RESOLVED: **Return parent dirs.** Phase 37 owns the globbing; Phase 35 ships data, not glob logic. The contract is "directories that may contain JDK installations" — Phase 37 applies appropriate glob patterns. This keeps `src/platform/index.ts` free of `glob` dependency.
 
 4. **Does the existing v1.5 test suite have any tests that import `src/jdtls/client.js` and depend on a *specific* signature for `detectJava` (e.g., its candidate count, the form of error messages)?**
    - What we know: `tests/jdtls/client.test.ts` asserts exact `javaPath` strings on success and error message substrings on failure. `tests/jdtls/startup.test.ts` mocks `detectJava` entirely (line 11), so it doesn't care about internals.
    - What's unclear: Whether any test asserts the *order* of `candidates.push` calls or counts them.
-   - Recommendation: Planner runs `pnpm test -- tests/jdtls/client.test.ts` after each task to confirm. The four existing `detectJava` tests should pass unchanged.
+   - RESOLVED: Planner runs `pnpm test -- tests/jdtls/client.test.ts` after each task to confirm. The four existing `detectJava` tests should pass unchanged.
 
 ## Environment Availability
 
