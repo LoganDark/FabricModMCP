@@ -26,10 +26,21 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
  * On Unix: `'/path/to/file'` → `'file:///path/to/file'`.
  * Percent-encodes URL control characters (space → `%20`, `#` → `%23`, `%` → `%25`).
  *
+ * **Cross-host Windows fixtures (Phase 36 RESEARCH §A2):** on a non-Windows
+ * host, `pathToFileURL` does NOT auto-detect Windows-shaped input strings —
+ * `'C:\\foo'` is parsed as a relative POSIX path. Tests that need Windows-
+ * flavored output regardless of `process.platform` must pass
+ * `{ windows: true }`. Production callsites never need this option (host
+ * matches the path flavor).
+ *
  * @param absPath - Absolute path. Relative paths are resolved against cwd.
+ * @param opts.windows - Force Windows flavor regardless of host. Default: host-detected.
  * @returns Three-slash `file://` URI.
  */
-export function pathToFileUri(absPath: string): string {
+export function pathToFileUri(absPath: string, opts?: { windows?: boolean }): string {
+	if (opts?.windows === true) {
+		return pathToFileURL(absPath, { windows: true }).href;
+	}
 	return pathToFileURL(absPath).href;
 }
 

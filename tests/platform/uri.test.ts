@@ -66,3 +66,44 @@ describe('WIN-03 percent-encoding', () => {
 		expect(afterScheme).not.toContain(' ');
 	});
 });
+
+describe('A2: host-darwin auto-detection of Windows-shaped paths', () => {
+	// Phase 36 RESEARCH §A2 (MEDIUM-risk assumption) — RESOLVED IN FAIL DIRECTION.
+	//
+	// Original assumption: on a darwin host, pathToFileURL('C:\\foo') would
+	// auto-detect the drive-letter prefix and emit `file:///C:/foo` without
+	// needing the `{ windows: true }` option.
+	//
+	// Empirical outcome (Phase 36 Plan 01, Task 3): A2 does NOT hold on darwin.
+	// pathToFileURL parses `'C:\\foo'` as a relative POSIX path → resolved
+	// against cwd → URL contains `C:%5Cfoo` as a tail segment, not `/C:/foo`.
+	//
+	// Mitigation applied per RESEARCH §A2: pathToFileUri's signature was
+	// upgraded to accept `opts?: { windows?: boolean }`. Default branch is
+	// unchanged (host-detected); opt-in flips Node into Windows-flavor mode.
+	// Plan 03's Windows-mocked fixtures will pass `{ windows: true }` at
+	// fixture-construction sites.
+	//
+	// Test below exercises BOTH the failure of host auto-detection AND the
+	// success of the explicit `{ windows: true }` opt-in. Intentionally NO
+	// setPlatform flip — we interrogate Node's stdlib behavior on the actual
+	// host plus the wrapper's options pass-through.
+
+	it("host default: pathToFileUri('C:\\\\foo') does NOT auto-detect Windows shape on non-Windows host", () => {
+		// Documents the empirical A2-fails behavior so this regression is
+		// caught loudly if Node ever changes auto-detection on darwin/linux.
+		if (process.platform === 'win32') {
+			// On real Windows the auto-detect succeeds — assertion is the
+			// opposite of the non-Windows path.
+			expect(pathToFileUri('C:\\foo')).toMatch(/^file:\/\/\/C:\/foo/);
+			return;
+		}
+		// Non-Windows host: the bare-default call treats `C:\foo` as a relative
+		// POSIX path, so the result does NOT start with `file:///C:/foo`.
+		expect(pathToFileUri('C:\\foo')).not.toMatch(/^file:\/\/\/C:\/foo/);
+	});
+
+	it("opt-in: pathToFileUri('C:\\\\foo', { windows: true }) produces file:///C:/foo on any host", () => {
+		expect(pathToFileUri('C:\\foo', { windows: true })).toMatch(/^file:\/\/\/C:\/foo/);
+	});
+});
