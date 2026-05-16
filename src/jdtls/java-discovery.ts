@@ -269,3 +269,219 @@ function parseVersionHint(entry: string): number {
 	const m = entry.match(/\b(\d+)(?:[.\d_-]+)?/);
 	return m ? parseInt(m[1], 10) : 0;
 }
+
+/**
+ * Per-candidate outcome taxonomy (D-22). The `success` variant short-circuits
+ * the chain; every other outcome feeds the multi-line failure synthesizer.
+ */
+type CandidateOutcome =
+	| { kind: 'success'; javaPath: string; version: number }
+	| { kind: 'not-set' }
+	| { kind: 'file-not-found' }
+	| { kind: 'version-too-old'; version: number }
+	| { kind: 'timed-out' }
+	| { kind: 'probe-failed'; message: string };
+
+/**
+ * Run `<candidate> --version` with a 3s timeout and classify the outcome.
+ */
+async function probeCandidate(candidate: string): Promise<CandidateOutcome> {
+	const resolved = resolveJavaExecutable(candidate);
+	if (resolved === null) return { kind: 'file-not-found' };
+	try {
+		const { stdout, stderr } = await execFileAsync(resolved, ['--version'], {
+			timeout: 3_000,
+			encoding: 'utf-8',
+		});
+		const output = (stdout + stderr) || '';
+		const version = parseJavaVersion(output);
+		if (version === null) return { kind: 'probe-failed', message: 'unparseable --version output' };
+		if (version < 21) return { kind: 'version-too-old', version };
+		return { kind: 'success', javaPath: resolved, version };
+	} catch (err) {
+		const e = err as NodeJS.ErrnoException & { signal?: string; killed?: boolean };
+		if (e.signal === 'SIGTERM' || e.signal === 'SIGKILL' || e.killed === true) {
+			return { kind: 'timed-out' };
+		}
+		return { kind: 'probe-failed', message: e.message ?? String(err) };
+	}
+}
+
+/**
+ * Enumerate candidate java binaries inside a single parent directory.
+ *
+ * Skips silently if the parent doesn't exist (D-12 step 1). Applies the
+ * vendor-aware filter + layout map and sorts by version hint descending so
+ * newer JDKs are probed first within a parent.
+ */
+async function enumerateParent(parent: string): Promise<string[]> {
+	let entries: string[];
+	try {
+		entries = await readdir(parent);
+	} catch {
+		return [];
+	}
+	const layout = vendorLayoutFor(parent);
+	return entries
+		.filter(e => acceptEntry(parent, e, layout))
+		.map(e => ({ entry: e, version: parseVersionHint(e) }))
+		.sort((a, b) => b.version - a.version)
+		.map(({ entry }) => candidateFromEntry(parent, entry, layout));
+}
+
+/**
+ * Read `org.gradle.java.home` from `<projectRoot>/gradle.properties` and decode
+ * Java-properties backslash escapes. Returns undefined when projectRoot is
+ * unset, the file is missing/unreadable, or the key is absent.
+ */
+async function readProjectGradleJavaHome(projectRoot: string | undefined): Promise<string | undefined> {
+	if (projectRoot === undefined) return undefined;
+	let content: string;
+	try {
+		content = await readFile(join(projectRoot, 'gradle.properties'), 'utf-8');
+	} catch {
+		return undefined;
+	}
+	const props = parseGradleProperties(content);
+	const raw = props.get('org.gradle.java.home');
+	if (raw === undefined) return undefined;
+	return unescapePropertiesValue(raw);
+}
+
+/**
+ * Async priority-chain discovery of a Java 21+ installation.
+ *
+ * Evaluates the five slots sequentially in locked order; first success
+ * short-circuits. On full failure synthesizes a multi-line `Java not found.`
+ * message with per-slot reasons (D-18/D-21/D-22).
+ *
+ * Worst-case latency cap: 6 vendor parents × ~2 candidates × 3s = 36s (D-15).
+ * Parallel probes would destroy priority semantics and are rejected.
+ */
+export async function discoverJava(opts: { projectRoot?: string } = {}): Promise<JavaDetectResult> {
+	type SlotRecord = { label: string; outcome: CandidateOutcome };
+	const outcomes: SlotRecord[] = [];
+
+	function record(label: string, candidate: string | null, outcome: CandidateOutcome): void {
+		outcomes.push({ label, outcome });
+		if (outcome.kind !== 'success' && candidate !== null) {
+			logger.debug('Java candidate skipped', { candidate, reason: outcome.kind });
+		} else if (outcome.kind !== 'success') {
+			logger.debug('Java candidate skipped', { candidate: label, reason: outcome.kind });
+		}
+	}
+
+	function returnSuccess(o: Extract<CandidateOutcome, { kind: 'success' }>): JavaDetected {
+		return { javaPath: o.javaPath, version: o.version };
+	}
+
+	// Slot 1: --java-home (configuredJavaHome module state)
+	{
+		const label = '--java-home';
+		if (configuredJavaHome) {
+			const candidate = javaBinaryInHome(configuredJavaHome);
+			const outcome = await probeCandidate(candidate);
+			record(label, candidate, outcome);
+			if (outcome.kind === 'success') return returnSuccess(outcome);
+		} else {
+			record(label, null, { kind: 'not-set' });
+		}
+	}
+
+	// Slot 2: org.gradle.java.home from <projectRoot>/gradle.properties
+	{
+		const label = 'org.gradle.java.home';
+		const gradleHome = await readProjectGradleJavaHome(opts.projectRoot);
+		if (gradleHome) {
+			const candidate = javaBinaryInHome(gradleHome);
+			const outcome = await probeCandidate(candidate);
+			record(label, candidate, outcome);
+			if (outcome.kind === 'success') return returnSuccess(outcome);
+		} else {
+			record(label, null, { kind: 'not-set' });
+		}
+	}
+
+	// Slot 3: JAVA_HOME env var
+	{
+		const label = 'JAVA_HOME';
+		const javaHomeEnv = process.env.JAVA_HOME;
+		if (javaHomeEnv) {
+			const candidate = javaBinaryInHome(javaHomeEnv);
+			const outcome = await probeCandidate(candidate);
+			record(label, candidate, outcome);
+			if (outcome.kind === 'success') return returnSuccess(outcome);
+		} else {
+			record(label, null, { kind: 'not-set' });
+		}
+	}
+
+	// Slot 4: java on PATH (bare name — resolveJavaExecutable passes through)
+	{
+		const label = 'java on PATH';
+		const candidate = javaBinaryName();
+		const outcome = await probeCandidate(candidate);
+		record(label, candidate, outcome);
+		if (outcome.kind === 'success') return returnSuccess(outcome);
+	}
+
+	// Slot 5: scan commonJavaLocations()
+	for (const parent of commonJavaLocations()) {
+		const candidates = await enumerateParent(parent);
+		for (const candidate of candidates) {
+			const outcome = await probeCandidate(candidate);
+			record(candidate, candidate, outcome);
+			if (outcome.kind === 'success') return returnSuccess(outcome);
+		}
+	}
+
+	// All slots failed — synthesize multi-line failureReason.
+	const lines: string[] = ['Java not found. Tried:'];
+	for (const { label, outcome } of outcomes) {
+		lines.push('  ' + formatSlotLine(label, outcome, opts.projectRoot));
+	}
+	lines.push('Install Java 21+ (Adoptium / Microsoft / Zulu) or set JAVA_HOME / --java-home.');
+	return { javaPath: null, error: lines.join('\n') };
+}
+
+/**
+ * Format a single failureReason line for a given slot label + outcome.
+ *
+ * Slot-label conventions per D-21; outcome-reason taxonomy per D-22.
+ */
+function formatSlotLine(label: string, outcome: CandidateOutcome, projectRoot: string | undefined): string {
+	if (label === '--java-home') {
+		if (outcome.kind === 'not-set') return '--java-home: (not set)';
+		return '--java-home ' + (configuredJavaHome ?? '') + ': ' + formatReason(outcome);
+	}
+	if (label === 'org.gradle.java.home') {
+		if (outcome.kind === 'not-set') {
+			if (projectRoot === undefined) return 'org.gradle.java.home: (not set)';
+			return 'org.gradle.java.home: (not set in ' + join(projectRoot, 'gradle.properties') + ')';
+		}
+		const gradlePropsPath = projectRoot !== undefined ? join(projectRoot, 'gradle.properties') : 'gradle.properties';
+		return 'org.gradle.java.home (from ' + gradlePropsPath + '): ' + formatReason(outcome);
+	}
+	if (label === 'JAVA_HOME') {
+		if (outcome.kind === 'not-set') return 'JAVA_HOME: (not set)';
+		const v = process.env.JAVA_HOME ?? '';
+		return 'JAVA_HOME=' + v + ': ' + formatReason(outcome);
+	}
+	if (label === 'java on PATH') {
+		if (outcome.kind === 'not-set') return 'java on PATH: (not set)';
+		return 'java on PATH: ' + formatReason(outcome);
+	}
+	// Scan slot: label is a bare absolute path
+	return label + ': ' + formatReason(outcome);
+}
+
+function formatReason(outcome: CandidateOutcome): string {
+	switch (outcome.kind) {
+		case 'success':         return 'OK (Java ' + outcome.version + ')';
+		case 'not-set':         return '(not set)';
+		case 'file-not-found':  return '(file not found)';
+		case 'version-too-old': return 'Java ' + outcome.version + ' (need 21+)';
+		case 'timed-out':       return 'timed out after 3s';
+		case 'probe-failed':    return 'probe failed: ' + outcome.message;
+	}
+}
