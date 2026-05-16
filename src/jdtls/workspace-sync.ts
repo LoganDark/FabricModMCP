@@ -8,9 +8,10 @@
 
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve, sep } from 'node:path';
 import { jarIdToDirName } from './uri-mapper.js';
 import { pathToFileUri } from '../platform/uri.js';
+import { logger } from '../logging/logger.js';
 import { createJarAdapter, createSourceAdapter } from '../browsing/source-adapter.js';
 import { generateClasspathFile } from './workspace.js';
 import type { JarReader } from '../project/jar-reader.js';
@@ -38,7 +39,12 @@ export async function extractStudyJarToWorkspace(
 		const entries = await adapter.listJavaEntries();
 
 		for (const entryPath of entries) {
-			const targetPath = join(depDir, entryPath);
+			const segments = entryPath.split('/');
+			const targetPath = join(depDir, ...segments);
+			if (!resolve(targetPath).startsWith(resolve(depDir) + sep)) {
+				logger.warn('ZIP traversal rejected', { depDir, entryPath });
+				throw new Error(`ZIP entry path escapes extraction root: ${entryPath}`);
+			}
 			await mkdir(dirname(targetPath), { recursive: true });
 			const content = await adapter.readEntry(entryPath);
 			await writeFile(targetPath, content);
@@ -46,7 +52,7 @@ export async function extractStudyJarToWorkspace(
 
 		return dirName;
 	} catch (err) {
-		await rm(depDir, { recursive: true, force: true });
+		await rm(depDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
 		throw err;
 	}
 }
@@ -60,7 +66,7 @@ export async function removeStudyJarFromWorkspace(
 ): Promise<void> {
 	const dirName = jarIdToDirName(studyJarName);
 	const depDir = join(tempDir, dirName);
-	await rm(depDir, { recursive: true, force: true });
+	await rm(depDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
 }
 
 
@@ -182,7 +188,12 @@ export async function syncFabricModToWorkspace(
 
 			const entries = await adapter.listJavaEntries();
 			for (const entryPath of entries) {
-				const targetPath = join(depDir, entryPath);
+				const segments = entryPath.split('/');
+				const targetPath = join(depDir, ...segments);
+				if (!resolve(targetPath).startsWith(resolve(depDir) + sep)) {
+					logger.warn('ZIP traversal rejected', { depDir, entryPath });
+					throw new Error(`ZIP entry path escapes extraction root: ${entryPath}`);
+				}
 				await mkdir(dirname(targetPath), { recursive: true });
 				const content = await adapter.readEntry(entryPath);
 				await writeFile(targetPath, content);
@@ -213,7 +224,7 @@ export async function syncFabricModToWorkspace(
 			jdtls.jarIdToDirName.delete(key);
 		}
 		for (const dir of createdDirs) {
-			try { await rm(dir, { recursive: true, force: true }); } catch {}
+			try { await rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }); } catch {}
 		}
 		return {
 			synced: false,
@@ -243,7 +254,7 @@ export async function unsyncFabricModFromWorkspace(
 	try {
 		for (const depId of keysToRemove) {
 			const dirName = jarIdToDirName(depId);
-			await rm(join(jdtls.tempDir, dirName), { recursive: true, force: true });
+			await rm(join(jdtls.tempDir, dirName), { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
 			jdtls.jarIdToDirName.delete(depId);
 		}
 
