@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Windows Support
-status: executing
+status: ready_to_plan
 stopped_at: Phase 36 context gathered
 last_updated: "2026-05-16T09:19:58.562Z"
 last_activity: 2026-05-16 -- Phase 36 execution started
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
   completed_plans: 2
-  percent: 20
+  percent: 40
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 
 ## Current Position
 
-Phase: 36 (path-uri-handling-audit) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 36
-Last activity: 2026-05-16 -- Phase 36 execution started
+Phase: 37
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-05-16
 
 ## Accumulated Context
 

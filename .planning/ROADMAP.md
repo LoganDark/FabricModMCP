@@ -152,7 +152,7 @@
   - [x] 36-01-PLAN.md — Create `src/platform/uri.ts` pure helper module + tests (WIN-03 / UNIX-02 foundation)
   - [x] 36-02-PLAN.md — Forward sweep (7 sites) + reverse sweep (1 site) across `client.ts`, `workspace-sync.ts`, `remove-project-member.ts`, `tool-helpers.ts` (WIN-03)
   - [x] 36-03-PLAN.md — `uri-mapper.ts` drive-letter case-fold (`prefixMatches` state machine) + internal `toFileUri` migration + Windows-mocked tests (WIN-05 / UNIX-02)
-  - [ ] 36-04-PLAN.md — `workspace-sync.ts` hardening: ZIP split-and-spread + traversal guard + `rm` retry options + tests (WIN-04 / WIN-06 / WIN-07)
+  - [x] 36-04-PLAN.md — `workspace-sync.ts` hardening: ZIP split-and-spread + traversal guard + `rm` retry options + tests (WIN-04 / WIN-06 / WIN-07)
 
 ### Phase 38: JDT LS Discovery on Windows
 
@@ -182,8 +182,8 @@
   4. README has a "Windows Support" section documenting the Java priority chain, the JDT LS install locations probed, and known limitations (long paths, WSL note); CLAUDE.md "Technology Stack" reflects the priority chain.
 **Plans**: 4 plans
   - [x] 36-01-PLAN.md — Create `src/platform/uri.ts` pure helper module + tests (WIN-03 / UNIX-02 foundation)
-  - [ ] 36-02-PLAN.md — Forward sweep (7 sites) + reverse sweep (1 site) across `client.ts`, `workspace-sync.ts`, `remove-project-member.ts`, `tool-helpers.ts` (WIN-03)
-  - [ ] 36-03-PLAN.md — `uri-mapper.ts` drive-letter case-fold (`prefixMatches` state machine) + internal `toFileUri` migration + Windows-mocked tests (WIN-05 / UNIX-02)
+  - [x] 36-02-PLAN.md — Forward sweep (7 sites) + reverse sweep (1 site) across `client.ts`, `workspace-sync.ts`, `remove-project-member.ts`, `tool-helpers.ts` (WIN-03)
+  - [x] 36-03-PLAN.md — `uri-mapper.ts` drive-letter case-fold (`prefixMatches` state machine) + internal `toFileUri` migration + Windows-mocked tests (WIN-05 / UNIX-02)
   - [ ] 36-04-PLAN.md — `workspace-sync.ts` hardening: ZIP split-and-spread + traversal guard + `rm` retry options + tests (WIN-04 / WIN-06 / WIN-07)
 
 ## Progress
@@ -197,7 +197,7 @@
 | 23-27 | v1.4 | 15/15 | Complete | 2026-04-15 |
 | 28-34 | v1.5 | 7/7 | Complete | 2026-04-16 |
 | 35 | v1.6 | 0/2 | Planned | — |
-| 36 | v1.6 | 4/4 | Complete   | 2026-05-16 |
+| 36 | v1.6 | 4/4 | Complete    | 2026-05-16 |
 | 37 | v1.6 | 0/? | Not started | — |
 | 38 | v1.6 | 0/? | Not started | — |
 | 39 | v1.6 | 0/? | Not started | — |

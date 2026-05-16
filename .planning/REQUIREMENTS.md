@@ -10,11 +10,11 @@
 
 - [ ] **WIN-01**: JDT LS spawns successfully on Windows when Java home is supplied via `--java-home`, `JAVA_HOME`, or discovery — `java.exe` resolution works for absolute paths so `child_process.spawn` (which doesn't honor PATHEXT) succeeds.
 - [ ] **WIN-02**: `findJdtLs()` discovers a JDT LS installation on Windows in conventional locations (`%LOCALAPPDATA%\jdtls`, `%PROGRAMFILES%\jdtls`, `%USERPROFILE%\jdtls`, `%LOCALAPPDATA%\nvim-data\mason\packages\jdtls`) and uses `os.homedir()` instead of `process.env.HOME`.
-- [ ] **WIN-03**: JDT LS accepts `file://` URIs constructed for Windows workspace and classpath paths — drive letter as path component (not host), three-slash form (`file:///C:/…`), spaces percent-encoded.
-- [ ] **WIN-04**: ZIP-entry paths join correctly with Windows filesystem paths when extracting sources into JDT LS workspaces (no mixed `\`/`/` corruption).
-- [ ] **WIN-05**: Drive-letter case differences (`C:` vs `c:`) round-trip correctly through `fromFileUri`/`toFileUri`.
-- [ ] **WIN-06**: Temp-dir cleanup on Windows handles transient `EBUSY` from antivirus/indexer with a brief retry loop.
-- [ ] **WIN-07**: ZIP entry extraction rejects path-traversal entries (`../`) before writing to disk.
+- [x] **WIN-03**: JDT LS accepts `file://` URIs constructed for Windows workspace and classpath paths — drive letter as path component (not host), three-slash form (`file:///C:/…`), spaces percent-encoded.
+- [x] **WIN-04**: ZIP-entry paths join correctly with Windows filesystem paths when extracting sources into JDT LS workspaces (no mixed `\`/`/` corruption).
+- [x] **WIN-05**: Drive-letter case differences (`C:` vs `c:`) round-trip correctly through `fromFileUri`/`toFileUri`.
+- [x] **WIN-06**: Temp-dir cleanup on Windows handles transient `EBUSY` from antivirus/indexer with a brief retry loop.
+- [x] **WIN-07**: ZIP entry extraction rejects path-traversal entries (`../`) before writing to disk.
 
 ### Smarter Java Discovery — cross-platform (JAVA)
 
@@ -27,7 +27,7 @@
 ### Linux/Unix Preservation (UNIX)
 
 - [ ] **UNIX-01**: Existing Unix `detectJava` / `findJdtLs` behavior is byte-identical for users who don't set `org.gradle.java.home` (no behavioral change on Linux/macOS).
-- [ ] **UNIX-02**: URI round-trip output (`toFileUri` → `fromFileUri`) on Unix paths (including paths with spaces and `/private/var/folders/…` realpath cases) is byte-identical to v1.5.
+- [x] **UNIX-02**: URI round-trip output (`toFileUri` → `fromFileUri`) on Unix paths (including paths with spaces and `/private/var/folders/…` realpath cases) is byte-identical to v1.5.
 - [ ] **UNIX-03**: All v1.5 tests pass unchanged after the refactor (regression guard).
 
 ## Future Requirements (Deferred to v1.7+)
