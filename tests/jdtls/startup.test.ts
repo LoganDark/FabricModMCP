@@ -16,6 +16,19 @@ vi.mock('../../src/jdtls/client.js', () => ({
 	startJdtLs: vi.fn(),
 }));
 
+// Mock workspace-sync so we can assert post-rescue syncFabricModToWorkspace
+// invocations without running the real sync (which would touch fs / ZIPs).
+vi.mock('../../src/jdtls/workspace-sync.js', () => ({
+	syncFabricModToWorkspace: vi.fn(),
+}));
+
+// Mock the shared jarReader singleton — startup.ts only forwards the
+// reference to syncFabricModToWorkspace (mocked above), so an opaque stub
+// is sufficient. No methods are called on it from within the sweep.
+vi.mock('../../src/tools/shared-jar-reader.js', () => ({
+	jarReader: {},
+}));
+
 // Mock logger to suppress output
 vi.mock('../../src/logging/logger.js', () => ({
 	logger: {
@@ -28,6 +41,7 @@ vi.mock('../../src/logging/logger.js', () => ({
 
 import { initJdtLsSession, retryDegradedJdtLsSessions } from '../../src/jdtls/startup.js';
 import { detectJava, discoverJava, findJdtLs, startJdtLs } from '../../src/jdtls/client.js';
+import { syncFabricModToWorkspace } from '../../src/jdtls/workspace-sync.js';
 import { projectStore } from '../../src/state/project-store.js';
 import { logger } from '../../src/logging/logger.js';
 import type { Project, FabricModChild, StudyJarChild } from '../../src/project/types.js';
@@ -40,6 +54,7 @@ const mockDiscoverJava = vi.mocked(discoverJava);
 const mockFindJdtLs = vi.mocked(findJdtLs);
 const mockStartJdtLs = vi.mocked(startJdtLs);
 const mockLoggerWarn = vi.mocked(logger.warn);
+const mockSyncFabricModToWorkspace = vi.mocked(syncFabricModToWorkspace);
 
 function createMockProcess(): ChildProcess {
 	const emitter = new EventEmitter();
@@ -465,5 +480,80 @@ describe('retryDegradedJdtLsSessions', () => {
 		await retryDegradedJdtLsSessions();
 
 		expect(mockDiscoverJava).not.toHaveBeenCalled();
+	});
+
+	it('re-syncs every fabric-mod child after a successful rescue (CR-01)', async () => {
+		wireSuccessfulInit(tempDirs);
+		mockSyncFabricModToWorkspace.mockResolvedValue({ synced: true });
+		const project = seedProject('p', makeDegradedSession(), [
+			makeFabricModChild('mod-a', '/work/mod-a'),
+			makeFabricModChild('mod-b', '/work/mod-b'),
+			makeStudyJarChild('study'),
+		]);
+
+		await retryDegradedJdtLsSessions();
+
+		// Exactly two invocations — one per fabric-mod child, never for the
+		// study-jar.
+		expect(mockSyncFabricModToWorkspace).toHaveBeenCalledTimes(2);
+		const childNames = mockSyncFabricModToWorkspace.mock.calls.map(c => c[0].name);
+		expect(childNames).toEqual(expect.arrayContaining(['mod-a', 'mod-b']));
+		// The newSession passed to each call must be the SAME reference — the
+		// freshly-assigned project.jdtls post-rescue.
+		expect(mockSyncFabricModToWorkspace.mock.calls[0][1]).toBe(project.jdtls);
+		expect(mockSyncFabricModToWorkspace.mock.calls[1][1]).toBe(project.jdtls);
+	});
+
+	it('does NOT call syncFabricModToWorkspace when reinit stays degraded', async () => {
+		// discoverJava returns null → initJdtLsSession short-circuits to a
+		// degraded session, so the sync loop must be skipped entirely.
+		mockDiscoverJava.mockResolvedValue({
+			javaPath: null,
+			error: 'Java not found. Tried: ...',
+		});
+		mockSyncFabricModToWorkspace.mockResolvedValue({ synced: true });
+		seedProject('p', makeDegradedSession(), [
+			makeFabricModChild('mod-a', '/work/mod-a'),
+		]);
+
+		await retryDegradedJdtLsSessions();
+
+		expect(mockSyncFabricModToWorkspace).not.toHaveBeenCalled();
+	});
+
+	it('swallows a per-child sync throw via logger.warn and continues to the next child (D-04)', async () => {
+		wireSuccessfulInit(tempDirs);
+		// First fabric-mod child throws; second still resolves successfully.
+		mockSyncFabricModToWorkspace
+			.mockRejectedValueOnce(new Error('synthetic sync failure'))
+			.mockResolvedValue({ synced: true });
+		seedProject('p', makeDegradedSession(), [
+			makeFabricModChild('mod-a', '/work/mod-a'),
+			makeFabricModChild('mod-b', '/work/mod-b'),
+		]);
+
+		await expect(retryDegradedJdtLsSessions()).resolves.toBeUndefined();
+
+		// Both children attempted despite the first throwing.
+		expect(mockSyncFabricModToWorkspace).toHaveBeenCalledTimes(2);
+		// And the throw was logged via logger.warn with a "re-sync" message.
+		const warnFirstArgs = mockLoggerWarn.mock.calls.map(c => String(c[0]));
+		expect(warnFirstArgs.some(m => m.toLowerCase().includes('re-sync'))).toBe(true);
+	});
+
+	it('surfaces syncFabricModToWorkspace warnings via logger.warn', async () => {
+		wireSuccessfulInit(tempDirs);
+		mockSyncFabricModToWorkspace.mockResolvedValue({
+			synced: true,
+			warning: 'partial extraction skipped 2 entries',
+		});
+		seedProject('p', makeDegradedSession(), [
+			makeFabricModChild('mod-a', '/work/mod-a'),
+		]);
+
+		await retryDegradedJdtLsSessions();
+
+		const warnFirstArgs = mockLoggerWarn.mock.calls.map(c => String(c[0]));
+		expect(warnFirstArgs.some(m => m.includes('partial extraction skipped 2 entries'))).toBe(true);
 	});
 });
