@@ -99,7 +99,7 @@
 
 - [ ] **Phase 35: Platform Helpers + Java Executable Resolution** — Establish `src/platform/index.ts` and make `spawn` work on Windows by appending `.exe` to absolute Java candidates; Unix code paths unchanged.
 - [x] **Phase 36: Path / URI Handling Audit** — Migrate all `'file://' + path` and `uri.replace('file://', '')` sites to `pathToFileURL`/`fileURLToPath`; add ZIP-entry × `path.join` separator fix, path-traversal guard, and Windows-only EBUSY retry on temp cleanup. (completed 2026-05-16)
-- [ ] **Phase 37: Smarter Java Discovery (cross-platform)** — New `src/jdtls/java-discovery.ts` with priority chain `--java-home` → `org.gradle.java.home` → `JAVA_HOME` → PATH → common install locations; async sequential probes with 3s per-candidate timeout; `.properties` backslash unescape at the consumption site. (gaps reopened 2026-05-16 — CR-01 workspace re-sync after JDT LS rescue)
+- [x] **Phase 37: Smarter Java Discovery (cross-platform)** — New `src/jdtls/java-discovery.ts` with priority chain `--java-home` → `org.gradle.java.home` → `JAVA_HOME` → PATH → common install locations; async sequential probes with 3s per-candidate timeout; `.properties` backslash unescape at the consumption site. (gaps reopened 2026-05-16 — CR-01 workspace re-sync after JDT LS rescue) (completed 2026-05-16)
 - [ ] **Phase 38: JDT LS Discovery on Windows** — Extend `findJdtLs` with Windows install locations; replace `process.env.HOME` with `os.homedir()`.
 - [ ] **Phase 39: Windows End-to-End Validation** — Manual smoke test on a Windows machine; README "Windows Support" section; milestone-completion checkpoint.
 
@@ -153,7 +153,7 @@
   - [x] 37-02-PLAN.md — Slim `client.ts` to re-export shim; extend `initJdtLsSession({ projectRoot? })` + add `retryDegradedJdtLsSessions()` in `startup.ts` (JAVA-01)
   - [x] 37-03-PLAN.md — Wire `retryDegradedJdtLsSessions()` into `add_fabric_mod`, `refresh_project`, `refresh_project_members` tool handlers (JAVA-01)
   - [x] 37-04-PLAN.md — New `tests/jdtls/java-discovery.test.ts` (all 5 JAVA requirements) + extend `tests/jdtls/startup.test.ts` + full-suite regression (UNIX-01 byte-identical preservation)
-  - [ ] 37-05-PLAN.md — Gap closure (CR-01): wire `syncFabricModToWorkspace` into `retryDegradedJdtLsSessions` after rescue + test extension (JAVA-01)
+  - [x] 37-05-PLAN.md — Gap closure (CR-01): wire `syncFabricModToWorkspace` into `retryDegradedJdtLsSessions` after rescue + test extension (JAVA-01)
 
 ### Phase 38: JDT LS Discovery on Windows
 
@@ -199,6 +199,6 @@
 | 28-34 | v1.5 | 7/7 | Complete | 2026-04-16 |
 | 35 | v1.6 | 0/2 | Planned | — |
 | 36 | v1.6 | 4/4 | Complete    | 2026-05-16 |
-| 37 | v1.6 | 4/4 | Gaps Found | 2026-05-16 |
+| 37 | v1.6 | 5/5 | Complete   | 2026-05-16 |
 | 38 | v1.6 | 0/? | Not started | — |
 | 39 | v1.6 | 0/? | Not started | — |
