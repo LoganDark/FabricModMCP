@@ -26,6 +26,7 @@ import { getFilteredDependencies } from '../project/jar-registry.js';
 import { getAllDependencies } from '../project/dependency-resolver.js';
 import { jarReader } from './shared-jar-reader.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
+import { fileUriToPath } from '../platform/uri.js';
 
 export type LocateFailure = {
 	jar: string;
@@ -347,7 +348,12 @@ export async function processNavigationLocations(
 		const mapping = uriMapper.fromFileUri(loc.uri);
 		if (!mapping) continue;
 
-		const filePath = loc.uri.replace('file://', '');
+		let filePath: string;
+		try {
+			filePath = fileUriToPath(loc.uri);
+		} catch {
+			continue;
+		}
 		let source = sourceCache.get(filePath);
 		if (source === undefined) {
 			try {

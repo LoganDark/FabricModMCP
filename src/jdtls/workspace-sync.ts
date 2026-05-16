@@ -10,6 +10,7 @@ import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { jarIdToDirName } from './uri-mapper.js';
+import { pathToFileUri } from '../platform/uri.js';
 import { createJarAdapter, createSourceAdapter } from '../browsing/source-adapter.js';
 import { generateClasspathFile } from './workspace.js';
 import type { JarReader } from '../project/jar-reader.js';
@@ -100,7 +101,7 @@ export async function syncStudyJarToWorkspace(
 		await writeFile(join(resolvedTempDir, '.classpath'), classpathXml);
 
 		jdtls.endpoint.notify('workspace/didChangeWatchedFiles', {
-			changes: [{ uri: 'file://' + resolvedTempDir + '/.classpath', type: 2 }],
+			changes: [{ uri: pathToFileUri(join(resolvedTempDir, '.classpath')), type: 2 }],
 		});
 
 		return { synced: true };
@@ -138,7 +139,7 @@ export async function unsyncStudyJarFromWorkspace(
 		await writeFile(join(resolvedTempDir, '.classpath'), classpathXml);
 
 		jdtls.endpoint.notify('workspace/didChangeWatchedFiles', {
-			changes: [{ uri: 'file://' + resolvedTempDir + '/.classpath', type: 2 }],
+			changes: [{ uri: pathToFileUri(join(resolvedTempDir, '.classpath')), type: 2 }],
 		});
 
 		return { synced: true };
@@ -203,7 +204,7 @@ export async function syncFabricModToWorkspace(
 		await writeFile(join(resolvedTempDir, '.classpath'), classpathXml);
 
 		jdtls.endpoint.notify('workspace/didChangeWatchedFiles', {
-			changes: [{ uri: 'file://' + resolvedTempDir + '/.classpath', type: 2 }],
+			changes: [{ uri: pathToFileUri(join(resolvedTempDir, '.classpath')), type: 2 }],
 		});
 
 		return { synced: true };
@@ -252,7 +253,7 @@ export async function unsyncFabricModFromWorkspace(
 		await writeFile(join(resolvedTempDir, '.classpath'), classpathXml);
 
 		jdtls.endpoint.notify('workspace/didChangeWatchedFiles', {
-			changes: [{ uri: 'file://' + resolvedTempDir + '/.classpath', type: 2 }],
+			changes: [{ uri: pathToFileUri(join(resolvedTempDir, '.classpath')), type: 2 }],
 		});
 
 		return { synced: true };
