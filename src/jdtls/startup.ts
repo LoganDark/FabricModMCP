@@ -18,9 +18,11 @@ import { join } from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { discoverJava, findJdtLs, startJdtLs } from './client.js';
 import { generateClasspathFile, generateProjectFile, cleanupTempDir } from './workspace.js';
+import { syncFabricModToWorkspace } from './workspace-sync.js';
 import type { JdtLsSession } from './types.js';
 import { logger } from '../logging/logger.js';
 import { projectStore } from '../state/project-store.js';
+import { jarReader } from '../tools/shared-jar-reader.js';
 
 /**
  * Initialize a JDT LS session with graceful degradation.
@@ -153,6 +155,30 @@ export async function retryDegradedJdtLsSessions(): Promise<void> {
 			const newSession = await initJdtLsSession({ projectRoot });
 			project.jdtls = newSession;
 			if (newSession.available === true) {
+				// Re-sync every fabric-mod child into the freshly-created
+				// workspace so the rescued session's .classpath is repopulated.
+				// Without this, newSession.available is true but the workspace
+				// is empty — find_definition returns nothing (CR-01).
+				//
+				// Per-child try/catch preserves D-04 swallow-and-log semantics:
+				// a thrown error in one child's sync must not abort the sweep.
+				// Study-jar children are skipped (only fabric-mod children own
+				// dependencyJars that need workspace extraction).
+				for (const child of project.children.values()) {
+					if (child.kind !== 'fabric-mod') continue;
+					try {
+						const result = await syncFabricModToWorkspace(child, newSession, jarReader);
+						if (result.warning) {
+							logger.warn(`Workspace re-sync after JDT LS rescue for '${child.name}': ${result.warning}`);
+						}
+					} catch (err) {
+						logger.warn('Workspace re-sync failed after JDT LS rescue', {
+							project: project.name,
+							child: child.name,
+							error: String(err),
+						});
+					}
+				}
 				logger.info(`JDT LS reinit succeeded for project '${project.name}'`);
 			}
 			// available === false: leave assigned. Possibly-updated failureReason
