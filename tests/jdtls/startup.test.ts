@@ -6,9 +6,12 @@ import { EventEmitter } from 'node:events';
 import type { ChildProcess } from 'node:child_process';
 import type { LspClient, JSONRPCEndpoint } from 'ts-lsp-client';
 
-// Mock the client module before importing startup
+// Mock the client module before importing startup. The client.ts shim
+// re-exports discoverJava from java-discovery.ts, so the mock target is still
+// the client.js import path (which is what startup.ts imports from).
 vi.mock('../../src/jdtls/client.js', () => ({
 	detectJava: vi.fn(),
+	discoverJava: vi.fn(),
 	findJdtLs: vi.fn(),
 	startJdtLs: vi.fn(),
 }));
@@ -23,12 +26,20 @@ vi.mock('../../src/logging/logger.js', () => ({
 	},
 }));
 
-import { initJdtLsSession } from '../../src/jdtls/startup.js';
-import { detectJava, findJdtLs, startJdtLs } from '../../src/jdtls/client.js';
+import { initJdtLsSession, retryDegradedJdtLsSessions } from '../../src/jdtls/startup.js';
+import { detectJava, discoverJava, findJdtLs, startJdtLs } from '../../src/jdtls/client.js';
+import { projectStore } from '../../src/state/project-store.js';
+import { logger } from '../../src/logging/logger.js';
+import type { Project, FabricModChild, StudyJarChild } from '../../src/project/types.js';
+import type { JdtLsSession } from '../../src/jdtls/types.js';
 
+// `mockDetectJava` retained for backward compatibility with tests that have
+// not yet been converted (none after this plan, but harmless to keep).
 const mockDetectJava = vi.mocked(detectJava);
+const mockDiscoverJava = vi.mocked(discoverJava);
 const mockFindJdtLs = vi.mocked(findJdtLs);
 const mockStartJdtLs = vi.mocked(startJdtLs);
+const mockLoggerWarn = vi.mocked(logger.warn);
 
 function createMockProcess(): ChildProcess {
 	const emitter = new EventEmitter();
@@ -67,9 +78,9 @@ describe('initJdtLsSession', () => {
 	});
 
 	it('returns available=false with failureReason when Java not found', async () => {
-		mockDetectJava.mockReturnValue({
+		mockDiscoverJava.mockResolvedValue({
 			javaPath: null,
-			error: 'Java not found. Set JAVA_HOME or add java to PATH.',
+			error: 'Java not found. Tried:\n  JAVA_HOME: (not set)\n  java on PATH: (file not found)\nInstall Java 21+ (Adoptium / Microsoft / Zulu) or set JAVA_HOME / --java-home.',
 		});
 
 		const session = await initJdtLsSession();
@@ -83,7 +94,7 @@ describe('initJdtLsSession', () => {
 	});
 
 	it('returns available=false with failureReason when JDT LS not found', async () => {
-		mockDetectJava.mockReturnValue({
+		mockDiscoverJava.mockResolvedValue({
 			javaPath: '/usr/bin/java',
 			version: 21,
 		});
@@ -100,7 +111,7 @@ describe('initJdtLsSession', () => {
 	});
 
 	it('creates tempDir with .project and .classpath, starts JDT LS, returns available session', async () => {
-		mockDetectJava.mockReturnValue({
+		mockDiscoverJava.mockResolvedValue({
 			javaPath: '/usr/bin/java',
 			version: 21,
 		});
@@ -146,7 +157,7 @@ describe('initJdtLsSession', () => {
 	});
 
 	it('sets up process exit handler that marks session unavailable on non-zero exit', async () => {
-		mockDetectJava.mockReturnValue({
+		mockDiscoverJava.mockResolvedValue({
 			javaPath: '/usr/bin/java',
 			version: 21,
 		});
@@ -177,7 +188,7 @@ describe('initJdtLsSession', () => {
 	});
 
 	it('does not mark session unavailable on clean exit (code 0)', async () => {
-		mockDetectJava.mockReturnValue({
+		mockDiscoverJava.mockResolvedValue({
 			javaPath: '/usr/bin/java',
 			version: 21,
 		});
@@ -208,7 +219,7 @@ describe('initJdtLsSession', () => {
 	});
 
 	it('returns available=false when startJdtLs throws', async () => {
-		mockDetectJava.mockReturnValue({
+		mockDiscoverJava.mockResolvedValue({
 			javaPath: '/usr/bin/java',
 			version: 21,
 		});
@@ -227,5 +238,232 @@ describe('initJdtLsSession', () => {
 		expect(session.failureReason).toContain('Launcher jar not found');
 		expect(session.tempDir).toBeTruthy(); // tempDir was created before the error
 		expect(session.dataDir).toBe('');
+	});
+});
+
+/**
+ * Wire a successful initJdtLsSession path: discoverJava → findJdtLs → startJdtLs
+ * all succeed. Used by the new describes below so each test focuses on the
+ * argument-passthrough or projectStore behavior under test.
+ */
+function wireSuccessfulInit(tempDirs: string[]): { mockProc: ChildProcess } {
+	mockDiscoverJava.mockResolvedValue({ javaPath: '/usr/bin/java', version: 21 });
+	mockFindJdtLs.mockReturnValue({ jdtlsHome: '/opt/jdtls' });
+
+	const mockProc = createMockProcess();
+	mockStartJdtLs.mockImplementation(async (_java, _jdtls, workspaceDir) => {
+		tempDirs.push(workspaceDir);
+		return {
+			process: mockProc,
+			client: {} as LspClient,
+			endpoint: { notify: vi.fn() } as unknown as JSONRPCEndpoint,
+			dataDir: '/tmp/data',
+		};
+	});
+	return { mockProc };
+}
+
+describe('initJdtLsSession with projectRoot', () => {
+	const tempDirs: string[] = [];
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	afterEach(async () => {
+		for (const dir of tempDirs) {
+			if (dir) await rm(dir, { recursive: true, force: true });
+		}
+		tempDirs.length = 0;
+	});
+
+	it('passes projectRoot through to discoverJava', async () => {
+		wireSuccessfulInit(tempDirs);
+
+		await initJdtLsSession({ projectRoot: '/work/my-mod' });
+
+		expect(mockDiscoverJava).toHaveBeenCalledTimes(1);
+		expect(mockDiscoverJava).toHaveBeenCalledWith({ projectRoot: '/work/my-mod' });
+	});
+
+	it('zero-arg call passes projectRoot: undefined (D-06)', async () => {
+		wireSuccessfulInit(tempDirs);
+
+		await initJdtLsSession();
+
+		expect(mockDiscoverJava).toHaveBeenCalledTimes(1);
+		expect(mockDiscoverJava).toHaveBeenCalledWith({ projectRoot: undefined });
+	});
+});
+
+/**
+ * Build a stub FabricModChild fixture with the minimum fields needed for
+ * retryDegradedJdtLsSessions iteration. The sweep reads `kind` and `rootPath`
+ * only — every other field is filled with a type-correct dummy so the
+ * compiler is satisfied without requiring full domain construction.
+ */
+function makeFabricModChild(name: string, rootPath: string): FabricModChild {
+	return {
+		kind: 'fabric-mod',
+		name,
+		rootPath,
+		gradleConfig: {
+			minecraftVersion: '1.21.1',
+			mappingEra: 'mapped',
+			yarnMappings: undefined,
+			loaderVersion: undefined,
+			fabricApiVersion: undefined,
+			dependencies: [],
+			mavenRoots: [],
+		},
+		sourcesJar: { path: '', exists: false },
+		compiledJar: { path: '', exists: false },
+		fabricMod: {
+			schemaVersion: 1,
+			id: name,
+			version: '1.0.0',
+			name,
+			description: '',
+			authors: [],
+			license: '',
+			environment: '*',
+			mixins: [],
+			depends: {},
+		},
+		dependencyJars: new Map(),
+		filterConfig: { mode: 'include-all', patterns: [] },
+	};
+}
+
+function makeStudyJarChild(name: string): StudyJarChild {
+	return {
+		kind: 'study-jar',
+		name,
+		jarPath: '/tmp/' + name + '.jar',
+		mtime: 0,
+		size: 0,
+		autoInclude: false,
+		stats: { totalEntries: 0, packageCount: 0, classCount: 0 },
+	};
+}
+
+function makeDegradedSession(): JdtLsSession {
+	return {
+		available: false,
+		failureReason: 'Java not found.',
+		tempDir: '',
+		dataDir: '',
+		jarIdToDirName: new Map(),
+	};
+}
+
+function makeAvailableSession(): JdtLsSession {
+	return {
+		available: true,
+		tempDir: '/tmp/healthy-temp',
+		dataDir: '/tmp/healthy-data',
+		jarIdToDirName: new Map(),
+	};
+}
+
+function seedProject(name: string, jdtls: JdtLsSession | undefined, children: (FabricModChild | StudyJarChild)[]): Project {
+	const childMap = new Map<string, FabricModChild | StudyJarChild>();
+	for (const c of children) childMap.set(c.name, c);
+	const project: Project = { name, children: childMap, jdtls };
+	projectStore.set(name, project);
+	return project;
+}
+
+describe('retryDegradedJdtLsSessions', () => {
+	const tempDirs: string[] = [];
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		projectStore.clear();
+	});
+
+	afterEach(async () => {
+		projectStore.clear();
+		for (const dir of tempDirs) {
+			if (dir) await rm(dir, { recursive: true, force: true });
+		}
+		tempDirs.length = 0;
+	});
+
+	it('sweeps all projects with jdtls.available === false (healthy projects skipped)', async () => {
+		wireSuccessfulInit(tempDirs);
+		seedProject('degraded', makeDegradedSession(), [makeFabricModChild('mod', '/work/mod')]);
+		seedProject('healthy', makeAvailableSession(), [makeFabricModChild('mod2', '/work/mod2')]);
+
+		await retryDegradedJdtLsSessions();
+
+		expect(mockDiscoverJava).toHaveBeenCalledTimes(1);
+		// And only the degraded project's root was used
+		expect(mockDiscoverJava).toHaveBeenCalledWith({ projectRoot: '/work/mod' });
+	});
+
+	it('uses first fabric mod child rootPath as projectRoot (D-03)', async () => {
+		wireSuccessfulInit(tempDirs);
+		// Children order: fabric-mod first, then study-jar — the sweep should
+		// pick the fabric-mod's rootPath.
+		seedProject('p', makeDegradedSession(), [
+			makeFabricModChild('mod-a', '/work/mod-a'),
+			makeStudyJarChild('study'),
+		]);
+
+		await retryDegradedJdtLsSessions();
+
+		expect(mockDiscoverJava).toHaveBeenCalledWith({ projectRoot: '/work/mod-a' });
+	});
+
+	it('passes each degraded project its own projectRoot (D-03/D-05 per-iteration scope)', async () => {
+		wireSuccessfulInit(tempDirs);
+		seedProject('a', makeDegradedSession(), [makeFabricModChild('mod-a', '/work/mod-a')]);
+		seedProject('b', makeDegradedSession(), [makeFabricModChild('mod-b', '/work/mod-b')]);
+
+		await retryDegradedJdtLsSessions();
+
+		expect(mockDiscoverJava).toHaveBeenCalledTimes(2);
+		const callArgs = mockDiscoverJava.mock.calls.map(c => c[0]);
+		expect(callArgs).toEqual(expect.arrayContaining([
+			{ projectRoot: '/work/mod-a' },
+			{ projectRoot: '/work/mod-b' },
+		]));
+	});
+
+	it('replaces project.jdtls atomically on retry success', async () => {
+		wireSuccessfulInit(tempDirs);
+		// Project with NO fabric mod children → projectRoot is undefined,
+		// discoverJava still succeeds via the mock, and the sweep should
+		// atomically replace project.jdtls with the new available session.
+		const project = seedProject('p', makeDegradedSession(), []);
+
+		await retryDegradedJdtLsSessions();
+
+		expect(project.jdtls?.available).toBe(true);
+		expect(mockDiscoverJava).toHaveBeenCalledWith({ projectRoot: undefined });
+	});
+
+	it('logs warning but does not throw on retry failure', async () => {
+		// discoverJava itself throws (synthetic) — sweep must swallow + log.
+		mockDiscoverJava.mockRejectedValueOnce(new Error('synthetic discovery failure'));
+		seedProject('p', makeDegradedSession(), [makeFabricModChild('m', '/work/m')]);
+
+		await expect(retryDegradedJdtLsSessions()).resolves.toBeUndefined();
+
+		// The sweep's catch-block logs a warn with a "reinit failed" message.
+		const warnCalls = mockLoggerWarn.mock.calls.map(c => String(c[0]));
+		expect(warnCalls.some(m => m.includes('reinit failed'))).toBe(true);
+	});
+
+	it('skips projects with no jdtls field', async () => {
+		wireSuccessfulInit(tempDirs);
+		// project.jdtls === undefined — sweep filter `?.available !== false` is
+		// true for undefined, so the project must be skipped entirely.
+		seedProject('p', undefined, [makeFabricModChild('m', '/work/m')]);
+
+		await retryDegradedJdtLsSessions();
+
+		expect(mockDiscoverJava).not.toHaveBeenCalled();
 	});
 });
