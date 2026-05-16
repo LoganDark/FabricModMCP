@@ -7,9 +7,31 @@
  * Directory naming conventions:
  * - `/` (namespace separator) -> `--` (double dash)
  * - `:` (Maven coordinate separator) -> `__` (double underscore)
+ *
+ * Phase 36 (Plans 01 + 03):
+ * - `toFileUri` emits three-slash form via `pathToFileUri(normalizedTempDir)`
+ *   so the on-the-wire URI matches `/^file:\/\/\/[A-Za-z]:/` on Windows (the
+ *   shape JDT LS returns) and stays byte-identical to v1.5 on Unix
+ *   (`pathToFileUri('/path')` -> `'file:///path'`, same prefix as the old
+ *   concat-based literal — UNIX-02 round-trip preserved).
+ * - `fromFileUri` uses the surgical `prefixMatches` state machine: on Windows
+ *   the drive-letter byte (position 8) is case-insensitive, every other byte
+ *   stays byte-exact. UNC URIs, DOS device URIs, Win32 namespace URIs, and
+ *   all Unix URIs fall through to byte-exact `uri.startsWith(prefix)` — they
+ *   do not match the drive-letter regex (D-09, D-11). No symlink-resolving
+ *   API or canonical-path probe (D-10 — pure string compare).
  */
 
-import { realpathSync } from 'node:fs';
+import { isWindows } from '../platform/index.js';
+import { pathToFileUri } from '../platform/uri.js';
+
+/**
+ * Three-slash drive-letter URI shape: `file:///X:` where X is a single ASCII
+ * letter. Anchored at start so UNC (`file:////server/...`), DOS device
+ * (`file:////./X:/...`), and Unix (`file:///path/...`) URIs do NOT match —
+ * those branches take the byte-exact `startsWith` path (D-11).
+ */
+const DRIVE_LETTER_URI = /^file:\/\/\/[A-Za-z]:/;
 
 export type UriMapping = {
 	jar: string;        // jar ID
@@ -60,26 +82,62 @@ export function createUriMapper(tempDir: string, jarIdToDirNameMap: Map<string, 
 		dirNameToJarIdMap.set(dirName, jarId);
 	}
 
-	// Resolve symlinks (macOS /tmp -> /private/var/...) so URIs match JDT LS responses
-	let resolvedTempDir: string;
-	try {
-		resolvedTempDir = realpathSync(tempDir);
-	} catch {
-		resolvedTempDir = tempDir;
-	}
+	// Normalize tempDir to not have trailing slash. D-10: pure string compare,
+	// no symlink-resolving API, no canonical-path probe. Callers in src/tools/*
+	// read `jdtls.tempDir` which is whatever `startup.ts` / `workspace.ts`
+	// produced via `tmpdir()` + `randomUUID()`; on hosts where `tmpdir()` is a
+	// symlink, the symlinked path is the one stored and the one JDT LS receives
+	// via `rootUri`, so JDT LS's response URI will share the same shape.
+	const normalizedTempDir = tempDir.replace(/\/+$/, '');
 
-	// Normalize tempDir to not have trailing slash
-	const normalizedTempDir = resolvedTempDir.replace(/\/+$/, '');
+	// Build the canonical URI prefix once, via the same helper toFileUri uses.
+	// This guarantees prefix and emitted URIs share a shape — critical for the
+	// drive-letter case-fold regex to match on Windows (RESEARCH Open Landmine 8).
+	// `{ windows: isWindows }` makes the helper emit Windows-flavor URIs when
+	// running under a mocked `process.platform === 'win32'` on a non-Windows
+	// host (Phase 36 Plan 01 §A2 — `pathToFileURL` does not auto-detect the
+	// drive-letter shape on darwin/linux). In production the flag is redundant:
+	// when the host is Windows, host-flavor detection already matches.
+	const baseUri = pathToFileUri(normalizedTempDir, { windows: isWindows });
+	const prefix = `${baseUri}/`;
+
+	/**
+	 * Surgical prefix compare with Windows drive-letter case-fold (D-08/D-09/D-11).
+	 *
+	 * - When BOTH `uri` and `prefix` are three-slash drive-letter shapes AND
+	 *   `isWindows`, byte 8 (the drive letter) is compared case-insensitively;
+	 *   every other byte is compared byte-exact. The drive identity is
+	 *   preserved (`C:` vs `D:` still rejects).
+	 * - In every other configuration (Unix host, UNC URI, DOS device URI,
+	 *   Win32 namespace URI, mismatched-shape inputs), falls through to
+	 *   `uri.startsWith(prefix)` — byte-exact (D-11).
+	 *
+	 * Per D-10, no symlink-resolving API or canonical-path probe — this is
+	 * pure string compare. The path tail (jar-entry segments after the
+	 * trailing slash) is always byte-exact (D-09).
+	 */
+	function prefixMatches(uri: string, prefix: string): boolean {
+		if (isWindows && DRIVE_LETTER_URI.test(uri) && DRIVE_LETTER_URI.test(prefix)) {
+			if (uri.length < prefix.length) return false;
+			// head 'file:///' (8 chars) byte-exact
+			if (uri.slice(0, 8) !== prefix.slice(0, 8)) return false;
+			// drive letter case-insensitive (byte 8 only)
+			if (uri[8].toLowerCase() !== prefix[8].toLowerCase()) return false;
+			// rest of the prefix (':', path bytes, trailing '/') byte-exact
+			if (uri.slice(9, prefix.length) !== prefix.slice(9)) return false;
+			return true;
+		}
+		return uri.startsWith(prefix);
+	}
 
 	return {
 		toFileUri(jarId: string, entryPath: string): string {
 			const dirName = jarIdToDirNameMap.get(jarId) ?? jarIdToDirName(jarId);
-			return `file://${normalizedTempDir}/${dirName}/${entryPath}`;
+			return `${baseUri}/${dirName}/${entryPath}`;
 		},
 
 		fromFileUri(uri: string): UriMapping | null {
-			const prefix = `file://${normalizedTempDir}/`;
-			if (!uri.startsWith(prefix)) {
+			if (!prefixMatches(uri, prefix)) {
 				return null;
 			}
 
