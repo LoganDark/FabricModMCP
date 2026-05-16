@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Windows Support
-status: completed
+status: executing
 stopped_at: Phase 36 context gathered
-last_updated: "2026-05-16T06:12:54.775Z"
-last_activity: 2026-05-15 -- Phase 35 marked complete
+last_updated: "2026-05-16T09:19:58.562Z"
+last_activity: 2026-05-16 -- Phase 36 execution started
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 2
+  total_plans: 6
   completed_plans: 2
   percent: 20
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
-**Current focus:** Phase 35 — platform-helpers-java-executable-resolution
+**Current focus:** Phase 36 — path-uri-handling-audit
 
 ## Current Position
 
-Phase: 35 — COMPLETE
-Plan: 2 of 2
-Status: Phase 35 complete
-Last activity: 2026-05-15 -- Phase 35 marked complete
+Phase: 36 (path-uri-handling-audit) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 36
+Last activity: 2026-05-16 -- Phase 36 execution started
 
 ## Accumulated Context
 
