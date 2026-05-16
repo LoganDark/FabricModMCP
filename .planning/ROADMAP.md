@@ -99,7 +99,7 @@
 
 - [ ] **Phase 35: Platform Helpers + Java Executable Resolution** — Establish `src/platform/index.ts` and make `spawn` work on Windows by appending `.exe` to absolute Java candidates; Unix code paths unchanged.
 - [x] **Phase 36: Path / URI Handling Audit** — Migrate all `'file://' + path` and `uri.replace('file://', '')` sites to `pathToFileURL`/`fileURLToPath`; add ZIP-entry × `path.join` separator fix, path-traversal guard, and Windows-only EBUSY retry on temp cleanup. (completed 2026-05-16)
-- [x] **Phase 37: Smarter Java Discovery (cross-platform)** — New `src/jdtls/java-discovery.ts` with priority chain `--java-home` → `org.gradle.java.home` → `JAVA_HOME` → PATH → common install locations; async sequential probes with 3s per-candidate timeout; `.properties` backslash unescape at the consumption site. (completed 2026-05-16)
+- [ ] **Phase 37: Smarter Java Discovery (cross-platform)** — New `src/jdtls/java-discovery.ts` with priority chain `--java-home` → `org.gradle.java.home` → `JAVA_HOME` → PATH → common install locations; async sequential probes with 3s per-candidate timeout; `.properties` backslash unescape at the consumption site. (gaps reopened 2026-05-16 — CR-01 workspace re-sync after JDT LS rescue)
 - [ ] **Phase 38: JDT LS Discovery on Windows** — Extend `findJdtLs` with Windows install locations; replace `process.env.HOME` with `os.homedir()`.
 - [ ] **Phase 39: Windows End-to-End Validation** — Manual smoke test on a Windows machine; README "Windows Support" section; milestone-completion checkpoint.
 
@@ -198,6 +198,6 @@
 | 28-34 | v1.5 | 7/7 | Complete | 2026-04-16 |
 | 35 | v1.6 | 0/2 | Planned | — |
 | 36 | v1.6 | 4/4 | Complete    | 2026-05-16 |
-| 37 | v1.6 | 4/4 | Complete   | 2026-05-16 |
+| 37 | v1.6 | 4/4 | Gaps Found | 2026-05-16 |
 | 38 | v1.6 | 0/? | Not started | — |
 | 39 | v1.6 | 0/? | Not started | — |
