@@ -149,10 +149,10 @@
   5. Common-install-location scan covers Adoptium / Microsoft / Oracle / Corretto / Zulu / IntelliJ `~/.jdks` / scoop on Windows and `/usr/lib/jvm/*` / `/Library/Java/JavaVirtualMachines/*/Contents/Home` / Homebrew openjdk on Unix.
   6. Existing `--java-home` precedence test (commit `4e94b4b`) extended and still passes; new tests verify priority order, version-skip continuation, backslash unescape, and per-candidate timeout.
 **Plans**: 4 plans
-  - [x] 36-01-PLAN.md — Create `src/platform/uri.ts` pure helper module + tests (WIN-03 / UNIX-02 foundation)
-  - [x] 36-02-PLAN.md — Forward sweep (7 sites) + reverse sweep (1 site) across `client.ts`, `workspace-sync.ts`, `remove-project-member.ts`, `tool-helpers.ts` (WIN-03)
-  - [x] 36-03-PLAN.md — `uri-mapper.ts` drive-letter case-fold (`prefixMatches` state machine) + internal `toFileUri` migration + Windows-mocked tests (WIN-05 / UNIX-02)
-  - [x] 36-04-PLAN.md — `workspace-sync.ts` hardening: ZIP split-and-spread + traversal guard + `rm` retry options + tests (WIN-04 / WIN-06 / WIN-07)
+  - [ ] 37-01-PLAN.md — Create `src/jdtls/java-discovery.ts` with discoverJava + carry-over symbols (setJavaHome/detectJava/parseJavaVersion/resolveJavaExecutable) + unescapePropertiesValue + vendor map (JAVA-01..JAVA-05)
+  - [ ] 37-02-PLAN.md — Slim `client.ts` to re-export shim; extend `initJdtLsSession({ projectRoot? })` + add `retryDegradedJdtLsSessions()` in `startup.ts` (JAVA-01)
+  - [ ] 37-03-PLAN.md — Wire `retryDegradedJdtLsSessions()` into `add_fabric_mod`, `refresh_project`, `refresh_project_members` tool handlers (JAVA-01)
+  - [ ] 37-04-PLAN.md — New `tests/jdtls/java-discovery.test.ts` (all 5 JAVA requirements) + extend `tests/jdtls/startup.test.ts` + full-suite regression (UNIX-01 byte-identical preservation)
 
 ### Phase 38: JDT LS Discovery on Windows
 
