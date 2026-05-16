@@ -8,6 +8,7 @@ import { jarReader } from './shared-jar-reader.js';
 import { logger } from '../logging/logger.js';
 import { renameChildNamespace } from '../project/namespace-resolver.js';
 import { syncFabricModToWorkspace } from '../jdtls/workspace-sync.js';
+import { retryDegradedJdtLsSessions } from '../jdtls/startup.js';
 
 export function registerAddFabricModTool(server: McpServer): void {
 	server.registerTool(
@@ -73,6 +74,10 @@ export function registerAddFabricModTool(server: McpServer): void {
 				if (syncResult.warning) {
 					logger.warn(`Workspace sync for '${fabricMod.name}': ${syncResult.warning}`);
 				}
+
+				// Phase 37 (D-02 / D-04): retry any degraded JDT LS sessions unconditionally after the mod's gradle.properties parse.
+				// Per D-03/D-05, the sweep derives each degraded project's own projectRoot internally.
+				await retryDegradedJdtLsSessions();
 
 				const envelope = makeSuccess({
 					project: loadedProject.name,
