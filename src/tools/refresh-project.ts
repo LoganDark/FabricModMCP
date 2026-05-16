@@ -10,6 +10,7 @@ import { TOOL_DESCRIPTIONS, PARAMS } from './descriptions.js';
 import { DomainError } from '../errors/domain-error.js';
 import type { FabricModChild, StudyJarChild } from '../project/types.js';
 import { syncFabricModToWorkspace, unsyncFabricModFromWorkspace } from '../jdtls/workspace-sync.js';
+import { retryDegradedJdtLsSessions } from '../jdtls/startup.js';
 import { reloadFabricModConfig } from '../project/loader.js';
 
 export function registerRefreshProjectTool(server: McpServer): void {
@@ -106,6 +107,10 @@ export function registerRefreshProjectTool(server: McpServer): void {
 					...result.summary,
 				});
 			}
+
+			// Phase 37 (D-02): retry any degraded JDT LS sessions after gradle.properties re-parse
+			// Per D-03/D-05, the sweep uses each degraded project's own projectRoot internally.
+			await retryDegradedJdtLsSessions();
 
 			// Study jar collision check against ALL children's deps
 			const unloadedNames = await autoUnloadConflictingStudyJars(
