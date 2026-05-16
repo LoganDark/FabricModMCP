@@ -12,6 +12,7 @@ import { rm, writeFile } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import { join } from 'node:path';
 import { unsyncStudyJarFromWorkspace } from '../jdtls/workspace-sync.js';
+import { pathToFileUri } from '../platform/uri.js';
 
 export function registerRemoveProjectMemberTool(server: McpServer): void {
 	server.registerTool(
@@ -80,7 +81,7 @@ export function registerRemoveProjectMemberTool(server: McpServer): void {
 							if (jdtls.endpoint) {
 								jdtls.endpoint.notify('workspace/didChangeWatchedFiles', {
 									changes: [{
-										uri: 'file://' + resolvedTempDir + '/.classpath',
+										uri: pathToFileUri(join(resolvedTempDir, '.classpath')),
 										type: 2,
 									}],
 								});
