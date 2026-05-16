@@ -13,14 +13,14 @@ files_reviewed_list:
   - tests/jdtls/java-discovery.test.ts
   - tests/jdtls/startup.test.ts
 findings:
-  critical: 1
-  warning: 5
+  critical: 0
+  warning: 6
   info: 6
   total: 12
 status: issues_found
 ---
 
-# Phase 37: Code Review Report
+# Phase 37: Code Review Report (Post-Gap-Closure)
 
 **Reviewed:** 2026-05-16
 **Depth:** standard
@@ -29,58 +29,31 @@ status: issues_found
 
 ## Summary
 
-Phase 37 carves Java discovery out of `client.ts` into a dedicated `java-discovery.ts`, introduces an async priority-chain `discoverJava({ projectRoot? })` API with vendor-aware scanning of common JDK install locations, and wires `retryDegradedJdtLsSessions()` into three tool handlers. The carve-out itself is clean, well-tested, and respects the v1.5 byte-identical `detectJava` commitment. The new vendor-aware scan, `unescapePropertiesValue` single-pass scanner, and per-slot failure-reason synthesis are all sound.
+This is the post-gap-closure review of Phase 37. The earlier review's BLOCKER
+(CR-01: "rescued JDT LS session has an empty workspace") has been closed by
+Plan 37-05's addition of the post-rescue workspace re-sync loop in
+`src/jdtls/startup.ts:157-182`. The new loop iterates every fabric-mod child
+of a successfully-rescued project, calls `syncFabricModToWorkspace` against the
+freshly-assigned session, swallows per-child throws via `logger.warn` (D-04
+semantics), surfaces warnings, and skips study-jar children. Four new
+`it()` cases in `tests/jdtls/startup.test.ts:485-558` pin this behavior down:
+sync called twice for two fabric mods, NOT called when reinit stays degraded,
+per-child throws swallowed, and `result.warning` propagated to logger. The
+implementation matches the test contract and the planning artifacts.
 
-However, the retry-sweep integration has a real behavioral gap: when `retryDegradedJdtLsSessions()` successfully rescues a degraded JDT LS session, **the new session has an empty workspace** — no fabric mod sources are re-synced into it. Callers report `jdtlsAvailable: true` but JDT LS has nothing to index, so navigation tools silently return empty results until the user manually calls `refresh_project` again. This is a BLOCKER for the user-visible workflow Phase 37 advertises ("newly-installed Java unlocks previously-degraded JDT LS sessions").
+CR-01 is therefore closed. Outstanding findings from the prior review that
+were NOT part of the 37-05 scope remain (the `detectJava` execSync shell-
+interpolation hazard, the unanchored `parseJavaVersion` regex, the limited
+`/opt` JDK prefix filter, the silently-swallowed `readdir` errors, the
+unguarded concurrent-sweep mutation of `project.jdtls`, plus a handful of
+dead-code / sort-key / docstring polish items). They reappear here as WR-01
+through WR-05 and IN-01 through IN-04.
 
-The pre-existing `detectJava` shell-interpolation pattern (carried into `java-discovery.ts` verbatim under UNIX-01) is a latent local-shell-injection vector worth noting but not introduced by this phase.
-
-## Critical Issues
-
-### CR-01: `retryDegradedJdtLsSessions` rescues the session but never re-syncs workspace; navigation appears broken after retry succeeds
-
-**File:** `src/jdtls/startup.ts:123-164`, also `src/tools/add-fabric-mod.ts:73-80`, `src/tools/refresh-project.ts:99-113`, `src/tools/refresh-project-members.ts:127-143`
-
-**Issue:**
-The sweep replaces `project.jdtls` with a freshly-`init`'d session (line 154: `project.jdtls = newSession`). The new session's `tempDir` is brand-new (created at `startup.ts:66`) and contains only an empty `.classpath` (line 69). Crucially, the sweep does NOT call `syncFabricModToWorkspace` for any of the project's fabric-mod children after the retry succeeds.
-
-Trace through `add-fabric-mod` for a degraded project:
-1. Line 73: `syncFabricModToWorkspace(fabricMod, loadedProject.jdtls, jarReader)` runs while `loadedProject.jdtls.available === false`. Workspace sync degrades to a no-op for the degraded session.
-2. Line 80: `retryDegradedJdtLsSessions()` replaces `loadedProject.jdtls` with a fresh, available session. The fresh session's `tempDir` has empty `.classpath` and no extracted sources.
-3. Line 89: response reports `jdtlsAvailable: loadedProject.jdtls?.available ?? false` → `true`.
-
-Result: user sees a success envelope claiming JDT LS is available, but `find_definition`/`find_references`/etc. produce empty results because JDT LS has indexed nothing. Same path in `refresh-project.ts:99-113` (re-sync runs against the OLD degraded session, then the session is replaced) and `refresh-project-members.ts:127-143`.
-
-This directly undermines Phase 37's stated value — "newly-installed Java unlocks previously-degraded JDT LS sessions." It "unlocks" them only in the sense of marking `available: true`; users still must call `refresh_project` a second time before the workspace is usable.
-
-The startup-test file confirms the gap: every assertion in `tests/jdtls/startup.test.ts:434-445` checks only `project.jdtls?.available === true`; none of the retry-sweep tests assert workspace sync occurred for the rescued session's fabric-mod children.
-
-**Fix:**
-After `project.jdtls = newSession` and confirming `newSession.available === true`, re-sync every fabric-mod child in the project against the new session. Either inline in `retryDegradedJdtLsSessions` (preferred — keeps the contract in one place) or via a callback passed by the tool handlers.
-
-```typescript
-// In src/jdtls/startup.ts, after line 156:
-if (newSession.available === true) {
-    // Re-sync every fabric-mod child into the freshly-rescued workspace,
-    // otherwise the new session has an empty .classpath and navigation
-    // silently returns empty results.
-    for (const child of project.children.values()) {
-        if (child.kind === 'fabric-mod') {
-            try {
-                const result = await syncFabricModToWorkspace(child, newSession, jarReader);
-                if (result.warning) {
-                    logger.warn(`Workspace re-sync after JDT LS rescue for '${child.name}': ${result.warning}`);
-                }
-            } catch (err) {
-                logger.warn(`Workspace re-sync failed after JDT LS rescue`, { project: project.name, child: child.name, error: String(err) });
-            }
-        }
-    }
-    logger.info(`JDT LS reinit succeeded for project '${project.name}'`);
-}
-```
-
-(The `jarReader` is the module singleton `./shared-jar-reader.js` already used by the same tool handlers — `startup.ts` would need to import it, or accept it as a parameter.)
+The gap-closure itself introduces two new items worth surfacing — a
+cross-layer dependency inversion that the rescue path now formalizes
+(WR-06) and a response-envelope inconsistency in `add-fabric-mod` between
+`jdtlsAvailable` and `workspaceSynced` after a rescue (IN-05). Neither is a
+blocker, but both are easy to land while the file is still warm.
 
 ## Warnings
 
@@ -89,9 +62,19 @@ if (newSession.available === true) {
 **File:** `src/jdtls/java-discovery.ts:76-80`
 
 **Issue:**
-`execSync(\`"${javaPath}" --version\`, ...)` builds a shell command with the path embedded in double-quoted form. `javaPath` ultimately derives from `process.env.JAVA_HOME` (line 66) or `configuredJavaHome` (CLI `--java-home`). A `JAVA_HOME` value containing `"` characters — e.g. `'/tmp/foo" ; rm -rf ~ ; echo "'` — breaks out of the quotes and executes arbitrary commands under the MCP server's uid. The async `discoverJava` path is safe because it uses `execFile` with an args array; this sync path is the leftover hazard.
+`execSync(\`"${javaPath}" --version\`, ...)` builds a shell command with the
+path embedded in double-quoted form. `javaPath` ultimately derives from
+`process.env.JAVA_HOME` (line 66) or `configuredJavaHome` (CLI `--java-home`).
+A `JAVA_HOME` value containing `"` characters — e.g.
+`'/tmp/foo" ; rm -rf ~ ; echo "'` — breaks out of the quotes and executes
+arbitrary commands under the MCP server's uid. The async `discoverJava` path
+is safe because it uses `execFile` with an args array; this sync path is the
+leftover hazard.
 
-This is pre-existing v1.5 behavior preserved under the UNIX-01 byte-identical commitment, NOT new in Phase 37, but it now lives in the file under review. The threat model is constrained (attacker already controls user env) — still worth fixing because it's a trivial swap to `execFileSync`.
+This is pre-existing v1.5 behavior preserved under the UNIX-01 byte-identical
+commitment, NOT new in Phase 37, but it now lives in the file under review.
+The threat model is constrained (attacker already controls user env) — still
+worth fixing because it's a trivial swap to `execFileSync`.
 
 **Fix:**
 ```typescript
@@ -101,19 +84,28 @@ const output = execFileSync(javaPath, ['--version'], {
     stdio: ['pipe', 'pipe', 'pipe'],
 });
 ```
-This breaks UNIX-01's literal-command commitment but produces the same stdout. If existing tests rely on `execSync` mocking, update them to mock `execFileSync` (which is what `detectJava`'s async sibling already uses).
 
-### WR-02: `parseJavaVersion` regex is unanchored — first numeric token in stderr warnings could shadow the real version
+### WR-02: `parseJavaVersion` regex is unanchored — first numeric token in stderr warnings can shadow the real version
 
 **File:** `src/jdtls/java-discovery.ts:138-149`
 
 **Issue:**
-The regex `(?:version\s+")?([\d]+)(?:\.([\d]+))?` is unanchored and matches the first digit run anywhere in the combined `stdout + stderr` (line 296). For most JDKs `java --version` output begins with the version, but JVMs commonly emit `Picked up JAVA_TOOL_OPTIONS: -Xmx2048m\n` or deprecation warnings BEFORE the version line — the regex would lock onto `2048` and reject a fine Java 21+ JDK as version-too-old, OR more dangerously latch onto a 21+-looking number in a license string and accept a Java 8 JDK as 21+.
+The regex `(?:version\s+")?([\d]+)(?:\.([\d]+))?` is unanchored and matches
+the first digit run anywhere in the combined `stdout + stderr` (assembled
+at line 296). For most JDKs `java --version` output begins with the version,
+but JVMs commonly emit `Picked up JAVA_TOOL_OPTIONS: -Xmx2048m\n`,
+`OpenJDK 64-Bit Server VM warning: ...`, or deprecation lines BEFORE the
+version. The regex locks onto `2048` (or `64`) and rejects a fine Java 21+
+JDK as `version-too-old`. Worse, on the success path a probe of an actual
+Java 8 JDK whose stderr happens to contain an unrelated `21` could be
+classified as Java 21 and accepted.
 
-In the `discoverJava` path this manifests as a confusing `Java 2048 (need 21+)` slot reason — degraded session with a nonsense version. In the `detectJava` sync path same effect.
+In `discoverJava`'s failureReason this surfaces as `Java 2048 (need 21+)` or
+`Java 64 (need 21+)` — confusing nonsense the user can't act on. In the
+`detectJava` sync path same effect.
 
 **Fix:**
-Match the well-known prefixes explicitly, falling back to the legacy `version "X.Y"` form:
+Match the well-known prefixes explicitly, falling back to the legacy form:
 ```typescript
 export function parseJavaVersion(output: string): number | null {
     // Modern: "openjdk 21.0.1 2023-10-17", "java 21 2023-09-19"
@@ -134,23 +126,28 @@ export function parseJavaVersion(output: string): number | null {
 }
 ```
 
-### WR-03: `acceptEntry` regex for `/opt` rejects common-but-not-listed JDK package names (Microsoft, Liberica, Adoptium, SapMachine)
+### WR-03: `/opt` entry filter rejects several mainstream JDK packages (SapMachine, Liberica, GraalVM, Adoptium tarballs without `-jdk`)
 
 **File:** `src/jdtls/java-discovery.ts:253-259`
 
 **Issue:**
-The regex `^(jdk-|.*-jdk|temurin-|zulu-|corretto-|openjdk-)` accepts only those six prefixes. Packages like `liberica-jdk-21`, `microsoft-jdk-21`, `sapmachine-21`, `bellsoft-liberica-jdk-21`, `eclipse-adoptium-21` would be rejected from `/opt` even though they ARE JDKs. Note: `microsoft-jdk-21` actually DOES match `.*-jdk` (because of the `-jdk` literal), but `microsoft-jdk-21.0.1` also matches; `sapmachine-21` and `bellsoft-21` would NOT match because they lack the `-jdk` suffix.
+The regex `^(jdk-|.*-jdk|temurin-|zulu-|corretto-|openjdk-)` accepts only
+those six shapes. Packages like `liberica-21`, `sapmachine-21`,
+`graalvm-21`, `bellsoft-liberica-21`, `adoptium-21` would be rejected
+from `/opt` even though they ARE JDKs (the `-jdk` literal saves
+`liberica-jdk-21`, `microsoft-jdk-21`, etc., but the bare-vendor-name
+shape is common and is dropped silently).
 
-This converts "scan /opt" into a silently-incomplete vendor matrix. A user with SapMachine in `/opt/sapmachine-21` will see `Java not found` even though it's right there.
+A user with SapMachine in `/opt/sapmachine-21` will see `Java not found`
+even though it's right there.
 
 **Fix:**
-Either expand the prefix alternation, or invert the filter — reject only well-known non-JDK packages (which doesn't scale either). Better: probe everything under `/opt` but rely on the `--version` probe to reject non-Java binaries. The 3s timeout caps the cost of probing N entries, and the probe of a missing `bin/java` resolves via `file-not-found` cheaply (no execFile, just `existsSync` on Windows; on Linux the bare path is passed straight to execFile which returns ENOENT fast).
-
+Either expand the alternation, or probe everything in `/opt` and let the
+`--version` probe reject non-Java binaries — the 3s timeout caps the cost,
+and Windows skip-on-fail / Linux ENOENT both resolve cheaply. Recommended:
 ```typescript
 function acceptEntry(parent: string, entry: string, layout: VendorLayout): boolean {
-    // Homebrew filter stays — opt prefixes mix many formulae.
     if (layout === 'homebrew') return entry.startsWith('openjdk');
-    // /opt: accept anything that LOOKS like a JDK; rely on probe to reject the rest.
     if (parent === '/opt') {
         return /jdk|jre|temurin|zulu|corretto|liberica|sapmachine|adoptium|microsoft|graalvm/i.test(entry);
     }
@@ -158,7 +155,7 @@ function acceptEntry(parent: string, entry: string, layout: VendorLayout): boole
 }
 ```
 
-### WR-04: `mockReaddir` / scan-slot enumeration does not handle `EACCES` / non-`ENOENT` errors distinctly
+### WR-04: Scan-slot `readdir` swallows every error — `EACCES` / `EIO` / etc. produce no diagnostic
 
 **File:** `src/jdtls/java-discovery.ts:317-323`
 
@@ -170,10 +167,14 @@ try {
     return [];
 }
 ```
-Catches every error and returns `[]`. If the user has `/opt` but it's mode-700 owned by root (rare but possible on locked-down systems), the sweep silently skips it. The failure-reason synthesizer never mentions `/opt` because the scan slot only records outcomes when `enumerateParent` returns candidates. Net effect: users on misconfigured boxes get `Java not found` with no hint about the permission issue.
+Catches every error and returns empty. If `/opt` is mode-700 owned by root,
+or `~/.jdks` exists on a permission-restricted filesystem, the sweep
+silently skips it. The failureReason synthesizer never mentions these
+parents because the scan slot only records outcomes when `enumerateParent`
+yields candidates. Net effect: users on misconfigured boxes get `Java not
+found` with no breadcrumb about the permission issue.
 
 **Fix:**
-Log a debug line on non-ENOENT errors so operators have a breadcrumb:
 ```typescript
 try {
     entries = await readdir(parent);
@@ -186,17 +187,34 @@ try {
 }
 ```
 
-### WR-05: Retry sweep iterates `projectStore.list()` while reassigning `project.jdtls` — no concurrency guard against parallel tool invocations
+### WR-05: Concurrent retry sweeps can interleave and double-create JDT LS processes / tempDirs
 
-**File:** `src/jdtls/startup.ts:123-164`
+**File:** `src/jdtls/startup.ts:125-190`
 
 **Issue:**
-`retryDegradedJdtLsSessions` walks every project, awaits `initJdtLsSession`, and then mutates `project.jdtls`. The `await` points (cleanupTempDir, cleanupDataDir, initJdtLsSession) yield to the event loop. If a user invokes `add_fabric_mod` and `refresh_project` near-simultaneously (Claude can call multiple tools in one assistant turn), TWO sweeps can interleave: sweep A reads `project.jdtls.available === false`, awaits init; sweep B reads the same stale `false`, awaits init too; both reassign `project.jdtls`, double-creating tempDirs and leaking one JDT LS process.
+`retryDegradedJdtLsSessions` walks every project, awaits `cleanupTempDir`,
+`cleanupTempDir` (dataDir), `initJdtLsSession`, and finally a chain of
+`syncFabricModToWorkspace` calls — five-plus yield points per project.
+Claude can call multiple tools in a single assistant turn (e.g.
+`add_fabric_mod` followed immediately by `refresh_project`), and the MCP
+server processes them concurrently. Sweep A reads
+`project.jdtls.available === false`, awaits init; sweep B reads the same
+stale `false`, awaits init too; both reassign `project.jdtls`. The session
+A wrote is now orphaned — its JDT LS JVM process keeps running with a
+tempDir nobody references, leaking until process exit. Sweep A's post-rescue
+sync loop will also race with sweep B's: both call
+`syncFabricModToWorkspace(child, project.jdtls, ...)` where
+`project.jdtls` has been swapped under A's feet, so A's sync writes to B's
+brand-new session.
 
-The pre-existing tempDir cleanup at lines 138-150 also runs unguarded — sweep B can read the SAME `oldTempDir` value as A, both `cleanupTempDir` it, both succeed (cleanup is idempotent via `rm --force`), but the SECOND `initJdtLsSession` will silently steal ownership of the new tempDir A wrote into `project.jdtls`.
+The pre-existing cleanup at lines 144-152 also runs unguarded — if A
+cleaned `oldTempDir`, B will try to clean the SAME path (idempotent, fine),
+but B reads `oldTempDir` from the SAME degraded session object A reads
+from, so B's `oldTempDir` value is whatever A's was. The race is most
+visible in the JVM process leak.
 
 **Fix:**
-Add a per-project (or process-wide) reentrancy guard:
+Add a per-project reentrancy guard:
 ```typescript
 const retryInFlight = new Set<string>();
 export async function retryDegradedJdtLsSessions(): Promise<void> {
@@ -213,16 +231,51 @@ export async function retryDegradedJdtLsSessions(): Promise<void> {
 }
 ```
 
+### WR-06: `startup.ts` now imports `tools/shared-jar-reader.js` — domain layer reaching back into the tools layer (architecture inversion)
+
+**File:** `src/jdtls/startup.ts:25`
+
+**Issue:**
+The CLAUDE.md layering model (Layer 2: tools → Layer 3: domain
+[`jdtls/`, `project/`, `browsing/`]) is now violated: `src/jdtls/startup.ts`
+imports from `src/tools/shared-jar-reader.js`. The rescue-sync loop needs a
+`JarReader` to pass to `syncFabricModToWorkspace`, and the simplest wire-up
+grabbed the tools-layer singleton. This breaks the dependency direction the
+project sets in CLAUDE.md ("Domain logic in `src/browsing/`, `src/project/`,
+`src/jdtls/` — tools in `src/tools/` are thin wrappers").
+
+Functionally it works because `shared-jar-reader.ts` is a pure module-level
+singleton with no MCP-server coupling, but the import path lies about
+ownership: a future reader will assume `tools/` is a leaf, only to find
+domain code dragging it back up the stack.
+
+**Fix:**
+Either (a) move `shared-jar-reader.ts` down to `src/project/` (or a new
+`src/state/`) so the singleton lives in a domain layer, or (b) inject the
+`JarReader` into `retryDegradedJdtLsSessions` as a parameter and let each
+tool handler pass `jarReader` explicitly — same pattern as
+`syncFabricModToWorkspace` itself:
+```typescript
+export async function retryDegradedJdtLsSessions(jarReader: JarReader): Promise<void> { ... }
+```
+Each call site (`add-fabric-mod.ts:80`, `refresh-project.ts:113`,
+`refresh-project-members.ts:143`) already has `jarReader` in scope.
+
 ## Info
 
-### IN-01: `formatSlotLine` `'java on PATH'` `not-set` branch is dead code
+### IN-01: `formatSlotLine` `'java on PATH'` `not-set` branch is unreachable
 
 **File:** `src/jdtls/java-discovery.ts:470-473`
 
 **Issue:**
-Slot 4 (`java on PATH`) always invokes `probeCandidate(javaBinaryName())` unconditionally (no `if (...) else record(..., 'not-set')` guard like slots 1-3 have). So `outcome.kind === 'not-set'` is never reached for this label, making the `if (outcome.kind === 'not-set') return 'java on PATH: (not set)'` branch unreachable.
+Slot 4 (`java on PATH`) always invokes `probeCandidate(javaBinaryName())`
+unconditionally at `discoverJava` line 422-425 — there is no `if (...) else
+record(..., {kind: 'not-set'})` guard like slots 1-3 have. So the
+`if (outcome.kind === 'not-set') return 'java on PATH: (not set)'` branch
+on line 471 is unreachable.
 
-**Fix:** Remove the dead branch, or document why it exists (defensive coding for future slot semantics).
+**Fix:** Remove the dead branch or document it as defensive coding for a
+future slot-semantics change.
 
 ### IN-02: Redundant disjunction in `vendorLayoutFor`
 
@@ -233,7 +286,8 @@ Slot 4 (`java on PATH`) always invokes `probeCandidate(javaBinaryName())` uncond
 if (parent === '/Library/Java/JavaVirtualMachines'
     || parent.endsWith('/Library/Java/JavaVirtualMachines')) return 'mac-bundle';
 ```
-The first disjunct is implied by the second — any string equal to `/Library/...` also `endsWith` it.
+A string equal to `/Library/...` also `endsWith` it — the first disjunct
+is fully covered by the second.
 
 **Fix:** Drop the equality check.
 
@@ -249,9 +303,7 @@ if (outcome.kind !== 'success' && candidate !== null) {
     logger.debug('Java candidate skipped', { candidate: label, reason: outcome.kind });
 }
 ```
-The else-if's second check (`outcome.kind !== 'success'`) is implied (else of `A && B` is `!A || !B`; combined with the outer being non-success this collapses to `candidate === null`). Not wrong, just busier than necessary.
-
-**Fix:**
+Cleaner shape with the same effect:
 ```typescript
 if (outcome.kind === 'success') return;
 logger.debug('Java candidate skipped', {
@@ -260,12 +312,16 @@ logger.debug('Java candidate skipped', {
 });
 ```
 
-### IN-04: `parseVersionHint` matches `1` in `corretto-1.8.0_381` and sorts a Java 8 JDK ahead of a Java 21 sibling
+### IN-04: `parseVersionHint` misclassifies legacy `1.x` entries — `corretto-1.8.0_381` sorts as version 1, not 8
 
 **File:** `src/jdtls/java-discovery.ts:268-271`
 
 **Issue:**
-For an entry like `corretto-1.8.0_381`, the regex `\b(\d+)` matches `1`. Sort order would place this AFTER `corretto-21` (correct), but tie-breaking against other `1.x` legacy entries places them in arbitrary order. The downstream `--version` probe still rejects them, so this is a perf-only concern (out of v1 scope) — but version-hint accuracy for legacy 1.x JDKs is also broken (a `1.8` entry sorts as version 1, not version 8).
+For `corretto-1.8.0_381` the regex `\b(\d+)` matches `1`. Real version 8
+sorts BELOW any `\d+`-prefixed Java 2+ entry, which is the desired order
+in practice, but the version hint is wrong and the sort tie-break against
+other `1.x` entries is arbitrary. Hint accuracy affects probe order, not
+correctness — the `--version` probe still rejects sub-21 JDKs.
 
 **Fix:** Mirror `parseJavaVersion`'s 1.x handling:
 ```typescript
@@ -278,21 +334,51 @@ function parseVersionHint(entry: string): number {
 }
 ```
 
-### IN-05: Test coverage gap — no test asserts workspace re-sync after `retryDegradedJdtLsSessions` rescues a session
+### IN-05: `add-fabric-mod` response inconsistent — reports `jdtlsAvailable: true` but `workspaceSynced: false` after a successful retry rescue
 
-**File:** `tests/jdtls/startup.test.ts:377-468`
-
-**Issue:**
-Every retry-sweep test asserts only `project.jdtls?.available === true` or that `discoverJava` was called with the right `projectRoot`. There's no test that asserts the rescued session's `.classpath` was repopulated, or that `syncFabricModToWorkspace` was invoked after the retry. This is the test gap that hid CR-01.
-
-**Fix:** Add a test that mocks `syncFabricModToWorkspace` and asserts it's called after a successful retry, once for each fabric-mod child of the rescued project.
-
-### IN-06: Test comment-vs-assertion mismatch in scoop test
-
-**File:** `tests/jdtls/java-discovery.test.ts:466-468`
+**File:** `src/tools/add-fabric-mod.ts:73-94`
 
 **Issue:**
-Test comment says `"both adoptium and firefox are accepted (no scoop-specific filter)"` but the assertion only verifies that `adoptium-jdk-21` is probed and that `current\bin\java.exe` shape appears. The "firefox is also accepted" branch is asserted only by absence of a filter — there's no positive assertion that `firefox` was probed. If the implementation grew a `scoop`-specific filter the test would silently pass.
+The handler calls `syncFabricModToWorkspace` at line 73 against
+`loadedProject.jdtls` — which may still be the OLD degraded session at
+that point. Sync returns `{synced: false, warning: 'JDT LS unavailable'}`.
+Then line 80 calls `retryDegradedJdtLsSessions`, which (per Plan 37-05's
+new behavior) rescues the session AND re-syncs all fabric-mod children
+including the just-added one. After retry returns, `loadedProject.jdtls`
+is fresh and available, AND its `.classpath` contains the new mod's deps.
+
+But the response on line 89-91 reads:
+- `jdtlsAvailable: loadedProject.jdtls?.available ?? false` → `true` (post-retry)
+- `workspaceSynced: syncResult.synced` → `false` (captured pre-retry)
+
+The user sees an envelope claiming "JDT LS is available but the workspace
+was not synced" — internally inconsistent and misleading. The mod's
+sources actually ARE indexed (the retry sweep took care of it).
+
+**Fix:** Re-evaluate `workspaceSynced` after the retry, e.g.
+```typescript
+await retryDegradedJdtLsSessions();
+const finalSynced = syncResult.synced
+    || (loadedProject.jdtls?.available === true && loadedProject.jdtls.jarIdToDirName.has(fabricMod.name));
+// ...
+workspaceSynced: finalSynced,
+```
+Or — cleaner — drop `workspaceSynced` from the envelope entirely and rely
+on `jdtlsAvailable`, since the post-retry sweep guarantees workspace state
+matches session state. The other two tool handlers
+(`refresh-project.ts`, `refresh-project-members.ts`) already omit this
+field from their envelopes.
+
+### IN-06: Scoop test comment claims "firefox is accepted" but no assertion verifies it
+
+**File:** `tests/jdtls/java-discovery.test.ts:466-472`
+
+**Issue:**
+The test comment on line 466-468 says "both adoptium and firefox are
+accepted (no scoop-specific filter)" but the assertions only verify
+`adoptium-jdk-21` was probed and that `current\bin\java.exe` shape
+appears. If a future change adds a scoop-specific JDK-name filter, the
+firefox case would be silently regressed.
 
 **Fix:**
 ```typescript
