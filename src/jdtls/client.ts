@@ -15,6 +15,7 @@ import { glob } from 'glob';
 import { JSONRPCEndpoint, LspClient } from 'ts-lsp-client';
 import { logger } from '../logging/logger.js';
 import { javaBinaryName, javaBinaryInHome, isWindows } from '../platform/index.js';
+import { pathToFileUri } from '../platform/uri.js';
 
 export type JavaDetected = {
 	javaPath: string;
@@ -242,7 +243,7 @@ export async function startJdtLs(
 	// Send initialize request
 	await client.initialize({
 		processId: process.pid,
-		rootUri: 'file://' + workspaceDir,
+		rootUri: pathToFileUri(workspaceDir),
 		capabilities: {
 			textDocument: {
 				definition: { dynamicRegistration: false },
@@ -275,7 +276,7 @@ export async function startJdtLs(
 				},
 			},
 		},
-		workspaceFolders: [{ uri: 'file://' + workspaceDir, name: 'sources' }],
+		workspaceFolders: [{ uri: pathToFileUri(workspaceDir), name: 'sources' }],
 	});
 
 	// Send initialized notification
