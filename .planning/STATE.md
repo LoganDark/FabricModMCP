@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Windows Support
-status: planning
+status: executing
 stopped_at: Phase 37 context gathered
-last_updated: "2026-05-16T10:55:13.565Z"
-last_activity: 2026-05-16
+last_updated: "2026-05-16T12:40:33.465Z"
+last_activity: 2026-05-16 -- Phase 37 execution started
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 6
+  total_plans: 10
   completed_plans: 6
   percent: 40
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
-**Current focus:** Phase 36 — path-uri-handling-audit
+**Current focus:** Phase 37 — smarter-java-discovery-cross-platform
 
 ## Current Position
 
-Phase: 37
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-05-16
+Phase: 37 (smarter-java-discovery-cross-platform) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 37
+Last activity: 2026-05-16 -- Phase 37 execution started
 
 ## Accumulated Context
 

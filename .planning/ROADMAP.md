@@ -149,7 +149,7 @@
   5. Common-install-location scan covers Adoptium / Microsoft / Oracle / Corretto / Zulu / IntelliJ `~/.jdks` / scoop on Windows and `/usr/lib/jvm/*` / `/Library/Java/JavaVirtualMachines/*/Contents/Home` / Homebrew openjdk on Unix.
   6. Existing `--java-home` precedence test (commit `4e94b4b`) extended and still passes; new tests verify priority order, version-skip continuation, backslash unescape, and per-candidate timeout.
 **Plans**: 4 plans
-  - [ ] 37-01-PLAN.md — Create `src/jdtls/java-discovery.ts` with discoverJava + carry-over symbols (setJavaHome/detectJava/parseJavaVersion/resolveJavaExecutable) + unescapePropertiesValue + vendor map (JAVA-01..JAVA-05)
+  - [x] 37-01-PLAN.md — Create `src/jdtls/java-discovery.ts` with discoverJava + carry-over symbols (setJavaHome/detectJava/parseJavaVersion/resolveJavaExecutable) + unescapePropertiesValue + vendor map (JAVA-01..JAVA-05)
   - [ ] 37-02-PLAN.md — Slim `client.ts` to re-export shim; extend `initJdtLsSession({ projectRoot? })` + add `retryDegradedJdtLsSessions()` in `startup.ts` (JAVA-01)
   - [ ] 37-03-PLAN.md — Wire `retryDegradedJdtLsSessions()` into `add_fabric_mod`, `refresh_project`, `refresh_project_members` tool handlers (JAVA-01)
   - [ ] 37-04-PLAN.md — New `tests/jdtls/java-discovery.test.ts` (all 5 JAVA requirements) + extend `tests/jdtls/startup.test.ts` + full-suite regression (UNIX-01 byte-identical preservation)
@@ -198,6 +198,6 @@
 | 28-34 | v1.5 | 7/7 | Complete | 2026-04-16 |
 | 35 | v1.6 | 0/2 | Planned | — |
 | 36 | v1.6 | 4/4 | Complete    | 2026-05-16 |
-| 37 | v1.6 | 0/? | Not started | — |
+| 37 | v1.6 | 1/4 | In Progress|  |
 | 38 | v1.6 | 0/? | Not started | — |
 | 39 | v1.6 | 0/? | Not started | — |
