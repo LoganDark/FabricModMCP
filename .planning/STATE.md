@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Windows Support
-status: ready_to_plan
-stopped_at: Phase 36 context gathered
-last_updated: "2026-05-16T09:19:58.562Z"
-last_activity: 2026-05-16 -- Phase 36 execution started
+status: planning
+stopped_at: Phase 37 context gathered
+last_updated: "2026-05-16T10:55:13.565Z"
+last_activity: 2026-05-16
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 6
-  completed_plans: 2
+  completed_plans: 6
   percent: 40
 ---
 
@@ -70,6 +70,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-16T06:12:54.769Z
-Stopped at: Phase 36 context gathered
-Resume file: .planning/phases/36-path-uri-handling-audit/36-CONTEXT.md
+Last session: 2026-05-16T10:55:13.558Z
+Stopped at: Phase 37 context gathered
+Resume file: .planning/phases/37-smarter-java-discovery-cross-platform/37-CONTEXT.md
