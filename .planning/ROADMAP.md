@@ -130,7 +130,7 @@
   3. ZIP entry extraction rejects entries containing `..` segments before writing to disk; temp-dir cleanup on Windows retries on `EBUSY`/`EPERM` (3x with 100ms backoff) and only logs on final failure.
   4. URI round-trip test passes on representative inputs including `/private/var/folders/x y/file.java`, `/tmp/foo`, and (mocked-Windows) `C:\Foo\Bar baz#qux/file.java` — Unix output byte-identical to v1.5.
   5. All v1.5 tests still pass after the sweep; new tests cover Windows-mocked drive-letter casing, path-traversal rejection, and EBUSY retry.
-**Plans**: 4 plans
+**Plans**: 5 plans (4 original + 1 gap closure)
   - [x] 36-01-PLAN.md — Create `src/platform/uri.ts` pure helper module + tests (WIN-03 / UNIX-02 foundation)
   - [x] 36-02-PLAN.md — Forward sweep (7 sites) + reverse sweep (1 site) across `client.ts`, `workspace-sync.ts`, `remove-project-member.ts`, `tool-helpers.ts` (WIN-03)
   - [x] 36-03-PLAN.md — `uri-mapper.ts` drive-letter case-fold (`prefixMatches` state machine) + internal `toFileUri` migration + Windows-mocked tests (WIN-05 / UNIX-02)
@@ -148,11 +148,12 @@
   4. Each candidate probe uses async `execFile` with a 3s timeout so a misbehaving candidate (Defender scan, hung JVM) cannot stall startup.
   5. Common-install-location scan covers Adoptium / Microsoft / Oracle / Corretto / Zulu / IntelliJ `~/.jdks` / scoop on Windows and `/usr/lib/jvm/*` / `/Library/Java/JavaVirtualMachines/*/Contents/Home` / Homebrew openjdk on Unix.
   6. Existing `--java-home` precedence test (commit `4e94b4b`) extended and still passes; new tests verify priority order, version-skip continuation, backslash unescape, and per-candidate timeout.
-**Plans**: 4 plans
+**Plans**: 5 plans (4 original + 1 gap closure)
   - [x] 37-01-PLAN.md — Create `src/jdtls/java-discovery.ts` with discoverJava + carry-over symbols (setJavaHome/detectJava/parseJavaVersion/resolveJavaExecutable) + unescapePropertiesValue + vendor map (JAVA-01..JAVA-05)
   - [x] 37-02-PLAN.md — Slim `client.ts` to re-export shim; extend `initJdtLsSession({ projectRoot? })` + add `retryDegradedJdtLsSessions()` in `startup.ts` (JAVA-01)
   - [x] 37-03-PLAN.md — Wire `retryDegradedJdtLsSessions()` into `add_fabric_mod`, `refresh_project`, `refresh_project_members` tool handlers (JAVA-01)
   - [x] 37-04-PLAN.md — New `tests/jdtls/java-discovery.test.ts` (all 5 JAVA requirements) + extend `tests/jdtls/startup.test.ts` + full-suite regression (UNIX-01 byte-identical preservation)
+  - [ ] 37-05-PLAN.md — Gap closure (CR-01): wire `syncFabricModToWorkspace` into `retryDegradedJdtLsSessions` after rescue + test extension (JAVA-01)
 
 ### Phase 38: JDT LS Discovery on Windows
 
@@ -164,7 +165,7 @@
   2. `process.env.HOME` is replaced by `os.homedir()` in `client.ts`; `grep -rn 'process.env.HOME' src/` returns no matches outside test fixtures.
   3. `JDTLS_HOME` env var override continues to work on both platforms; the improved "not found" error message lists the candidate paths actually probed.
   4. Unix `findJdtLs` tests pass unchanged; new tests mock `process.platform = 'win32'` and verify candidate ordering plus existence checks.
-**Plans**: 4 plans
+**Plans**: 5 plans (4 original + 1 gap closure)
   - [x] 36-01-PLAN.md — Create `src/platform/uri.ts` pure helper module + tests (WIN-03 / UNIX-02 foundation)
   - [x] 36-02-PLAN.md — Forward sweep (7 sites) + reverse sweep (1 site) across `client.ts`, `workspace-sync.ts`, `remove-project-member.ts`, `tool-helpers.ts` (WIN-03)
   - [x] 36-03-PLAN.md — `uri-mapper.ts` drive-letter case-fold (`prefixMatches` state machine) + internal `toFileUri` migration + Windows-mocked tests (WIN-05 / UNIX-02)
@@ -180,7 +181,7 @@
   2. `find_definition` and `find_references` return non-empty results on a Fabric mod project on Windows; cross-mod navigation works (per-project JDT LS workspace covers all children).
   3. Full v1.5 + v1.6 vitest suite passes on both macOS and Linux with zero new failures or skips (UNIX-03 regression guard).
   4. README has a "Windows Support" section documenting the Java priority chain, the JDT LS install locations probed, and known limitations (long paths, WSL note); CLAUDE.md "Technology Stack" reflects the priority chain.
-**Plans**: 4 plans
+**Plans**: 5 plans (4 original + 1 gap closure)
   - [x] 36-01-PLAN.md — Create `src/platform/uri.ts` pure helper module + tests (WIN-03 / UNIX-02 foundation)
   - [x] 36-02-PLAN.md — Forward sweep (7 sites) + reverse sweep (1 site) across `client.ts`, `workspace-sync.ts`, `remove-project-member.ts`, `tool-helpers.ts` (WIN-03)
   - [x] 36-03-PLAN.md — `uri-mapper.ts` drive-letter case-fold (`prefixMatches` state machine) + internal `toFileUri` migration + Windows-mocked tests (WIN-05 / UNIX-02)
