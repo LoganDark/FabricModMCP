@@ -1,10 +1,26 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
 	jarIdToDirName,
 	dirNameToJarId,
 	entryPathToClassName,
 	createUriMapper,
 } from '../../src/jdtls/uri-mapper.js';
+
+// Capture host environment once so afterEach can restore it. `isWindows` in
+// src/platform/index.ts is a module-load-time const, so every Windows-mocked
+// describe MUST call vi.resetModules() AND re-import src/jdtls/uri-mapper.js
+// AFTER setPlatform('win32') has run — only then does uri-mapper.ts see
+// `isWindows === true` and take the drive-letter case-fold branch (D-21).
+const originalPlatform = process.platform;
+
+function setPlatform(p: NodeJS.Platform): void {
+	Object.defineProperty(process, 'platform', { value: p, configurable: true });
+}
+
+afterEach(() => {
+	setPlatform(originalPlatform);
+	vi.resetModules();
+});
 
 describe('jarIdToDirName', () => {
 	it('returns unchanged name when no colons', () => {
@@ -170,5 +186,138 @@ describe('createUriMapper', () => {
 
 			expect(result).toEqual({ jar: jarId, entryPath });
 		});
+	});
+});
+
+// =========================================================================
+// Phase 36 Plan 03 — Windows drive-letter case-fold (WIN-05 / D-09 / D-11)
+//
+// Per Phase 36 RESEARCH §"Drive-Letter Case-Fold Logic" and the user's
+// directive in 36-CONTEXT.md D-09: "absolutely everything except the drive
+// letter itself should be treated as completely case sensitive". The case-
+// fold is surgical — only byte 8 of three-slash drive-letter URIs, only on
+// Windows. UNC, DOS device, Win32-namespace, and Unix URIs all use byte-
+// exact compare (D-11). The path tail (jar-entry segments) is always byte-
+// exact (D-09).
+//
+// All describes below dynamically re-import src/jdtls/uri-mapper.js AFTER
+// setPlatform('win32') so the module-load-time `isWindows` const captures
+// `true` and the SUT takes the case-fold branch. uri-mapper internally
+// calls `pathToFileUri(normalizedTempDir, { windows: isWindows })` so its
+// `prefix` matches Windows-flavor shape on a darwin/linux host CI (Plan 01
+// §A2 — `pathToFileURL` does not auto-detect drive-letter shape; the opt-in
+// is mandatory to construct a Windows-flavor URI on a non-Windows host).
+// =========================================================================
+
+describe('Windows: fromFileUri accepts uppercase or lowercase drive letter', () => {
+	it('accepts uppercase drive letter (stored prefix uppercase, inbound uppercase)', async () => {
+		setPlatform('win32');
+		vi.resetModules();
+		const { createUriMapper } = await import('../../src/jdtls/uri-mapper.js');
+		const mapper = createUriMapper('C:\\Users\\test\\Temp\\xyz', new Map([['minecraft', 'minecraft']]));
+		expect(mapper.fromFileUri('file:///C:/Users/test/Temp/xyz/minecraft/foo/Bar.java'))
+			.toEqual({ jar: 'minecraft', entryPath: 'foo/Bar.java' });
+	});
+
+	it('accepts lowercase drive letter when stored prefix is uppercase (the WIN-05 motivating case)', async () => {
+		setPlatform('win32');
+		vi.resetModules();
+		const { createUriMapper } = await import('../../src/jdtls/uri-mapper.js');
+		const mapper = createUriMapper('C:\\Users\\test\\Temp\\xyz', new Map([['minecraft', 'minecraft']]));
+		// JDT LS may return file:///c:/... even when we sent file:///C:/...
+		expect(mapper.fromFileUri('file:///c:/Users/test/Temp/xyz/minecraft/foo/Bar.java'))
+			.toEqual({ jar: 'minecraft', entryPath: 'foo/Bar.java' });
+	});
+});
+
+describe('Windows: fromFileUri rejects different drive letter', () => {
+	it('rejects D: URI against C: prefix (drive identity preserved, only case is loose)', async () => {
+		setPlatform('win32');
+		vi.resetModules();
+		const { createUriMapper } = await import('../../src/jdtls/uri-mapper.js');
+		const mapper = createUriMapper('C:\\Users\\test\\Temp\\xyz', new Map([['minecraft', 'minecraft']]));
+		expect(mapper.fromFileUri('file:///D:/Users/test/Temp/xyz/minecraft/foo/Bar.java')).toBeNull();
+	});
+
+	it('rejects lowercase d: URI against C: prefix (case-fold does not collapse drive identity)', async () => {
+		setPlatform('win32');
+		vi.resetModules();
+		const { createUriMapper } = await import('../../src/jdtls/uri-mapper.js');
+		const mapper = createUriMapper('C:\\Users\\test\\Temp\\xyz', new Map([['minecraft', 'minecraft']]));
+		expect(mapper.fromFileUri('file:///d:/Users/test/Temp/xyz/minecraft/foo/Bar.java')).toBeNull();
+	});
+});
+
+describe('Windows: fromFileUri does NOT case-fold UNC URIs', () => {
+	it('UNC-shaped prefix vs UNC-shaped URI uses byte-exact compare (D-11)', async () => {
+		setPlatform('win32');
+		vi.resetModules();
+		const { createUriMapper } = await import('../../src/jdtls/uri-mapper.js');
+		// UNC tempDir — no drive letter; prefix becomes file://server/share/...
+		// (host-as-authority form). The case-fold regex `^file:///[A-Za-z]:`
+		// does not match UNC URIs, so the compare falls through to byte-exact
+		// startsWith. Mismatched case in the server name MUST reject.
+		const mapper = createUriMapper('\\\\server\\share\\Temp\\xyz', new Map([['mc', 'mc']]));
+		expect(mapper.fromFileUri('file://SERVER/share/Temp/xyz/mc/foo.java')).toBeNull();
+	});
+
+	it('UNC-shaped prefix vs UNC-shaped URI with matching case accepts (byte-exact equality)', async () => {
+		setPlatform('win32');
+		vi.resetModules();
+		const { createUriMapper } = await import('../../src/jdtls/uri-mapper.js');
+		const mapper = createUriMapper('\\\\server\\share\\Temp\\xyz', new Map([['mc', 'mc']]));
+		// Sanity: the byte-exact match path still works for UNC. The inbound
+		// URI shape must match what pathToFileUri produces for a UNC input on
+		// Windows-flavor, namely `file://server/share/Temp/xyz/...`.
+		const uri = mapper.toFileUri('mc', 'foo.java');
+		const result = mapper.fromFileUri(uri);
+		expect(result).toEqual({ jar: 'mc', entryPath: 'foo.java' });
+	});
+});
+
+describe('Windows: fromFileUri preserves jar-entry tail case', () => {
+	it('case-folded drive letter; mixed-case tail bytes returned byte-exact (D-09)', async () => {
+		setPlatform('win32');
+		vi.resetModules();
+		const { createUriMapper } = await import('../../src/jdtls/uri-mapper.js');
+		const mapper = createUriMapper('C:\\Users\\test\\Temp\\xyz', new Map([['minecraft', 'minecraft']]));
+		// Inbound URI uses lowercase drive letter (exercises the case-fold
+		// branch) AND mixed-case path tail. The tail must come back byte-exact.
+		const result = mapper.fromFileUri('file:///c:/Users/test/Temp/xyz/minecraft/foo/BAR.java');
+		expect(result).not.toBeNull();
+		expect(result?.entryPath).toBe('foo/BAR.java'); // exact case preserved
+	});
+
+	it('foo/Bar.java and foo/bar.java map to distinct entryPaths (jar-entry tail is case-sensitive)', async () => {
+		setPlatform('win32');
+		vi.resetModules();
+		const { createUriMapper } = await import('../../src/jdtls/uri-mapper.js');
+		const mapper = createUriMapper('C:\\Users\\test\\Temp\\xyz', new Map([['minecraft', 'minecraft']]));
+		const upper = mapper.fromFileUri('file:///C:/Users/test/Temp/xyz/minecraft/foo/Bar.java');
+		const lower = mapper.fromFileUri('file:///C:/Users/test/Temp/xyz/minecraft/foo/bar.java');
+		expect(upper?.entryPath).toBe('foo/Bar.java');
+		expect(lower?.entryPath).toBe('foo/bar.java');
+		expect(upper?.entryPath).not.toBe(lower?.entryPath);
+	});
+});
+
+describe('Windows: fromFileUri round-trip via toFileUri', () => {
+	it('round-trip preserves jar + entryPath under Windows-flavor URIs', async () => {
+		setPlatform('win32');
+		vi.resetModules();
+		const { createUriMapper } = await import('../../src/jdtls/uri-mapper.js');
+		const mapper = createUriMapper(
+			'C:\\Users\\test\\Temp\\xyz',
+			new Map([
+				['minecraft', 'minecraft'],
+				['fabric-api:fabric-networking-api-v1', 'fabric-api__fabric-networking-api-v1'],
+			]),
+		);
+		const jarId = 'fabric-api:fabric-networking-api-v1';
+		const entryPath = 'net/fabricmc/fabric/api/networking/v1/ServerPlayNetworking.java';
+		const uri = mapper.toFileUri(jarId, entryPath);
+		// toFileUri emits three-slash drive-letter shape on Windows-flavor:
+		expect(uri).toMatch(/^file:\/\/\/C:\/Users\/test\/Temp\/xyz\//);
+		expect(mapper.fromFileUri(uri)).toEqual({ jar: jarId, entryPath });
 	});
 });
