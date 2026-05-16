@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Windows Support
 status: completed
-stopped_at: Completed quick-260515-d0i
-last_updated: "2026-05-15T17:58:41.464Z"
+stopped_at: Phase 36 context gathered
+last_updated: "2026-05-16T06:12:54.775Z"
 last_activity: 2026-05-15 -- Phase 35 marked complete
 progress:
   total_phases: 5
@@ -70,6 +70,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-15T16:22:00Z
-Stopped at: Completed quick-260515-d0i
-Resume file: None
+Last session: 2026-05-16T06:12:54.769Z
+Stopped at: Phase 36 context gathered
+Resume file: .planning/phases/36-path-uri-handling-audit/36-CONTEXT.md
