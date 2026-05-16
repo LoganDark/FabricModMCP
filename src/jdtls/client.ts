@@ -1,11 +1,17 @@
 /**
  * JDT LS Client — Process lifecycle management for Eclipse JDT Language Server
  *
- * Handles detecting Java 21+, finding JDT LS installation, spawning the JVM process,
- * initializing the LSP session, and graceful shutdown.
+ * Handles finding JDT LS installation, spawning the JVM process, initializing
+ * the LSP session, and graceful shutdown.
+ *
+ * Java discovery symbols (`setJavaHome`, `detectJava`, `discoverJava`,
+ * `parseJavaVersion`, `resolveJavaExecutable`) are re-exported from
+ * `./java-discovery.js` (Phase 37 Plan 01 carve-out). The shim preserves the
+ * existing import surface for `src/index.ts:10` and `tests/jdtls/client.test.ts:4`
+ * for one milestone (per Phase 37 D-11).
  */
 
-import { execSync, spawn, type ChildProcess } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -14,20 +20,7 @@ import { existsSync } from 'node:fs';
 import { glob } from 'glob';
 import { JSONRPCEndpoint, LspClient } from 'ts-lsp-client';
 import { logger } from '../logging/logger.js';
-import { javaBinaryName, javaBinaryInHome, isWindows } from '../platform/index.js';
 import { pathToFileUri } from '../platform/uri.js';
-
-export type JavaDetected = {
-	javaPath: string;
-	version: number;
-}
-
-export type JavaNotFound = {
-	javaPath: null;
-	error: string;
-}
-
-export type JavaDetectResult = JavaDetected | JavaNotFound;
 
 export type JdtLsFound = {
 	jdtlsHome: string;
@@ -47,110 +40,8 @@ export type JdtLsStartResult = {
 	dataDir: string;
 }
 
-let configuredJavaHome: string | undefined;
-
-/**
- * Override the Java home used by detectJava. Takes precedence over JAVA_HOME.
- * Pass undefined to clear the override.
- */
-export function setJavaHome(javaHome: string | undefined): void {
-	configuredJavaHome = javaHome;
-}
-
-/**
- * Detect a Java 21+ installation.
- *
- * Checks the configured override (set via setJavaHome) first, then JAVA_HOME,
- * then falls back to java on PATH.
- * Returns the java binary path and major version, or an error message.
- */
-export function detectJava(): JavaDetectResult {
-	const candidates: string[] = [];
-
-	const javaHome = configuredJavaHome ?? process.env.JAVA_HOME;
-	if (javaHome) {
-		candidates.push(javaBinaryInHome(javaHome));
-	}
-	candidates.push(javaBinaryName());
-
-	for (const candidate of candidates) {
-		const javaPath = resolveJavaExecutable(candidate);
-		if (javaPath === null) continue;
-		try {
-			const output = execSync(`"${javaPath}" --version`, {
-				encoding: 'utf-8',
-				timeout: 10_000,
-				stdio: ['pipe', 'pipe', 'pipe'],
-			});
-
-			const version = parseJavaVersion(output);
-			if (version === null) {
-				continue;
-			}
-
-			if (version < 21) {
-				return {
-					javaPath: null,
-					error: `Java ${version} found but JDT LS requires Java 21+`,
-				};
-			}
-
-			return { javaPath, version };
-		} catch {
-			continue;
-		}
-	}
-
-	return {
-		javaPath: null,
-		error: 'Java not found. Set JAVA_HOME or add java to PATH.',
-	};
-}
-
-/**
- * Resolve a Java candidate path to a file that `child_process.spawn` can exec.
- *
- * Bare names (no path separator) pass through unchanged — libuv applies PATHEXT
- * for PATH lookups in `spawn` on Windows even though it does NOT for absolute
- * paths (see nodejs/node#6671). On Windows, candidates with a separator are
- * probed via `existsSync`: returned as-is if present, suffixed with `.exe` and
- * re-probed otherwise (case-insensitive guard against `.exe.exe`), or returned
- * as `null` so the caller skips this candidate cleanly instead of letting
- * `spawn` fail later with ENOENT. On non-Windows platforms the candidate is
- * returned byte-identical with NO `existsSync` call — UNIX-01 commitment so
- * existing v1.5 `detectJava` tests that assert exact fake paths like
- * `'/cli/java/bin/java'` continue to pass without modification.
- */
-export function resolveJavaExecutable(candidate: string): string | null {
-	const hasSeparator = candidate.includes('/') || candidate.includes('\\');
-	if (!hasSeparator) return candidate;
-
-	if (isWindows) {
-		if (existsSync(candidate)) return candidate;
-		if (!candidate.toLowerCase().endsWith('.exe') && existsSync(candidate + '.exe')) {
-			return candidate + '.exe';
-		}
-		return null;
-	}
-	return candidate;
-}
-
-/**
- * Parse the major version number from `java --version` output.
- * Handles formats like "openjdk 21.0.1 2023-10-17" and "java 21 2023-09-19".
- */
-export function parseJavaVersion(output: string): number | null {
-	// Match version patterns like "21.0.1", "17.0.8", "1.8.0_381"
-	const match = output.match(/(?:version\s+")?([\d]+)(?:\.([\d]+))?/);
-	if (!match) return null;
-
-	const major = parseInt(match[1], 10);
-	// Handle legacy 1.x versioning (1.8 = Java 8)
-	if (major === 1 && match[2]) {
-		return parseInt(match[2], 10);
-	}
-	return major;
-}
+export { setJavaHome, detectJava, discoverJava, parseJavaVersion, resolveJavaExecutable } from './java-discovery.js';
+export type { JavaDetectResult, JavaDetected, JavaNotFound } from './java-discovery.js';
 
 /**
  * Find the JDT LS installation directory.
