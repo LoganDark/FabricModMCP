@@ -93,6 +93,7 @@ Milestone v1.6 — see "Current Milestone" below.
 
 **Latest shipped:** v1.5 Quality & Consistency (2026-04-16)
 **Active milestone:** v1.6 Windows Support (started 2026-05-15)
+**Latest phase complete:** Phase 37 — Smarter Java Discovery (cross-platform) on 2026-05-17 (854 tests; JAVA-01..05 delivered; CR-01 closed via gap plan 37-05)
 
 ## Context
 
@@ -168,4 +169,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-15 — v1.6 milestone started*
+*Last updated: 2026-05-17 — Phase 37 complete (Smarter Java Discovery cross-platform)*
