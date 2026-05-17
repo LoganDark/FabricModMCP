@@ -18,11 +18,11 @@
 
 ### Smarter Java Discovery — cross-platform (JAVA)
 
-- [ ] **JAVA-01**: Java home is resolved by a priority chain — `--java-home` flag → `org.gradle.java.home` from project `gradle.properties` → `JAVA_HOME` → `java` on PATH → scanned common install locations — evaluated sequentially in priority order.
-- [ ] **JAVA-02**: Candidates that fail the Java 21+ version check are skipped (not fatal); discovery continues to the next candidate.
-- [ ] **JAVA-03**: `org.gradle.java.home` values with Java-properties backslash escapes (`C:\\Users\\foo` or `C:/Users/foo`) are correctly unescaped before use.
-- [ ] **JAVA-04**: Discovery scans well-known JDK install locations (Adoptium, Microsoft, Oracle, Corretto, Zulu, IntelliJ `~/.jdks`, scoop) when no higher-priority candidate is compatible.
-- [ ] **JAVA-05**: Java discovery probes use a per-candidate timeout (3s) so a misbehaving candidate cannot stall startup.
+- [x] **JAVA-01**: Java home is resolved by a priority chain — `--java-home` flag → `org.gradle.java.home` from project `gradle.properties` → `JAVA_HOME` → `java` on PATH → scanned common install locations — evaluated sequentially in priority order.
+- [x] **JAVA-02**: Candidates that fail the Java 21+ version check are skipped (not fatal); discovery continues to the next candidate.
+- [x] **JAVA-03**: `org.gradle.java.home` values with Java-properties backslash escapes (`C:\\Users\\foo` or `C:/Users/foo`) are correctly unescaped before use.
+- [x] **JAVA-04**: Discovery scans well-known JDK install locations (Adoptium, Microsoft, Oracle, Corretto, Zulu, IntelliJ `~/.jdks`, scoop) when no higher-priority candidate is compatible.
+- [x] **JAVA-05**: Java discovery probes use a per-candidate timeout (3s) so a misbehaving candidate cannot stall startup.
 
 ### Linux/Unix Preservation (UNIX)
 
