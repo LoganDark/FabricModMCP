@@ -21,6 +21,7 @@ import { glob } from 'glob';
 import { JSONRPCEndpoint, LspClient } from 'ts-lsp-client';
 import { logger } from '../logging/logger.js';
 import { pathToFileUri } from '../platform/uri.js';
+import { hardenEndpoint } from './request-queue.js';
 
 export type JdtLsFound = {
 	jdtlsHome: string;
@@ -129,6 +130,10 @@ export async function startJdtLs(
 	});
 
 	const endpoint = new JSONRPCEndpoint(proc.stdin!, proc.stdout!);
+	// Serialize requests and attach an 'error' listener BEFORE any send() so a
+	// concurrent-response id mismatch (or a malformed message) can never crash
+	// the MCP server process. See request-queue.ts for the full rationale.
+	hardenEndpoint(endpoint);
 	const client = new LspClient(endpoint);
 
 	// Send initialize request

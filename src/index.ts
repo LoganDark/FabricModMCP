@@ -13,6 +13,23 @@ const args = parseCli(process.argv.slice(2));
 logger.setLevel(args.logLevel);
 setJavaHome(args.javaHome);
 
+// Crash guard (defense-in-depth). The MCP server is a long-lived stdio process;
+// a single unhandled exception or promise rejection — e.g. a stray 'error'
+// event from the JDT LS JSON-RPC transport — would otherwise terminate it and
+// surface to the MCP host as `MCP error -32000: Connection closed`, destroying
+// the in-memory workspace. Logging instead of exiting keeps the session alive;
+// the offending tool call still fails locally and returns its own error.
+process.on('uncaughtException', (err) => {
+	logger.error('Uncaught exception (suppressed to keep server alive)', {
+		error: err instanceof Error ? err.stack ?? err.message : String(err),
+	});
+});
+process.on('unhandledRejection', (reason) => {
+	logger.error('Unhandled promise rejection (suppressed to keep server alive)', {
+		error: reason instanceof Error ? reason.stack ?? reason.message : String(reason),
+	});
+});
+
 const initialProject: Project = {
 	name: 'default',
 	children: new Map(),
