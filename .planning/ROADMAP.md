@@ -165,11 +165,8 @@
   2. `process.env.HOME` is replaced by `os.homedir()` in `client.ts`; `grep -rn 'process.env.HOME' src/` returns no matches outside test fixtures.
   3. `JDTLS_HOME` env var override continues to work on both platforms; the improved "not found" error message lists the candidate paths actually probed.
   4. Unix `findJdtLs` tests pass unchanged; new tests mock `process.platform = 'win32'` and verify candidate ordering plus existence checks.
-**Plans**: 5 plans (4 original + 1 gap closure)
-  - [x] 36-01-PLAN.md — Create `src/platform/uri.ts` pure helper module + tests (WIN-03 / UNIX-02 foundation)
-  - [x] 36-02-PLAN.md — Forward sweep (7 sites) + reverse sweep (1 site) across `client.ts`, `workspace-sync.ts`, `remove-project-member.ts`, `tool-helpers.ts` (WIN-03)
-  - [x] 36-03-PLAN.md — `uri-mapper.ts` drive-letter case-fold (`prefixMatches` state machine) + internal `toFileUri` migration + Windows-mocked tests (WIN-05 / UNIX-02)
-  - [ ] 36-04-PLAN.md — `workspace-sync.ts` hardening: ZIP split-and-spread + traversal guard + `rm` retry options + tests (WIN-04 / WIN-06 / WIN-07)
+**Plans**: 1 plan
+  - [ ] 38-01-PLAN.md — Rewrite `findJdtLs` to consume `jdtlsCandidateDirs()` with deep probe (`existsSync` + launcher-jar `globSync`), deepen JDTLS_HOME validation symmetrically (no fall-through), compose multi-line failure message mirroring Phase 37, replace `process.env.HOME` site + extend `tests/jdtls/client.test.ts` with Windows/Unix/JDTLS_HOME/shadow/multi-line/logger describes + add `tests/no-process-env-home.test.ts` CI regression gate (WIN-02)
 
 ### Phase 39: Windows End-to-End Validation
 
@@ -200,5 +197,5 @@
 | 35 | v1.6 | 0/2 | Planned | — |
 | 36 | v1.6 | 4/4 | Complete    | 2026-05-16 |
 | 37 | v1.6 | 5/5 | Complete    | 2026-05-17 |
-| 38 | v1.6 | 0/? | Not started | — |
+| 38 | v1.6 | 0/1 | Planned | — |
 | 39 | v1.6 | 0/? | Not started | — |

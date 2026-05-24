@@ -490,22 +490,24 @@ Walks `src/` (NOT `tests/`), reads each `.ts` file once, asserts the offending p
 
 All other claims are `[VERIFIED]` or `[CITED]`. The 3 assumptions above are low-risk and self-checking at implementation time.
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+All three are planner-discretion items per CONTEXT.md "Claude's Discretion" — none are blocking gates.
 
 1. **Should `startJdtLs:97`'s redundant `await glob(...)` for the launcher jar be deleted?**
    - What we know: After Phase 38, every code path that calls `startJdtLs` will have already proven a launcher jar exists in `jdtlsHome/plugins/`. The check at `startJdtLs:97-104` becomes defensive duplication.
    - What's unclear: CONTEXT "Integration Points" says "cheap and serves as a defense-in-depth check; planner may leave it or delete it." This is genuinely planner-discretion.
-   - Recommendation: **Leave it.** Defense-in-depth for a sub-ms cost is fine, and removing it widens the diff for no functional gain. Document the redundancy in the new `findJdtLs` JSDoc and call it day.
+   - RESOLVED: **Leave it.** Defense-in-depth for a sub-ms cost is fine, and removing it widens the diff for no functional gain. Document the redundancy in the new `findJdtLs` JSDoc and call it day.
 
 2. **Where should the `composeFailureReason` helper live — top-level in `client.ts` or a private function?**
    - What we know: Phase 37's `formatSlotLine` / `formatReason` are private (non-exported) module-internal helpers in `java-discovery.ts`.
    - What's unclear: No external consumer needs the composer; testing it via `findJdtLs`'s observable output is sufficient.
-   - Recommendation: **Private function inside `client.ts`.** Match Phase 37's privacy boundary. No new exports.
+   - RESOLVED: **Private function inside `client.ts`.** Match Phase 37's privacy boundary. No new exports.
 
 3. **Should the test asserting "JDTLS_HOME line appears in multi-line message" check the line content verbatim or just `toContain('JDTLS_HOME')`?**
    - What we know: Phase 37's `tests/jdtls/java-discovery.test.ts` does both — exact-line matches for the format contract, plus substring checks for the "first line prefix" stability invariant.
    - What's unclear: Phase 38 D-02 specifies the literal format `JDTLS_HOME: (not set)` for the unset case, so exact-match is plausible.
-   - Recommendation: **Mix.** Use exact-line matching for the unset-JDTLS_HOME case (one canonical string) and `toContain(...)` for cases where JDTLS_HOME's value contains test-instance-specific paths.
+   - RESOLVED: **Mix.** Use exact-line matching for the unset-JDTLS_HOME case (one canonical string) and `toContain(...)` for cases where JDTLS_HOME's value contains test-instance-specific paths.
 
 ## Environment Availability
 
