@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { posix as pathPosix, win32 as pathWin32 } from 'node:path';
+import { globSync } from 'glob';
 import { parseJavaVersion, detectJava, setJavaHome } from '../../src/jdtls/client.js';
+import { logger } from '../../src/logging/logger.js';
 
 vi.mock('node:child_process', async () => {
 	const actual = await vi.importActual<typeof import('node:child_process')>('node:child_process');
@@ -16,6 +20,16 @@ vi.mock('node:fs', async () => {
 	return {
 		...actual,
 		existsSync: vi.fn(actual.existsSync),
+	};
+});
+
+vi.mock('glob', async () => {
+	const actual = await vi.importActual<typeof import('glob')>('glob');
+	return {
+		...actual,
+		// Default to empty array so tests that don't explicitly mock the return
+		// value still get a sane "no matches" result rather than `undefined`.
+		globSync: vi.fn(() => [] as string[]),
 	};
 });
 
@@ -132,14 +146,26 @@ describe('detectJava', () => {
 
 describe('findJdtLs', () => {
 	const originalEnv = { ...process.env };
+	const mockGlobSync = vi.mocked(globSync);
+
+	beforeEach(() => {
+		// Reset and restore the file-level default ([]) — mockReset wipes the
+		// factory implementation, so individual tests that need a non-empty
+		// match must call mockReturnValueOnce.
+		mockGlobSync.mockReset();
+		mockGlobSync.mockReturnValue([]);
+	});
 
 	afterEach(() => {
 		process.env = { ...originalEnv };
+		mockGlobSync.mockReset();
+		mockGlobSync.mockReturnValue([]);
 	});
 
-	it('returns jdtlsHome when JDTLS_HOME is set to existing directory', async () => {
-		// Use /tmp which always exists
+	it('returns jdtlsHome when JDTLS_HOME is set to existing directory with a launcher jar', async () => {
+		// /tmp exists on the real fs; mock globSync to fake the launcher-jar check.
 		process.env.JDTLS_HOME = '/tmp';
+		mockGlobSync.mockReturnValueOnce(['/tmp/plugins/org.eclipse.equinox.launcher_1.6.900.jar']);
 		const { findJdtLs } = await import('../../src/jdtls/client.js');
 		const result = findJdtLs();
 		expect(result.jdtlsHome).toBe('/tmp');
@@ -151,6 +177,20 @@ describe('findJdtLs', () => {
 		const result = findJdtLs();
 		expect(result.jdtlsHome).toBeNull();
 		expect((result as any).error).toContain('does not exist');
+		// D-07: single-line error, no fall-through to candidate probing
+		expect((result as any).error).not.toContain('Tried:');
+	});
+
+	it('returns specific error when JDTLS_HOME exists but no launcher jar', async () => {
+		process.env.JDTLS_HOME = '/tmp';  // dir exists on real fs
+		mockGlobSync.mockReturnValueOnce([]);  // no launcher jar
+		const { findJdtLs } = await import('../../src/jdtls/client.js');
+		const result = findJdtLs();
+		expect(result.jdtlsHome).toBeNull();
+		expect((result as { error: string }).error).toContain('JDTLS_HOME');
+		expect((result as { error: string }).error).toContain('launcher jar');
+		// D-07: NO fall-through — single-line error, not multi-line composer output
+		expect((result as { error: string }).error).not.toContain('Tried:');
 	});
 
 	it('returns error when JDTLS_HOME not set and no common locations exist', async () => {
@@ -336,5 +376,167 @@ describe('detectJava on Windows', () => {
 
 		expect(result.javaPath).toBe('java.exe');
 		expect(mockExistsSync).not.toHaveBeenCalled();
+	});
+});
+
+describe('findJdtLs on Windows', () => {
+	const mockExistsSync = vi.mocked(existsSync);
+	const mockGlobSync = vi.mocked(globSync);
+
+	beforeEach(() => {
+		setPlatform('win32');
+		process.env = { ...originalEnv };
+		delete process.env.JDTLS_HOME;
+		process.env.LOCALAPPDATA = 'C:\\Users\\test\\AppData\\Local';
+		process.env.ProgramFiles = 'C:\\Program Files';
+		vi.resetModules();
+		mockExistsSync.mockReset();
+		mockGlobSync.mockReset();
+	});
+
+	afterEach(() => {
+		setPlatform(originalPlatform);
+		process.env = { ...originalEnv };
+		vi.resetModules();
+		mockExistsSync.mockReset();
+		mockGlobSync.mockReset();
+	});
+
+	it('returns the first Windows candidate when LOCALAPPDATA\\jdtls is valid', async () => {
+		mockExistsSync.mockReturnValue(true);
+		mockGlobSync.mockReturnValue(['C:\\Users\\test\\AppData\\Local\\jdtls\\plugins\\org.eclipse.equinox.launcher_1.6.900.jar']);
+		const { findJdtLs } = await import('../../src/jdtls/client.js');
+		const result = findJdtLs();
+		expect(result.jdtlsHome).toBe('C:\\Users\\test\\AppData\\Local\\jdtls');
+	});
+
+	it('skips empty-dir shadow case — LOCALAPPDATA\\jdtls exists but has no launcher jar, ProgramFiles\\jdtls wins', async () => {
+		mockExistsSync.mockReturnValue(true);
+		mockGlobSync.mockImplementation((_pattern, opts) => {
+			const cwd = String((opts as { cwd?: unknown } | undefined)?.cwd ?? '');
+			if (cwd.includes('Program Files')) {
+				return ['C:\\Program Files\\jdtls\\plugins\\org.eclipse.equinox.launcher_1.6.900.jar'];
+			}
+			return [];
+		});
+		const { findJdtLs } = await import('../../src/jdtls/client.js');
+		const result = findJdtLs();
+		expect(result.jdtlsHome).toBe('C:\\Program Files\\jdtls');
+	});
+
+	it('probes Windows candidates in jdtlsCandidateDirs() order', async () => {
+		mockExistsSync.mockReturnValue(true);
+		mockGlobSync.mockReturnValue([]);  // force every candidate to fail launcher check
+		const { findJdtLs } = await import('../../src/jdtls/client.js');
+		findJdtLs();
+		expect(mockGlobSync.mock.calls.length).toBe(4);
+		const probedCwds = mockGlobSync.mock.calls.map(c => String((c[1] as { cwd: unknown }).cwd));
+		const home = homedir();
+		expect(probedCwds).toEqual([
+			'C:\\Users\\test\\AppData\\Local\\jdtls',
+			'C:\\Program Files\\jdtls',
+			pathWin32.join(home, 'jdtls'),
+			'C:\\Users\\test\\AppData\\Local\\nvim-data\\mason\\packages\\jdtls',
+		]);
+	});
+
+	it('composes multi-line failureReason when every Windows candidate fails', async () => {
+		// Only ProgramFiles dir "exists" — mix of skip reasons.
+		mockExistsSync.mockImplementation((p) => String(p).includes('Program Files'));
+		mockGlobSync.mockReturnValue([]);  // the existing dir still has no launcher
+		const { findJdtLs } = await import('../../src/jdtls/client.js');
+		const result = findJdtLs();
+		expect(result.jdtlsHome).toBeNull();
+		const err = (result as { error: string }).error;
+		expect(err.split('\n')[0]).toBe('JDT LS not found. Tried:');
+		expect(err).toContain('JDTLS_HOME: (not set)');
+		expect(err).toContain('C:\\Users\\test\\AppData\\Local\\jdtls: directory does not exist');
+		expect(err).toContain('C:\\Program Files\\jdtls: exists but no launcher jar in plugins/');
+		expect(err).toContain('Install JDT LS from https://download.eclipse.org/jdtls/milestones/ or set JDTLS_HOME.');
+	});
+
+	it('emits logger.debug for every skipped candidate (D-05)', async () => {
+		mockExistsSync.mockReturnValue(false);  // every candidate dir missing
+		mockGlobSync.mockReturnValue([]);
+		// vi.resetModules() in beforeEach means findJdtLs will import a fresh
+		// logger module instance — spy on THAT instance, not the top-of-file
+		// import, so the call sites are observed.
+		const freshLogger = await import('../../src/logging/logger.js');
+		const debugSpy = vi.spyOn(freshLogger.logger, 'debug').mockImplementation(() => {});
+		try {
+			const { findJdtLs } = await import('../../src/jdtls/client.js');
+			findJdtLs();
+			const skipCalls = debugSpy.mock.calls.filter(c => c[0] === 'JDT LS candidate skipped');
+			expect(skipCalls.length).toBe(4);
+			for (const call of skipCalls) {
+				const data = call[1] as { candidate: string; reason: string };
+				expect(typeof data.candidate).toBe('string');
+				expect(typeof data.reason).toBe('string');
+			}
+		} finally {
+			debugSpy.mockRestore();
+		}
+	});
+});
+
+describe('findJdtLs on Unix (UNIX-01 regression)', () => {
+	const mockExistsSync = vi.mocked(existsSync);
+	const mockGlobSync = vi.mocked(globSync);
+
+	beforeEach(() => {
+		setPlatform('linux');
+		process.env = { ...originalEnv };
+		delete process.env.JDTLS_HOME;
+		vi.resetModules();
+		mockExistsSync.mockReset();
+		mockGlobSync.mockReset();
+	});
+
+	afterEach(() => {
+		setPlatform(originalPlatform);
+		process.env = { ...originalEnv };
+		vi.resetModules();
+		mockExistsSync.mockReset();
+		mockGlobSync.mockReset();
+	});
+
+	it('Linux: returns the first valid v1.5 candidate, byte-identical ordering', async () => {
+		mockExistsSync.mockReturnValue(true);
+		mockGlobSync.mockReturnValue([pathPosix.join(homedir(), '.local', 'share', 'jdtls', 'plugins', 'org.eclipse.equinox.launcher_1.6.900.jar')]);
+		const { findJdtLs } = await import('../../src/jdtls/client.js');
+		const result = findJdtLs();
+		expect(result.jdtlsHome).toBe(pathPosix.join(homedir(), '.local', 'share', 'jdtls'));
+	});
+
+	it('Linux: probes the three v1.5 candidates in order (~/.local/share/jdtls, /usr/local/share/jdtls, ~/jdtls)', async () => {
+		mockExistsSync.mockReturnValue(true);
+		mockGlobSync.mockReturnValue([]);  // force every candidate to fail launcher
+		const { findJdtLs } = await import('../../src/jdtls/client.js');
+		findJdtLs();
+		expect(mockGlobSync.mock.calls.length).toBe(3);
+		const probedCwds = mockGlobSync.mock.calls.map(c => String((c[1] as { cwd: unknown }).cwd));
+		const home = homedir();
+		expect(probedCwds).toEqual([
+			pathPosix.join(home, '.local', 'share', 'jdtls'),
+			'/usr/local/share/jdtls',
+			pathPosix.join(home, 'jdtls'),
+		]);
+	});
+
+	it('Darwin: same three Unix candidates as Linux', async () => {
+		setPlatform('darwin');
+		vi.resetModules();
+		mockExistsSync.mockReturnValue(true);
+		mockGlobSync.mockReturnValue([]);
+		const { findJdtLs } = await import('../../src/jdtls/client.js');
+		findJdtLs();
+		expect(mockGlobSync.mock.calls.length).toBe(3);
+		const probedCwds = mockGlobSync.mock.calls.map(c => String((c[1] as { cwd: unknown }).cwd));
+		const home = homedir();
+		expect(probedCwds).toEqual([
+			pathPosix.join(home, '.local', 'share', 'jdtls'),
+			'/usr/local/share/jdtls',
+			pathPosix.join(home, 'jdtls'),
+		]);
 	});
 });
