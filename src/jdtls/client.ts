@@ -17,9 +17,10 @@ import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { glob } from 'glob';
+import { glob, globSync } from 'glob';
 import { JSONRPCEndpoint, LspClient } from 'ts-lsp-client';
 import { logger } from '../logging/logger.js';
+import { jdtlsCandidateDirs } from '../platform/index.js';
 import { pathToFileUri } from '../platform/uri.js';
 import { hardenEndpoint } from './request-queue.js';
 
@@ -45,38 +46,108 @@ export { setJavaHome, detectJava, discoverJava, parseJavaVersion, resolveJavaExe
 export type { JavaDetectResult, JavaDetected, JavaNotFound } from './java-discovery.js';
 
 /**
+ * Glob pattern matching the Equinox launcher jar shipped with every JDT LS
+ * milestone. Used by both `findJdtLs` (depth probe — D-01) and `startJdtLs`
+ * (defense-in-depth re-check before spawning the JVM). The literal is
+ * duplicated intentionally per Phase 38 RESEARCH §"Open Questions" Q1.
+ */
+const LAUNCHER_GLOB = 'plugins/org.eclipse.equinox.launcher_*.jar';
+
+/**
+ * Reason a discovery slot (JDTLS_HOME or a candidate dir) was skipped.
+ *
+ * The three `kind` literals double as the human-readable text consumed by
+ * `formatReason`, so adding a new variant requires extending the switch
+ * below. Phase 38 D-03 locks this 3-variant taxonomy.
+ */
+type SkipReason =
+	| { kind: 'not-set' }
+	| { kind: 'directory does not exist' }
+	| { kind: 'exists but no launcher jar in plugins/' };
+
+/**
+ * One row of the multi-line `JDT LS not found. Tried:` failure message —
+ * the JDTLS_HOME slot uses `label === 'JDTLS_HOME'`; every candidate-dir
+ * slot uses the bare absolute path as its label (Phase 38 D-04).
+ */
+type SlotRecord = { label: string; reason: SkipReason };
+
+function formatReason(reason: SkipReason): string {
+	switch (reason.kind) {
+		case 'not-set':                                return '(not set)';
+		case 'directory does not exist':               return 'directory does not exist';
+		case 'exists but no launcher jar in plugins/': return 'exists but no launcher jar in plugins/';
+	}
+}
+
+function formatSlotLine(label: string, reason: SkipReason): string {
+	if (label === 'JDTLS_HOME' && reason.kind === 'not-set') {
+		return 'JDTLS_HOME: (not set)';
+	}
+	return label + ': ' + formatReason(reason);
+}
+
+function composeFailureReason(slots: SlotRecord[]): string {
+	const lines: string[] = ['JDT LS not found. Tried:'];
+	for (const slot of slots) {
+		lines.push('  ' + formatSlotLine(slot.label, slot.reason));
+	}
+	lines.push('Install JDT LS from https://download.eclipse.org/jdtls/milestones/ or set JDTLS_HOME.');
+	return lines.join('\n');
+}
+
+/**
  * Find the JDT LS installation directory.
  *
- * Checks JDTLS_HOME first, then common install locations.
+ * Checks `JDTLS_HOME` first with a deep probe — the directory must exist
+ * AND contain a JDT LS launcher jar under `plugins/`. A set-but-invalid
+ * `JDTLS_HOME` returns a single-line error with no fall-through (D-07).
+ *
+ * Otherwise iterates the platform-specific candidate directories from
+ * `jdtlsCandidateDirs()` with the same depth check; the first valid match
+ * wins (D-01). When every slot fails the returned `error` is a multi-line
+ * diagnostic listing every probed slot with its skip reason (D-02 / D-04).
+ *
+ * Note: `startJdtLs` re-runs the same launcher-jar glob as defense-in-depth
+ * before spawning the JVM — that duplicate read is intentional.
  */
 export function findJdtLs(): JdtLsFindResult {
-	if (process.env.JDTLS_HOME) {
-		if (existsSync(process.env.JDTLS_HOME)) {
-			return { jdtlsHome: process.env.JDTLS_HOME };
+	const slots: SlotRecord[] = [];
+
+	const envHome = process.env.JDTLS_HOME;
+	if (envHome) {
+		if (!existsSync(envHome)) {
+			return {
+				jdtlsHome: null,
+				error: `JDTLS_HOME is set to "${envHome}" but the directory does not exist.`,
+			};
 		}
-		return {
-			jdtlsHome: null,
-			error: `JDTLS_HOME is set to "${process.env.JDTLS_HOME}" but the directory does not exist.`,
-		};
+		if (globSync(LAUNCHER_GLOB, { cwd: envHome, absolute: true }).length === 0) {
+			return {
+				jdtlsHome: null,
+				error: `JDTLS_HOME is set to "${envHome}" but no JDT LS launcher jar was found in plugins/.`,
+			};
+		}
+		return { jdtlsHome: envHome };
 	}
 
-	const home = process.env.HOME ?? '';
-	const commonLocations = [
-		join(home, '.local', 'share', 'jdtls'),
-		'/usr/local/share/jdtls',
-		join(home, 'jdtls'),
-	];
+	slots.push({ label: 'JDTLS_HOME', reason: { kind: 'not-set' } });
 
-	for (const loc of commonLocations) {
-		if (existsSync(loc)) {
-			return { jdtlsHome: loc };
+	for (const dir of jdtlsCandidateDirs()) {
+		if (!existsSync(dir)) {
+			logger.debug('JDT LS candidate skipped', { candidate: dir, reason: 'directory does not exist' });
+			slots.push({ label: dir, reason: { kind: 'directory does not exist' } });
+			continue;
 		}
+		if (globSync(LAUNCHER_GLOB, { cwd: dir, absolute: true }).length === 0) {
+			logger.debug('JDT LS candidate skipped', { candidate: dir, reason: 'exists but no launcher jar in plugins/' });
+			slots.push({ label: dir, reason: { kind: 'exists but no launcher jar in plugins/' } });
+			continue;
+		}
+		return { jdtlsHome: dir };
 	}
 
-	return {
-		jdtlsHome: null,
-		error: 'JDT LS not found. Set JDTLS_HOME environment variable. Download from https://download.eclipse.org/jdtls/milestones/',
-	};
+	return { jdtlsHome: null, error: composeFailureReason(slots) };
 }
 
 /**
