@@ -4,8 +4,8 @@ milestone: v1.6
 milestone_name: Windows Support
 status: executing
 stopped_at: Phase 38 context gathered
-last_updated: "2026-05-24T23:00:38.601Z"
-last_activity: 2026-05-24 -- Phase 38 planning complete
+last_updated: "2026-05-24T23:07:41.181Z"
+last_activity: 2026-05-24 -- Phase 38 execution started
 progress:
   total_phases: 5
   completed_phases: 3
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** Claude can browse, search, and navigate decompiled Minecraft source code and dependency sources in real time, enabling accurate Mixin and mod development.
-**Current focus:** Phase 37 — smarter-java-discovery-cross-platform
+**Current focus:** Phase 38 — jdt-ls-discovery-on-windows
 
 ## Current Position
 
-Phase: 38
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-05-24 -- Phase 38 planning complete
+Phase: 38 (jdt-ls-discovery-on-windows) — EXECUTING
+Plan: 1 of 1
+Status: Executing Phase 38
+Last activity: 2026-05-24 -- Phase 38 execution started
 
 ## Accumulated Context
 

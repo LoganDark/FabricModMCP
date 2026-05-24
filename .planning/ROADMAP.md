@@ -100,7 +100,7 @@
 - [ ] **Phase 35: Platform Helpers + Java Executable Resolution** — Establish `src/platform/index.ts` and make `spawn` work on Windows by appending `.exe` to absolute Java candidates; Unix code paths unchanged.
 - [x] **Phase 36: Path / URI Handling Audit** — Migrate all `'file://' + path` and `uri.replace('file://', '')` sites to `pathToFileURL`/`fileURLToPath`; add ZIP-entry × `path.join` separator fix, path-traversal guard, and Windows-only EBUSY retry on temp cleanup. (completed 2026-05-16)
 - [x] **Phase 37: Smarter Java Discovery (cross-platform)** — New `src/jdtls/java-discovery.ts` with priority chain `--java-home` → `org.gradle.java.home` → `JAVA_HOME` → PATH → common install locations; async sequential probes with 3s per-candidate timeout; `.properties` backslash unescape at the consumption site. (gaps reopened 2026-05-16 — CR-01 workspace re-sync after JDT LS rescue) (completed 2026-05-16)
-- [ ] **Phase 38: JDT LS Discovery on Windows** — Extend `findJdtLs` with Windows install locations; replace `process.env.HOME` with `os.homedir()`.
+- [x] **Phase 38: JDT LS Discovery on Windows** — Extend `findJdtLs` with Windows install locations; replace `process.env.HOME` with `os.homedir()`. (completed 2026-05-24)
 - [ ] **Phase 39: Windows End-to-End Validation** — Manual smoke test on a Windows machine; README "Windows Support" section; milestone-completion checkpoint.
 
 ## Phase Details
@@ -166,7 +166,7 @@
   3. `JDTLS_HOME` env var override continues to work on both platforms; the improved "not found" error message lists the candidate paths actually probed.
   4. Unix `findJdtLs` tests pass unchanged; new tests mock `process.platform = 'win32'` and verify candidate ordering plus existence checks.
 **Plans**: 1 plan
-  - [ ] 38-01-PLAN.md — Rewrite `findJdtLs` to consume `jdtlsCandidateDirs()` with deep probe (`existsSync` + launcher-jar `globSync`), deepen JDTLS_HOME validation symmetrically (no fall-through), compose multi-line failure message mirroring Phase 37, replace `process.env.HOME` site + extend `tests/jdtls/client.test.ts` with Windows/Unix/JDTLS_HOME/shadow/multi-line/logger describes + add `tests/no-process-env-home.test.ts` CI regression gate (WIN-02)
+  - [x] 38-01-PLAN.md — Rewrite `findJdtLs` to consume `jdtlsCandidateDirs()` with deep probe (`existsSync` + launcher-jar `globSync`), deepen JDTLS_HOME validation symmetrically (no fall-through), compose multi-line failure message mirroring Phase 37, replace `process.env.HOME` site + extend `tests/jdtls/client.test.ts` with Windows/Unix/JDTLS_HOME/shadow/multi-line/logger describes + add `tests/no-process-env-home.test.ts` CI regression gate (WIN-02)
 
 ### Phase 39: Windows End-to-End Validation
 
@@ -197,5 +197,5 @@
 | 35 | v1.6 | 0/2 | Planned | — |
 | 36 | v1.6 | 4/4 | Complete    | 2026-05-16 |
 | 37 | v1.6 | 5/5 | Complete    | 2026-05-17 |
-| 38 | v1.6 | 0/1 | Planned | — |
+| 38 | v1.6 | 1/1 | Complete   | 2026-05-24 |
 | 39 | v1.6 | 0/? | Not started | — |
