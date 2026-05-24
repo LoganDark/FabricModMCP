@@ -101,7 +101,7 @@
 - [x] **Phase 36: Path / URI Handling Audit** — Migrate all `'file://' + path` and `uri.replace('file://', '')` sites to `pathToFileURL`/`fileURLToPath`; add ZIP-entry × `path.join` separator fix, path-traversal guard, and Windows-only EBUSY retry on temp cleanup. (completed 2026-05-16)
 - [x] **Phase 37: Smarter Java Discovery (cross-platform)** — New `src/jdtls/java-discovery.ts` with priority chain `--java-home` → `org.gradle.java.home` → `JAVA_HOME` → PATH → common install locations; async sequential probes with 3s per-candidate timeout; `.properties` backslash unescape at the consumption site. (gaps reopened 2026-05-16 — CR-01 workspace re-sync after JDT LS rescue) (completed 2026-05-16)
 - [x] **Phase 38: JDT LS Discovery on Windows** — Extend `findJdtLs` with Windows install locations; replace `process.env.HOME` with `os.homedir()`. (completed 2026-05-24)
-- [ ] **Phase 39: Windows End-to-End Validation** — Manual smoke test on a Windows machine; README "Windows Support" section; milestone-completion checkpoint.
+- [ ] **Phase 39: Windows End-to-End Validation** — Manual smoke test on a Windows machine; standalone `docs/WINDOWS-SUPPORT.md`; CLAUDE.md "Platform Support" subsection under Technology Stack; milestone-completion checkpoint.
 
 ## Phase Details
 
@@ -170,14 +170,14 @@
 
 ### Phase 39: Windows End-to-End Validation
 
-**Goal**: Milestone-completion checkpoint, not a code phase. Manual smoke test on a real Windows machine exercising the full happy path (`create_project` → `add_fabric_mod` → `find_definition` round-trip → cross-mod navigation), plus README "Windows Support" section documenting the priority chain and JDT LS install conventions. Unix-regression note: full v1.5 test suite must still be green on macOS and Linux — Windows-targeted changes in Phases 35-38 may not have introduced any Unix behavioral drift. Validates UNIX-03 (regression guard) end-to-end and confirms the WIN- and JAVA- requirements work in production, not just unit tests.
+**Goal**: Milestone-completion checkpoint, not a code phase. Manual smoke test on a real Windows machine exercising the full happy path (`create_project` → `add_fabric_mod` → `find_definition` round-trip → cross-mod navigation), plus a standalone `docs/WINDOWS-SUPPORT.md` documenting the priority chain and JDT LS install conventions. Unix-regression note: full v1.5 test suite must still be green on macOS and Linux — Windows-targeted changes in Phases 35-38 may not have introduced any Unix behavioral drift. Validates UNIX-03 (regression guard) end-to-end and confirms the WIN- and JAVA- requirements work in production, not just unit tests.
 **Depends on**: Phases 35, 36, 37, 38
 **Requirements**: UNIX-03
 **Success Criteria** (what must be TRUE):
   1. On a real Windows machine, the MCP server starts under all four Java-discovery entry points (`--java-home`, `org.gradle.java.home`, `JAVA_HOME`, PATH only) and spawns JDT LS successfully end-to-end.
   2. `find_definition` and `find_references` return non-empty results on a Fabric mod project on Windows; cross-mod navigation works (per-project JDT LS workspace covers all children).
   3. Full v1.5 + v1.6 vitest suite passes on both macOS and Linux with zero new failures or skips (UNIX-03 regression guard).
-  4. README has a "Windows Support" section documenting the Java priority chain, the JDT LS install locations probed, and known limitations (long paths, WSL note); CLAUDE.md "Technology Stack" reflects the priority chain.
+  4. `docs/WINDOWS-SUPPORT.md` documents the Java priority chain, the JDT LS install locations probed, and known limitations (long paths, WSL note); CLAUDE.md "Technology Stack" has a new "Platform Support" subsection inlining both priority chains (Java + JDT LS).
 **Plans**: 5 plans (4 original + 1 gap closure)
   - [x] 36-01-PLAN.md — Create `src/platform/uri.ts` pure helper module + tests (WIN-03 / UNIX-02 foundation)
   - [x] 36-02-PLAN.md — Forward sweep (7 sites) + reverse sweep (1 site) across `client.ts`, `workspace-sync.ts`, `remove-project-member.ts`, `tool-helpers.ts` (WIN-03)
