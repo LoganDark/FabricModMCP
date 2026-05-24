@@ -9,7 +9,7 @@
 ### Windows Compatibility (WIN)
 
 - [ ] **WIN-01**: JDT LS spawns successfully on Windows when Java home is supplied via `--java-home`, `JAVA_HOME`, or discovery — `java.exe` resolution works for absolute paths so `child_process.spawn` (which doesn't honor PATHEXT) succeeds.
-- [ ] **WIN-02**: `findJdtLs()` discovers a JDT LS installation on Windows in conventional locations (`%LOCALAPPDATA%\jdtls`, `%PROGRAMFILES%\jdtls`, `%USERPROFILE%\jdtls`, `%LOCALAPPDATA%\nvim-data\mason\packages\jdtls`) and uses `os.homedir()` instead of `process.env.HOME`.
+- [x] **WIN-02**: `findJdtLs()` discovers a JDT LS installation on Windows in conventional locations (`%LOCALAPPDATA%\jdtls`, `%PROGRAMFILES%\jdtls`, `%USERPROFILE%\jdtls`, `%LOCALAPPDATA%\nvim-data\mason\packages\jdtls`) and uses `os.homedir()` instead of `process.env.HOME`.
 - [x] **WIN-03**: JDT LS accepts `file://` URIs constructed for Windows workspace and classpath paths — drive letter as path component (not host), three-slash form (`file:///C:/…`), spaces percent-encoded.
 - [x] **WIN-04**: ZIP-entry paths join correctly with Windows filesystem paths when extracting sources into JDT LS workspaces (no mixed `\`/`/` corruption).
 - [x] **WIN-05**: Drive-letter case differences (`C:` vs `c:`) round-trip correctly through `fromFileUri`/`toFileUri`.
