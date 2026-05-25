@@ -205,16 +205,30 @@ async function runRow(cfg: RowConfig): Promise<RowResult> {
 		await sleep(25_000);
 
 		// definition for Identifier (line 11 col 22 → 0-based line 10 col 21)
+		//
+		// Use an AbortController so the 30s timeout timer is cancelable when
+		// the definition resolves first. Without this, the underlying timer
+		// stayed active for the full 30s after each row, keeping the process
+		// alive 2+ extra minutes across the 4-row matrix and emitting a late
+		// 'TIMEOUT' resolution that could confuse downstream logic (WR-02).
+		const ac = new AbortController();
 		try {
 			const defResult = await Promise.race([
 				session.client.definition({
 					textDocument: { uri: templateUri },
 					position: { line: 10, character: 21 },
 				}),
-				sleep(30_000).then(() => 'TIMEOUT' as const),
+				sleep(30_000, undefined, { signal: ac.signal })
+					.then(() => 'TIMEOUT' as const)
+					.catch(() => 'ABORTED' as const),
 			]);
+			ac.abort();
 			if (defResult === 'TIMEOUT') {
 				process.stderr.write(`  definition: TIMED OUT after 30s\n`);
+			} else if (defResult === 'ABORTED') {
+				// Sleep was aborted before resolving — unreachable in practice
+				// because we only abort AFTER the race resolves.
+				process.stderr.write(`  definition: timer aborted (unreachable)\n`);
 			} else {
 				const arr = Array.isArray(defResult) ? defResult : (defResult ? [defResult] : []);
 				if (arr.length > 0) {
@@ -228,6 +242,7 @@ async function runRow(cfg: RowConfig): Promise<RowResult> {
 				}
 			}
 		} catch (err) {
+			ac.abort();
 			process.stderr.write(`  definition failed: ${String(err)}\n`);
 		}
 
