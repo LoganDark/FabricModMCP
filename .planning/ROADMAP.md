@@ -178,12 +178,13 @@
   2. `find_definition` and `find_references` return non-empty results on a Fabric mod project on Windows; cross-mod navigation works (per-project JDT LS workspace covers all children).
   3. Full v1.5 + v1.6 vitest suite passes on both macOS and Linux with zero new failures or skips (UNIX-03 regression guard).
   4. `docs/WINDOWS-SUPPORT.md` documents the Java priority chain, the JDT LS install locations probed, and known limitations (long paths, WSL note); CLAUDE.md "Technology Stack" has a new "Platform Support" subsection inlining both priority chains (Java + JDT LS).
-**Plans**: 5 plans
+**Plans**: 6 plans
   - [x] 39-01-PLAN.md — Create `docs/WINDOWS-SUPPORT.md` with verbatim priority chains + known limitations + D-18 cross-reference footer (UNIX-03 / validation surface for WIN-* / JAVA-*)
   - [x] 39-02-PLAN.md — Insert `### Platform Support` subsection into `CLAUDE.md` `## Technology Stack` with verbatim priority chains + D-18 footer (UNIX-03 / validation surface for WIN-* / JAVA-*)
   - [x] 39-03-PLAN.md — Rewrite `.planning/ROADMAP.md` Phase 39 Plans subsection (replace stale Phase 36 copy-paste) (UNIX-03 housekeeping)
   - [x] 39-04-PLAN.md — Human-executed 4-row Java-discovery matrix on Windows + evidence capture in `39-VERIFICATION.md` (validation: WIN-01..WIN-07, JAVA-01..JAVA-05, UNIX-02)
   - [ ] 39-05-PLAN.md — UNIX-03 regression sweep: full vitest suite green on macOS (and Linux if accessible) (UNIX-03)
+  - [x] 39-06-PLAN.md — Gap closure (Failure 1): canonicalize Windows 8.3 short names in `uri-mapper.createUriMapper` via `realpathSync.native` so JDT LS's long-name Location.uri replies match our prefix — unblocks production stdio MCP `find_definition` on Windows (gap_closure)
 
 ## Progress
 

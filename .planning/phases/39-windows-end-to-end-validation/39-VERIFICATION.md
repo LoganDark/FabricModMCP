@@ -55,11 +55,22 @@ The plan's `<how-to-verify>` block specifies driving the production stdio MCP se
 
 ## Failures
 
-### Failure 1 — `withLspDocument` race: production MCP `find_definition` returns empty on Windows
+### Failure 1 — Windows 8.3 short-name URI mismatch: production MCP `find_definition` returns empty on Windows
 
-**Severity:** SMALL FIX (D-13 gap-closure scope)
-**Affected code:** `src/tools/tool-helpers.ts:191-205` (`withLspDocument`)
-**Surfaced by:** `scripts/matrix-row.ts` (first attempt — production MCP server, stdio); confirmed by direct LSP trace `scripts/jdtls-trace.ts`
+**Resolved:** Plan 39-06 (commit on master) — see `39-06-SUMMARY.md` for the fix.
+
+**Original hypothesis (recorded below) was WRONG.** The actual root cause is documented in the "Actual root cause (revised after diagnostic logging)" paragraph after the original hypothesis. The original narrative is preserved verbatim so the verification archive shows the diagnostic path honestly.
+
+**Severity:** SMALL FIX (D-13 gap-closure scope) — closed in 39-06
+**Originally suspected code:** `src/tools/tool-helpers.ts:191-205` (`withLspDocument`)
+**Actual affected code:** `src/jdtls/uri-mapper.ts` `createUriMapper` (lines around the `normalizedTempDir` construction)
+**Surfaced by:** `scripts/matrix-row.ts` (first attempt — production MCP server, stdio); confirmed by direct LSP trace `scripts/jdtls-trace.ts`. The actual root cause was isolated only after adding `[find-def-DIAG]` logging inside `find-definition.ts` revealed that JDT LS DID return a valid Location but the result was silently dropped by `processNavigationLocations` → `uri-mapper.fromFileUri` → `null` because the URI prefix didn't match.
+
+**Actual root cause (revised after diagnostic logging in 39-06):** JDT LS internally canonicalizes Windows 8.3 short filenames (e.g. `LOGAND~1`) to their long form (e.g. `LoganDark`) via `GetLongPathNameW` and emits `Location.uri` values using the LONG form. Production code paths construct URIs via `pathToFileUri(tempDir)` where `tempDir` comes from `os.tmpdir()` — on this host that returns the SHORT form (`C:\Users\LOGAND~1\AppData\Local\Temp` — default for users whose login name exceeds 8 chars). So we send short-name URIs (URL-encoded as `LOGAND%7E1`); JDT LS replies with long-name URIs (`LoganDark`); `uri-mapper.fromFileUri`'s byte-exact + drive-letter-case-fold prefix check fails to bridge the two; every reply is silently dropped. Fix: `realpathSync.native(tempDir)` inside `createUriMapper` canonicalizes the prefix to the long form so it matches JDT LS's reply shape. See 39-06-PLAN.md / 39-06-SUMMARY.md.
+
+---
+
+**Original (incorrect) hypothesis below — preserved for diagnostic-archive honesty:**
 
 When the matrix was first driven through the production stdio MCP server, `find_definition` consistently returned 0 results across ALL 4 Java-discovery slots regardless of wait time (tested with 30s, 150s, 180s `add_fabric_mod`→`find_definition` waits). Direct LSP tracing showed the root cause:
 
