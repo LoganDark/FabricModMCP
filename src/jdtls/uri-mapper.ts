@@ -25,6 +25,7 @@
 import { realpathSync } from 'node:fs';
 import { isWindows } from '../platform/index.js';
 import { pathToFileUri } from '../platform/uri.js';
+import { logger } from '../logging/logger.js';
 
 /**
  * Three-slash drive-letter URI shape: `file:///X:` where X is a single ASCII
@@ -106,10 +107,24 @@ export function createUriMapper(tempDir: string, jarIdToDirNameMap: Map<string, 
 	let canonicalTempDir: string;
 	try {
 		canonicalTempDir = realpathSync.native(tempDir);
-	} catch {
+	} catch (err) {
 		// Fall back to as-given (Unix-style behavior preservation when tempDir
-		// doesn't exist yet, which shouldn't happen in production but unit tests
-		// sometimes pass synthetic paths).
+		// doesn't exist yet — the unit-test case that passes synthetic paths
+		// triggers ENOENT). For every OTHER error class (EACCES from antivirus
+		// holding a handle on Windows during workspace extraction, EIO, ELOOP,
+		// permission denied, etc.), the silent fallback would have masked the
+		// very 8.3 short-name canonicalization the realpath call was added for:
+		// JDT LS would canonicalize internally and reply with a long-form URI,
+		// but our prefix would be the un-canonical input — every fromFileUri
+		// call returns null and find_definition silently degrades to 0 results
+		// for the lifetime of the session (WR-01).
+		//
+		// Log at warn level so the operator sees a breadcrumb. Still fall back
+		// to the input tempDir to keep the existing unit-test contract intact.
+		const code = (err as NodeJS.ErrnoException).code;
+		if (code !== 'ENOENT') {
+			logger.warn(`uri-mapper: realpathSync.native failed for ${tempDir} (code=${code ?? 'unknown'}): ${String(err)} — JDT LS replies may mismatch the prefix and fromFileUri may return null for every URI`);
+		}
 		canonicalTempDir = tempDir;
 	}
 	// Strip BOTH forward and backslashes — on Windows `realpathSync.native`
