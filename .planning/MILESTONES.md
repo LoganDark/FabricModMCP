@@ -1,5 +1,27 @@
 # Milestones
 
+## v1.6 Windows Support (Shipped: 2026-05-25)
+
+**Phases completed:** 5 phases (35-39), 18 plans, 21 tasks
+**Stats:** 10,357 src LOC / 18,878 test LOC, 28 MCP tools, 872 tests (+176 over v1.5), 106 commits over 10 days
+
+**Delivered:** First-class Windows support — FabricModMCP now spawns JDT LS on Windows out of the box, with smarter cross-platform Java discovery that prefers the JDK the user's mod project actually builds against. Every Unix code path is byte-identical to v1.5 (UNIX-01/02/03 regression guards proven by the full vitest suite).
+
+**Key accomplishments:**
+
+- **Cross-platform Java discovery** — 5-slot async priority chain (`--java-home` → `org.gradle.java.home` from project `gradle.properties` → `JAVA_HOME` → `java` on PATH → vendor-aware install scan), 3s per-candidate timeout, 23 unit tests in `tests/jdtls/java-discovery.test.ts` locking down every JAVA-NN requirement (Phase 37)
+- **Windows-native JDT LS spawning** — `resolveJavaExecutable()` lets `child_process.spawn` succeed with absolute `java.exe` paths (libuv ignores PATHEXT for absolute paths); `findJdtLs()` probes Windows conventions (`%LOCALAPPDATA%\jdtls`, `%PROGRAMFILES%\jdtls`, `%USERPROFILE%\jdtls`, Mason package) via the cross-platform `jdtlsCandidateDirs()` helper from new `src/platform/index.ts`; `process.env.HOME` replaced by `os.homedir()` everywhere (Phases 35, 38)
+- **Windows URI / path handling correctness** — drive-letter case-folding round-trips through `toFileUri`/`fromFileUri`, ZIP-entry path normalization avoids mixed `\`/`/` corruption, ZIP path-traversal guard, Windows-only EBUSY retry loop on temp-dir cleanup, 8.3 short-name canonicalization makes JDT LS `Location.uri` prefix matching work (Phases 36, 39-06)
+- **End-to-end Windows validation** — 4-row matrix on a real Windows 11 host empirically confirmed `create_project` → `add_fabric_mod` → cross-jar `find_definition` succeeds under all 4 Java-discovery slots (Phase 39-04)
+- **UNIX-01/02/03 regression-guard preserved** — every Unix code path is byte-identical to v1.5 by design (helpers return v1.5 literals verbatim from their Unix branch); full vitest suite stays green on macOS (872p/1s, exit 0) after every Windows-targeted change (Phase 35 + Phase 39-05)
+- **User-facing Windows docs** — standalone `docs/WINDOWS-SUPPORT.md` plus a new `### Platform Support` subsection in `CLAUDE.md`, both inlining the Java + JDT LS priority chains verbatim with a D-18 cross-reference footer pointing to REQUIREMENTS.md and the implementing source files (Phase 39-01, 39-02)
+
+**Known deferred items at close:** 4 (see STATE.md `## Deferred Items`)
+- Phase 37 human-UAT: `add_fabric_mod` → `find_definition` after live Java-install rescue (requires real JDT LS + Java 21+ + real Minecraft mod)
+- Phase 39 human-UAT: Windows `find_references` SC-2 decision (architectural — needs JDT LS request-cancellation plumbing, deferred to v1.7) + Linux SC-3 vitest sanity run (no Linux host accessible at close)
+
+---
+
 ## v1.5 Quality & Consistency (Shipped: 2026-04-16)
 
 **Phases completed:** 7 phases, 7 plans, 14 tasks

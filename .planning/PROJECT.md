@@ -62,21 +62,16 @@ Claude can browse, search, and navigate decompiled Minecraft source code and dep
 - ✓ API consistency: parameter renames, z.enum validation, dead fields removed — v1.5
 - ✓ Data exposure: JDT LS status, build deps, jar locations in hierarchy, inner class FQNs — v1.5
 
+- ✓ JDT LS spawns on Windows under all 4 Java-discovery slots (`--java-home`, `JAVA_HOME`, `org.gradle.java.home`, PATH); `resolveJavaExecutable` makes `child_process.spawn` succeed with absolute `java.exe` paths (libuv ignores PATHEXT for absolute paths) — v1.6 [WIN-01, JAVA-01]
+- ✓ `findJdtLs()` discovers JDT LS in Windows install conventions (`%LOCALAPPDATA%\jdtls`, `%PROGRAMFILES%\jdtls`, `%USERPROFILE%\jdtls`, Mason package); `os.homedir()` replaces `process.env.HOME` cross-platform — v1.6 [WIN-02]
+- ✓ Windows URI / path handling — `pathToFileURL`/`fileURLToPath` migration across all 7 forward + 2 reverse URI sites, drive-letter case-fold round-trip, ZIP-entry split-and-spread to avoid mixed-separator corruption, ZIP path-traversal guard, Windows-only EBUSY retry on temp-dir cleanup, 8.3 short-name canonicalization for JDT LS `Location.uri` prefix matching — v1.6 [WIN-03..07, UNIX-02]
+- ✓ Smarter cross-platform Java discovery — 5-slot async priority chain (`--java-home` → `org.gradle.java.home` → `JAVA_HOME` → `java` on PATH → vendor-aware install scan), 3s per-candidate timeout, `unescapePropertiesValue` for backslash-escaped gradle.properties values, vendor map across Adoptium/Microsoft/Oracle/Corretto/Zulu/IntelliJ/scoop — v1.6 [JAVA-01..05]
+- ✓ Unix `detectJava` / `findJdtLs` byte-identical to v1.5 for users who don't supply new inputs (every helper's Unix branch returns v1.5 literals verbatim); full vitest suite (872p/1s) stays green on macOS after every Windows-targeted change — v1.6 [UNIX-01, UNIX-03]
+- ✓ User-facing Windows docs — `docs/WINDOWS-SUPPORT.md` and `CLAUDE.md ### Platform Support` both inline the verbatim Java + JDT LS priority chains with D-18 cross-reference footer — v1.6
+
 ### Active
 
-Milestone v1.6 — see "Current Milestone" below.
-
-## Current Milestone: v1.6 Windows Support
-
-**Goal:** Make FabricModMCP work out-of-the-box on Windows, with smarter Java discovery that prefers the JDK the user's mod project actually builds against.
-
-**Target features:**
-- JDK invocation on Windows: `detectJava` + JDT LS spawn must work when `javaPath` lacks `.exe` (currently breaks on Windows because `spawn`/`CreateProcess` does not apply PATHEXT).
-- Smarter Java discovery: priority chain `--java-home` → `org.gradle.java.home` (from project gradle.properties) → `JAVA_HOME` → `java` on PATH → common install locations. Probe each candidate for Java 21+ and pick the first compatible one.
-- JDT LS discovery on Windows: extend `findJdtLs` with Windows-friendly install locations.
-- Path / URI handling audit: identify and fix Windows-specific breakages in `uri-mapper`, `workspace-sync`, jar reading, and Loom-cache resolution.
-
-**Constraint — Linux/Unix is still the priority.** Windows support is a platform-guarded special case (`process.platform === 'win32'` branches), not a generic path-abstraction refactor. Existing Unix code paths must remain unchanged unless an audit finding shows they're broken on Unix too. The smarter Java discovery feature is the one exception — it's cross-platform and improves Unix behavior as well.
+(No active requirements — v1.6 just shipped. Start the next milestone with `/gsd:new-milestone`.)
 
 ### Out of Scope
 
@@ -91,9 +86,9 @@ Milestone v1.6 — see "Current Milestone" below.
 
 ## Current State
 
-**Latest shipped:** v1.5 Quality & Consistency (2026-04-16)
-**Active milestone:** v1.6 Windows Support (started 2026-05-15) — all 5 phases complete; pending milestone close
-**Latest phase complete:** Phase 39 — Windows End-to-End Validation on 2026-05-25 (872 tests passing on macOS, exit 0; UNIX-03 regression-guard satisfied; Windows 8.3 short-name URI fix shipped in 39-06; 2 human-UAT items deferred: Windows `find_references` SC-2 decision and Linux suite SC-3 run)
+**Latest shipped:** v1.6 Windows Support (2026-05-25) — 18 plans, 15 requirements satisfied, 872 tests on macOS, real-Windows-host matrix evidence captured
+**Active milestone:** None — ready for `/gsd:new-milestone`
+**Deferred to v1.7+:** Windows `find_references` request-cancellation plumbing (workspace-wide queries on Minecraft classes like `Identifier` currently hang because JDT LS request cancellation is not wired); Linux vitest sanity run (no Linux host accessible at v1.6 close); Phase 37 Java-rescue → `add_fabric_mod` end-to-end human UAT
 
 ## Context
 
@@ -103,6 +98,7 @@ Milestone v1.6 — see "Current Milestone" below.
 - **Shipped:** v1.3 Context Management on 2026-04-15 — 7,281 LOC TypeScript, 25 MCP tools, 592 tests (+66 tests)
 - **Shipped:** v1.4 Project Rearchitecture on 2026-04-15 — 8,250 LOC TypeScript, 28 MCP tools, 665 tests (+73 tests, +3 tools)
 - **Shipped:** v1.5 Quality & Consistency on 2026-04-16 — 8,542 LOC TypeScript, 28 MCP tools, 696 tests (+31 tests)
+- **Shipped:** v1.6 Windows Support on 2026-05-25 — 10,357 src LOC / 18,878 test LOC TypeScript, 28 MCP tools, 872 tests (+176 tests), 106 commits over 10 days. Adds `src/platform/index.ts` (5 typed platform-branched helpers) and `src/jdtls/java-discovery.ts` (async 5-slot priority chain). Empirically verified on Windows 11 across all 4 Java-discovery entry points.
 - **Tech stack:** TypeScript 5.7+, Node.js 22 LTS, official MCP SDK 1.29.x, Zod 4, node-stream-zip, JDT LS via ts-lsp-client
 - **Architecture:** Layered domain → tool pattern. Domain modules handle logic; tool layer wires Zod schemas and MCP registration. Shared abstractions: ProjectStore, JarReader, EntryIndex, SourceAdapter, cascadeRegex, resolveSymbolPosition, dependency-resolver, member-enrichment, member-extractor, symbol-transform
 - **Ecosystem:** Fabric mod development uses Gradle with Fabric Loom. Loom's genSources decompiles Minecraft into a sources jar (~6,600 .java files) in `~/.gradle/caches/fabric-loom/minecraftMaven/`
@@ -150,6 +146,14 @@ Milestone v1.6 — see "Current Milestone" below.
 | `activeProject`/`activeChild` naming | "active" is clearer than "default" for user-set selection | ✓ Good — no ambiguity with the "default" project name |
 | One JDT LS workspace per project | All children's sources in one workspace enables cross-mod navigation | ✓ Good — find-definition works across mod boundaries |
 | Default project gets JDT LS at startup | Semantic nav works immediately without explicit create_project | ✓ Good — better first-use experience |
+| `src/platform/index.ts` for platform-branched helpers | Windows fixes guarded behind a single module; Unix branches return v1.5 literals verbatim (UNIX-01) | ✓ Good — every Phase 35-39 Windows fix is observable from one place |
+| Async 5-slot Java discovery priority chain | Prefer the JDK the user's mod project builds against; fall back through env then PATH then vendor scan | ✓ Good — 23 unit tests lock every JAVA-NN requirement; deterministic, no parallel race |
+| Sequential candidate probes with 3s per-candidate timeout | A misbehaving JVM (Defender scan, hung JDK) cannot stall startup; priority semantics preserved | ✓ Good — Phase 39-04 Windows matrix confirmed all 4 slots resolve distinct javaPath values |
+| `resolveJavaExecutable` for absolute `java.exe` paths | libuv's `child_process.spawn` does not honor PATHEXT for absolute paths — must append `.exe` ourselves | ✓ Good — Phase 39-04 matrix succeeded under all 4 slots |
+| `pathToFileURL` / `fileURLToPath` wholesale migration | Replaces fragile `'file://' + path` and `uri.replace('file://', '')` with Node's spec-compliant URL conversion | ✓ Good — fixes drive-letter casing and special chars; Unix output byte-identical to v1.5 |
+| 8.3 short-name canonicalization in `uri-mapper` | JDT LS returns long-name `Location.uri` even when given 8.3-short tempDir paths; prefix match would otherwise miss | ✓ Good — Phase 39-06 fix; `/[\\/]+$/` trailing-separator strip handles both POSIX and Windows |
+| Windows-only EBUSY retry loop on temp-dir cleanup | Antivirus / Windows Search Indexer holds transient handles on extracted .java files | ✓ Good — 3x retry with 100ms backoff, only logs on final failure |
+| ZIP path-traversal guard | Defense-in-depth against malicious jars writing outside the extraction root | ✓ Good — added in Phase 36 sweep; rejects `..` segments before any write |
 
 ## Evolution
 
@@ -169,4 +173,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-24 — Phase 38 complete (JDT LS Discovery on Windows)*
+*Last updated: 2026-05-25 after v1.6 Windows Support milestone*

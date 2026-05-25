@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Windows Support
-status: milestone_complete
+status: Awaiting next milestone
 stopped_at: Phase 39 context gathered
-last_updated: "2026-05-25T04:54:24.227Z"
-last_activity: 2026-05-25
+last_updated: "2026-05-25T05:57:23.529Z"
+last_activity: 2026-05-25 — Milestone v1.6 completed and archived
 progress:
   total_phases: 5
-  completed_phases: 6
+  completed_phases: 5
   total_plans: 18
   completed_plans: 18
-  percent: 120
+  percent: 100
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 
 ## Current Position
 
-Phase: 39
-Plan: Not started
-Status: Milestone complete
-Last activity: 2026-05-25
+Phase: Milestone v1.6 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-05-25 — Milestone v1.6 completed and archived
 
 ## Accumulated Context
 
@@ -71,8 +71,25 @@ None.
 | 260515-6c5 | Fix gradle-parser top-level block extraction (buildscript wrapper) | 2026-05-15 | 1fa14c8 |  | [260515-6c5-fix-gradle-parser-top-level-block-extrac](./quick/260515-6c5-fix-gradle-parser-top-level-block-extrac/) |
 | 260515-d0i | Add --java-home CLI flag for JDT LS | 2026-05-15 | 4e94b4b | Verified | [260515-java-home-flag](./quick/260515-java-home-flag/) |
 
+## Deferred Items
+
+Items acknowledged and deferred at v1.6 Windows Support milestone close on 2026-05-25:
+
+| Category | Item | Status | Notes |
+|----------|------|--------|-------|
+| uat | 37-HUMAN-UAT.md | partial — 1 pending scenario | live add_fabric_mod → find_definition after Java-install rescue (requires real JDT LS + Java 21+ + real Minecraft mod) |
+| uat | 39-HUMAN-UAT.md | partial — 2 pending scenarios | Windows find_references SC-2 decision + Linux SC-3 vitest sanity run |
+| verification | 37-VERIFICATION.md | human_needed | same root cause as 37-HUMAN-UAT item above |
+| verification | 39-VERIFICATION.md | human_needed | same root cause as 39-HUMAN-UAT items above |
+
+Audit-open false positives noted (not deferred): 22 quick-task slugs reported as "missing" by `gsd-sdk query audit-open` despite having complete PLAN.md + SUMMARY.md on disk under `.planning/quick/<slug>/`. This is a CLI reporting artifact, not real open work.
+
 ## Session Continuity
 
 Last session: 2026-05-25T04:53:58.699Z
 Stopped at: Phase 39 context gathered
 Resume file: None
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
