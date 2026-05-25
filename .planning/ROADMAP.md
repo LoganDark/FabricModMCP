@@ -178,11 +178,12 @@
   2. `find_definition` and `find_references` return non-empty results on a Fabric mod project on Windows; cross-mod navigation works (per-project JDT LS workspace covers all children).
   3. Full v1.5 + v1.6 vitest suite passes on both macOS and Linux with zero new failures or skips (UNIX-03 regression guard).
   4. `docs/WINDOWS-SUPPORT.md` documents the Java priority chain, the JDT LS install locations probed, and known limitations (long paths, WSL note); CLAUDE.md "Technology Stack" has a new "Platform Support" subsection inlining both priority chains (Java + JDT LS).
-**Plans**: 5 plans (4 original + 1 gap closure)
-  - [x] 36-01-PLAN.md — Create `src/platform/uri.ts` pure helper module + tests (WIN-03 / UNIX-02 foundation)
-  - [x] 36-02-PLAN.md — Forward sweep (7 sites) + reverse sweep (1 site) across `client.ts`, `workspace-sync.ts`, `remove-project-member.ts`, `tool-helpers.ts` (WIN-03)
-  - [x] 36-03-PLAN.md — `uri-mapper.ts` drive-letter case-fold (`prefixMatches` state machine) + internal `toFileUri` migration + Windows-mocked tests (WIN-05 / UNIX-02)
-  - [ ] 36-04-PLAN.md — `workspace-sync.ts` hardening: ZIP split-and-spread + traversal guard + `rm` retry options + tests (WIN-04 / WIN-06 / WIN-07)
+**Plans**: 5 plans
+  - [ ] 39-01-PLAN.md — Create `docs/WINDOWS-SUPPORT.md` with verbatim priority chains + known limitations + D-18 cross-reference footer (UNIX-03 / validation surface for WIN-* / JAVA-*)
+  - [ ] 39-02-PLAN.md — Insert `### Platform Support` subsection into `CLAUDE.md` `## Technology Stack` with verbatim priority chains + D-18 footer (UNIX-03 / validation surface for WIN-* / JAVA-*)
+  - [ ] 39-03-PLAN.md — Rewrite `.planning/ROADMAP.md` Phase 39 Plans subsection (replace stale Phase 36 copy-paste) (UNIX-03 housekeeping)
+  - [ ] 39-04-PLAN.md — Human-executed 4-row Java-discovery matrix on Windows + evidence capture in `39-VERIFICATION.md` (validation: WIN-01..WIN-07, JAVA-01..JAVA-05, UNIX-02)
+  - [ ] 39-05-PLAN.md — UNIX-03 regression sweep: full vitest suite green on macOS (and Linux if accessible) (UNIX-03)
 
 ## Progress
 
