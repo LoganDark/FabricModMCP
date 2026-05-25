@@ -175,7 +175,24 @@ After 39-06 ships, this `39-VERIFICATION.md` should be re-verified by re-running
 
 ## UNIX-03 Regression Sweep
 
-<populated by Plan 39-05 — currently paused per user request; will be run on macOS host>
+### macOS run
+
+- Host: Darwin 25.5.0 arm64
+- Node.js: v25.9.0
+- pnpm: 11.3.0
+- Command: `pnpm test -- run` (run via `CI=true pnpm test -- run` because pnpm aborts node_modules recreation without a TTY otherwise; the `CI` env var only affects pnpm's modules-purge confirmation, not vitest behavior)
+- Exit code: 0
+- Test files: 72 passed (72)
+- Tests: 869 passed | 1 skipped (870)
+- Baseline comparison: differs from Phase 38 baseline by 1 test — investigated and resolved: Plan 39-06 added `tests/jdtls/uri-mapper.test.ts > Windows: 8.3 short-name canonicalization > toFileUri + prefix use the canonical (long-name) form when tempDir is an 8.3 short path`, wrapped in `describe.runIf(process.platform === 'win32')`, so it runs on Windows and skips on macOS by design. Zero new failures; zero new unintended skips. File count matches (72). UNIX-03 regression guard satisfied.
+
+### Linux run
+
+- Status: not verified in this phase (no Linux host accessible at execution time, per RESEARCH.md Open Questions §3 fallback)
+
+---
+
+*UNIX-03 sweep captured: 2026-05-25 on Darwin 25.5.0 arm64 (M4 Max)*
 
 ---
 
