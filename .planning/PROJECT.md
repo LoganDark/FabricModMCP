@@ -92,8 +92,8 @@ Milestone v1.6 — see "Current Milestone" below.
 ## Current State
 
 **Latest shipped:** v1.5 Quality & Consistency (2026-04-16)
-**Active milestone:** v1.6 Windows Support (started 2026-05-15)
-**Latest phase complete:** Phase 38 — JDT LS Discovery on Windows on 2026-05-24 (869 tests; WIN-02 delivered; UNIX-01 byte-identical preserved)
+**Active milestone:** v1.6 Windows Support (started 2026-05-15) — all 5 phases complete; pending milestone close
+**Latest phase complete:** Phase 39 — Windows End-to-End Validation on 2026-05-25 (872 tests passing on macOS, exit 0; UNIX-03 regression-guard satisfied; Windows 8.3 short-name URI fix shipped in 39-06; 2 human-UAT items deferred: Windows `find_references` SC-2 decision and Linux suite SC-3 run)
 
 ## Context
 
