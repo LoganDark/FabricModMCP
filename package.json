@@ -12,12 +12,7 @@
 		"test": "vitest run",
 		"test:watch": "vitest"
 	},
-	"packageManager": "pnpm@10.26.0",
-	"pnpm": {
-		"onlyBuiltDependencies": [
-			"esbuild"
-		]
-	},
+	"packageManager": "pnpm@11.3.0",
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.29.0",
 		"glob": "^13.0.6",
