@@ -301,6 +301,40 @@ describe('Windows: fromFileUri preserves jar-entry tail case', () => {
 	});
 });
 
+describe('Windows: trailing-separator normalization (CR-02)', () => {
+	// `normalizedTempDir` must strip BOTH `/` and `\` so `realpathSync.native`
+	// returns (backslash-separated) and any caller-synthesized tempDir ending
+	// in `\` are both reduced to the same canonical form. Without this strip,
+	// a trailing `\` survives into the URI prefix as a double slash, breaking
+	// `prefixMatches` against JDT LS's single-slash replies.
+	it('handles tempDir with trailing backslash on Windows', async () => {
+		setPlatform('win32');
+		vi.resetModules();
+		const { createUriMapper } = await import('../../src/jdtls/uri-mapper.js');
+		const mapper = createUriMapper('C:\\Users\\test\\Temp\\xyz\\', new Map([['mc', 'mc']]));
+		expect(mapper.toFileUri('mc', 'foo/Bar.java'))
+			.toBe('file:///C:/Users/test/Temp/xyz/mc/foo/Bar.java');
+	});
+
+	it('round-trips a long path with trailing backslash on Windows', async () => {
+		setPlatform('win32');
+		vi.resetModules();
+		const { createUriMapper } = await import('../../src/jdtls/uri-mapper.js');
+		const mapper = createUriMapper('C:\\Users\\test\\Temp\\xyz\\', new Map([['mc', 'mc']]));
+		const uri = mapper.toFileUri('mc', 'foo/Bar.java');
+		expect(mapper.fromFileUri(uri)).toEqual({ jar: 'mc', entryPath: 'foo/Bar.java' });
+	});
+
+	it('handles tempDir with mixed trailing separators on Windows', async () => {
+		setPlatform('win32');
+		vi.resetModules();
+		const { createUriMapper } = await import('../../src/jdtls/uri-mapper.js');
+		const mapper = createUriMapper('C:\\Users\\test\\Temp\\xyz/\\', new Map([['mc', 'mc']]));
+		expect(mapper.toFileUri('mc', 'foo/Bar.java'))
+			.toBe('file:///C:/Users/test/Temp/xyz/mc/foo/Bar.java');
+	});
+});
+
 describe('Windows: fromFileUri round-trip via toFileUri', () => {
 	it('round-trip preserves jar + entryPath under Windows-flavor URIs', async () => {
 		setPlatform('win32');

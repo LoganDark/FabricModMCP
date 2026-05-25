@@ -112,7 +112,13 @@ export function createUriMapper(tempDir: string, jarIdToDirNameMap: Map<string, 
 		// sometimes pass synthetic paths).
 		canonicalTempDir = tempDir;
 	}
-	const normalizedTempDir = canonicalTempDir.replace(/\/+$/, '');
+	// Strip BOTH forward and backslashes — on Windows `realpathSync.native`
+	// returns backslash-separated paths, and callers may also synthesize
+	// tempDir values via `path.win32.join` that leave a trailing `\`.
+	// Stripping only `/` (the pre-CR-02 behavior) left the backslash embedded
+	// in the prefix, which then produced a double-slash in `pathToFileUri`
+	// output and broke `prefixMatches` against JDT LS's single-slash replies.
+	const normalizedTempDir = canonicalTempDir.replace(/[\\/]+$/, '');
 
 	// Build the canonical URI prefix once, via the same helper toFileUri uses.
 	// This guarantees prefix and emitted URIs share a shape — critical for the
