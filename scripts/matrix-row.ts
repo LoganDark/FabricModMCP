@@ -96,7 +96,6 @@ if (!configPath) {
 	console.error('Usage: tsx scripts/matrix-row.ts <config-json-path>');
 	process.exit(2);
 }
-const { readFileSync } = await import('node:fs');
 const cfg = JSON.parse(readFileSync(configPath, 'utf-8')) as RowConfig;
 const reindexWaitMs = cfg.reindexWaitMs ?? 45000;
 
