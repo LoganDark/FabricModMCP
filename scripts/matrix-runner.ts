@@ -40,13 +40,29 @@ import { logger } from '../src/logging/logger.js';
 
 logger.setLevel('warn');
 
-const MOD_ROOT = 'C:\\Users\\LoganDark\\Downloads\\fabric-mod';
+// Mod project root and JDK install paths come from environment variables so
+// the matrix is reusable on any Windows host. The whole point of the 8.3
+// short-name fix is to test on long-username hosts — hardcoding a specific
+// username made the script unreusable on the exact class of host the fix
+// targets (WR-04).
+function requireEnv(name: string, usage: string): string {
+	const v = process.env[name];
+	if (!v) {
+		console.error(`Set ${name} ${usage}`);
+		process.exit(2);
+	}
+	return v;
+}
+const MOD_ROOT: string = requireEnv('MATRIX_MOD_ROOT', 'to your Fabric mod project root (e.g., C:\\Users\\<you>\\Downloads\\fabric-mod)');
 const PROPS_PATH = join(MOD_ROOT, 'gradle.properties');
 const PROPS_BACKUP = PROPS_PATH + '.matrix-backup';
 
-const JDK_21 = 'C:\\Program Files\\Java\\jdk-21.0.11';
-const JDK_25 = 'C:\\Program Files\\Java\\jdk-25.0.3';
-const JDK_26 = 'C:\\Program Files\\Java\\jdk-26.0.1';
+// JDK install paths default to the Adoptium / java.com installer-layout
+// directories used during Phase 39 plan 04 validation. Override per-host via
+// MATRIX_JDK_21 / MATRIX_JDK_25 / MATRIX_JDK_26.
+const JDK_21 = process.env.MATRIX_JDK_21 ?? 'C:\\Program Files\\Java\\jdk-21.0.11';
+const JDK_25 = process.env.MATRIX_JDK_25 ?? 'C:\\Program Files\\Java\\jdk-25.0.3';
+const JDK_26 = process.env.MATRIX_JDK_26 ?? 'C:\\Program Files\\Java\\jdk-26.0.1';
 
 type RowConfig = {
 	row: 1 | 2 | 3 | 4;

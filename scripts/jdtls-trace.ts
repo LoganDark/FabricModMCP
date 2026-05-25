@@ -26,7 +26,19 @@ import { logger } from '../src/logging/logger.js';
 
 logger.setLevel('debug');
 
-const MOD_ROOT = 'C:\\Users\\LoganDark\\Downloads\\fabric-mod';
+// Mod project root comes from an env var so the diagnostic is reusable on
+// any host. The whole point of the 8.3 short-name fix is to test on
+// long-username hosts — hardcoding a specific username made the script
+// unreusable on the exact class of host the fix targets (WR-04).
+function requireEnv(name: string, usage: string): string {
+	const v = process.env[name];
+	if (!v) {
+		console.error(`Set ${name} ${usage}`);
+		process.exit(2);
+	}
+	return v;
+}
+const MOD_ROOT: string = requireEnv('MATRIX_MOD_ROOT', 'to your Fabric mod project root (e.g., C:\\Users\\<you>\\Downloads\\fabric-mod)');
 
 function banner(msg: string): void {
 	console.error('\n========================================');
