@@ -101,7 +101,7 @@
 - [x] **Phase 36: Path / URI Handling Audit** — Migrate all `'file://' + path` and `uri.replace('file://', '')` sites to `pathToFileURL`/`fileURLToPath`; add ZIP-entry × `path.join` separator fix, path-traversal guard, and Windows-only EBUSY retry on temp cleanup. (completed 2026-05-16)
 - [x] **Phase 37: Smarter Java Discovery (cross-platform)** — New `src/jdtls/java-discovery.ts` with priority chain `--java-home` → `org.gradle.java.home` → `JAVA_HOME` → PATH → common install locations; async sequential probes with 3s per-candidate timeout; `.properties` backslash unescape at the consumption site. (gaps reopened 2026-05-16 — CR-01 workspace re-sync after JDT LS rescue) (completed 2026-05-16)
 - [x] **Phase 38: JDT LS Discovery on Windows** — Extend `findJdtLs` with Windows install locations; replace `process.env.HOME` with `os.homedir()`. (completed 2026-05-24)
-- [ ] **Phase 39: Windows End-to-End Validation** — Manual smoke test on a Windows machine; standalone `docs/WINDOWS-SUPPORT.md`; CLAUDE.md "Platform Support" subsection under Technology Stack; milestone-completion checkpoint.
+- [x] **Phase 39: Windows End-to-End Validation** — Manual smoke test on a Windows machine; standalone `docs/WINDOWS-SUPPORT.md`; CLAUDE.md "Platform Support" subsection under Technology Stack; milestone-completion checkpoint. (completed 2026-05-25)
 
 ## Phase Details
 
@@ -183,7 +183,7 @@
   - [x] 39-02-PLAN.md — Insert `### Platform Support` subsection into `CLAUDE.md` `## Technology Stack` with verbatim priority chains + D-18 footer (UNIX-03 / validation surface for WIN-* / JAVA-*)
   - [x] 39-03-PLAN.md — Rewrite `.planning/ROADMAP.md` Phase 39 Plans subsection (replace stale Phase 36 copy-paste) (UNIX-03 housekeeping)
   - [x] 39-04-PLAN.md — Human-executed 4-row Java-discovery matrix on Windows + evidence capture in `39-VERIFICATION.md` (validation: WIN-01..WIN-07, JAVA-01..JAVA-05, UNIX-02)
-  - [ ] 39-05-PLAN.md — UNIX-03 regression sweep: full vitest suite green on macOS (and Linux if accessible) (UNIX-03)
+  - [x] 39-05-PLAN.md — UNIX-03 regression sweep: full vitest suite green on macOS (and Linux if accessible) (UNIX-03)
   - [x] 39-06-PLAN.md — Gap closure (Failure 1): canonicalize Windows 8.3 short names in `uri-mapper.createUriMapper` via `realpathSync.native` so JDT LS's long-name Location.uri replies match our prefix — unblocks production stdio MCP `find_definition` on Windows (gap_closure)
 
 ## Progress
@@ -200,4 +200,4 @@
 | 36 | v1.6 | 4/4 | Complete    | 2026-05-16 |
 | 37 | v1.6 | 5/5 | Complete    | 2026-05-17 |
 | 38 | v1.6 | 1/1 | Complete    | 2026-05-24 |
-| 39 | v1.6 | 4/5 | In Progress|  |
+| 39 | v1.6 | 6/6 | Complete   | 2026-05-25 |

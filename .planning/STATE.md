@@ -4,14 +4,14 @@ milestone: v1.6
 milestone_name: Windows Support
 status: executing
 stopped_at: Phase 39 context gathered
-last_updated: "2026-05-25T02:09:44.897Z"
-last_activity: 2026-05-25 -- Phase 39 execution started
+last_updated: "2026-05-25T04:54:24.227Z"
+last_activity: 2026-05-25
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 17
-  completed_plans: 15
-  percent: 80
+  completed_phases: 5
+  total_plans: 18
+  completed_plans: 18
+  percent: 100
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 ## Current Position
 
 Phase: 39 (windows-end-to-end-validation) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 39
-Last activity: 2026-05-25 -- Phase 39 execution started
+Plan: 2 of 6
+Status: Ready to execute
+Last activity: 2026-05-25
 
 ## Accumulated Context
 
@@ -38,6 +38,8 @@ See PROJECT.md Key Decisions table for full decision log.
 
 - [Phase quick]: compiledJarPath nullable on DependencyEntry, optional on StudyJar; source param defaults to sources for backward compat
 - [Phase ?]: [Phase 39-02]: Used bold-prose intro lines instead of #### sub-subsection headers for ### Platform Support to match sibling-subsection style in ## Technology Stack
+- [Phase ?]: [Phase 39-05]: Recorded the +1 test delta vs Phase 38 baseline as investigated-and-resolved
+- [Phase ?]: [Phase 39-05]: Linux UNIX-03 sweep recorded as 'not verified in this phase' per RESEARCH.md Open Questions §3 fallback rather than attempting SSH/remote execution (single M4 Max macOS host)
 
 ### Pending Todos
 
@@ -71,6 +73,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-25T00:38:37.835Z
+Last session: 2026-05-25T04:53:58.699Z
 Stopped at: Phase 39 context gathered
 Resume file: None
