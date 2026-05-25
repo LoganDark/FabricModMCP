@@ -142,6 +142,11 @@ async function snapshotJdtlsArgv(): Promise<string | null> {
 
 function setGradleProperty(name: string, value: string): void {
 	const content = readFileSync(PROPS_PATH, 'utf-8');
+	// Detect and preserve the original line-ending. On Windows, gradle.properties
+	// is often CRLF; the read tolerates both via /\r?\n/, but the write needs to
+	// echo the original so the file's not rewritten in foreign line endings
+	// if the backup restore ever fails midway (WR-05).
+	const eol = content.includes('\r\n') ? '\r\n' : '\n';
 	const lines = content.split(/\r?\n/);
 	const re = new RegExp('^\\s*' + name.replace(/\./g, '\\.') + '\\s*=');
 	let found = false;
@@ -153,7 +158,7 @@ function setGradleProperty(name: string, value: string): void {
 		}
 	}
 	if (!found) lines.push(`${name}=${value}`);
-	writeFileSync(PROPS_PATH, lines.join('\n'));
+	writeFileSync(PROPS_PATH, lines.join(eol));
 }
 
 async function runRow(cfg: RowConfig): Promise<RowResult> {
