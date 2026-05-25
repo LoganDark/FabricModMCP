@@ -321,3 +321,60 @@ describe('Windows: fromFileUri round-trip via toFileUri', () => {
 		expect(mapper.fromFileUri(uri)).toEqual({ jar: jarId, entryPath });
 	});
 });
+
+// =========================================================================
+// Windows 8.3 short-name canonicalization (Phase 39 Failure 1 root cause)
+// =========================================================================
+// JDT LS internally canonicalizes 8.3 short Windows filenames (`LOGAND~1`)
+// to their long form (`LoganDark`) and emits Location.uri values using the
+// long form. The mapper MUST resolve the input tempDir via
+// `realpathSync.native` so its prefix matches JDT LS's reply shape. Without
+// this, on a Windows host where `os.tmpdir()` returns a short-name path,
+// `find_definition` reports a JDT LS reply count of 1 but the envelope's
+// final result list is empty (the URI cannot map back to a jar ID).
+//
+// Only runs on a real Windows host: 8.3 short names are a Windows
+// filesystem feature; on Unix `realpathSync.native(t)` is a no-op
+// canonicalization and there's nothing to assert.
+describe.runIf(process.platform === 'win32')('Windows: 8.3 short-name canonicalization', () => {
+	it('toFileUri + prefix use the canonical (long-name) form when tempDir is an 8.3 short path', async () => {
+		const { realpathSync, mkdirSync, rmSync } = await import('node:fs');
+		const { tmpdir } = await import('node:os');
+		const { join } = await import('node:path');
+		const { randomUUID } = await import('node:crypto');
+
+		// Create a real temp dir under os.tmpdir(). On hosts where the username
+		// exceeds 8 chars, os.tmpdir() returns the 8.3 short form (the bug
+		// trigger). On hosts with short usernames the test is a no-op
+		// canonicalization (mapper still produces a valid URI; we just can't
+		// assert the long-form-different behavior).
+		const shortDir = join(tmpdir(), 'uri-mapper-83-test-' + randomUUID());
+		mkdirSync(shortDir, { recursive: true });
+		try {
+			const longDir = realpathSync.native(shortDir);
+			const wasShort = shortDir !== longDir;
+
+			const { createUriMapper } = await import('../../src/jdtls/uri-mapper.js');
+			const mapper = createUriMapper(shortDir, new Map([['minecraft', 'minecraft']]));
+
+			// toFileUri output MUST use the long-name form so JDT LS sees the
+			// same shape it would canonicalize to internally.
+			const uri = mapper.toFileUri('minecraft', 'foo/Bar.java');
+			const longUriPattern = longDir.replace(/\\/g, '/');
+			expect(uri).toContain(longUriPattern);
+
+			if (wasShort) {
+				expect(uri).not.toContain(shortDir.replace(/\\/g, '/'));
+			}
+
+			// fromFileUri MUST recognize a JDT LS-style long-name URI back to the
+			// jar ID, even though the original tempDir we passed in had the short
+			// form. This is the actual production failure: JDT LS replies with
+			// long form, our mapper must accept it.
+			const longUri = `file:///${longDir.replace(/\\/g, '/')}/minecraft/foo/Bar.java`;
+			expect(mapper.fromFileUri(longUri)).toEqual({ jar: 'minecraft', entryPath: 'foo/Bar.java' });
+		} finally {
+			try { rmSync(shortDir, { recursive: true, force: true }); } catch {}
+		}
+	});
+});

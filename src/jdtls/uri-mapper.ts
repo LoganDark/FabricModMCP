@@ -22,6 +22,7 @@
  *   API or canonical-path probe (D-10 — pure string compare).
  */
 
+import { realpathSync } from 'node:fs';
 import { isWindows } from '../platform/index.js';
 import { pathToFileUri } from '../platform/uri.js';
 
@@ -82,13 +83,36 @@ export function createUriMapper(tempDir: string, jarIdToDirNameMap: Map<string, 
 		dirNameToJarIdMap.set(dirName, jarId);
 	}
 
-	// Normalize tempDir to not have trailing slash. D-10: pure string compare,
-	// no symlink-resolving API, no canonical-path probe. Callers in src/tools/*
-	// read `jdtls.tempDir` which is whatever `startup.ts` / `workspace.ts`
-	// produced via `tmpdir()` + `randomUUID()`; on hosts where `tmpdir()` is a
-	// symlink, the symlinked path is the one stored and the one JDT LS receives
-	// via `rootUri`, so JDT LS's response URI will share the same shape.
-	const normalizedTempDir = tempDir.replace(/\/+$/, '');
+	// Normalize tempDir to its canonical (long-name) form via realpathSync.native
+	// — Windows-only concern. On hosts where `tmpdir()` returns an 8.3 short name
+	// (`C:\Users\LOGAND~1\AppData\Local\Temp` instead of `C:\Users\LoganDark\…`,
+	// the default when the username exceeds 8 chars), JDT LS internally
+	// canonicalizes to the LONG form and emits Location.uri values with the long
+	// path. The prefix we build below must match the long form, otherwise every
+	// JDT LS reply URI mismatches our prefix and `fromFileUri` returns null —
+	// `find_definition` would observe a 1-result JDT LS reply degraded to 0 in
+	// the final envelope (Phase 39 VERIFICATION Failure 1 actual root cause —
+	// the documentSymbol-race hypothesis was wrong; this is the real bug).
+	//
+	// `realpathSync.native` is the only API that resolves 8.3 short names on
+	// Windows (`realpathSync` without `.native` does NOT — it only resolves
+	// symlinks). On Unix the call is a no-op canonicalization. The realpath
+	// also resolves any symlinks in the tempDir path, which is desirable for
+	// the same shape-match reason: JDT LS will resolve them too.
+	//
+	// D-10 said "pure string compare, no canonical-path probe." That decision
+	// was made before the Windows 8.3 short-name shape mismatch was observed.
+	// This is the documented carve-out (Phase 39 Failure 1).
+	let canonicalTempDir: string;
+	try {
+		canonicalTempDir = realpathSync.native(tempDir);
+	} catch {
+		// Fall back to as-given (Unix-style behavior preservation when tempDir
+		// doesn't exist yet, which shouldn't happen in production but unit tests
+		// sometimes pass synthetic paths).
+		canonicalTempDir = tempDir;
+	}
+	const normalizedTempDir = canonicalTempDir.replace(/\/+$/, '');
 
 	// Build the canonical URI prefix once, via the same helper toFileUri uses.
 	// This guarantees prefix and emitted URIs share a shape — critical for the
