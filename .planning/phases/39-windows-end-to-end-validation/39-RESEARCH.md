@@ -511,27 +511,31 @@ tasks:
 
 **If this table is empty:** All claims in this research were verified or cited — no user confirmation needed. (It is not empty — A1, A4 in particular are worth discuss-phase-style confirmation.)
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does the "MUST NOT modify src/**" rule permit a single `logger.info` line in `src/jdtls/client.ts:startJdtLs` to satisfy D-04 evidence capture?**
    - **What we know:** D-04 requires `javaPath` evidence per matrix row. The current code emits no such log at info level. CONTEXT.md "Files this phase MUST NOT modify" includes `src/**` "EXCEPT gap-closure plans triggered by failures per D-13". An observability gap blocking D-04 satisfaction is arguably a pre-execution gap, not a post-execution failure — making the exception ambiguous.
    - **What's unclear:** Whether to treat this as a Plan 0 (preamble) one-line addition with its own tiny test, OR have the maintainer use PowerShell `Get-CimInstance` process-tree scraping each row.
    - **Recommendation:** Surface this in `/gsd:plan-phase 39`'s plan-checker pass; if the user prefers pure docs+validation (no `src/**` touch), document the process-tree scraping recipe in Plan 4's task spec. Otherwise add the line in Plan 0 (or fold into Plan 4 as a 1-line pre-step). My recommended default: **add the one line** — the entire point of D-04 evidence is to make slot regressions detectable, and the cost is 1 LOC + 1 test assertion.
+   - **RESOLVED:** Plan 04 captures `javaPath` via PowerShell `Get-CimInstance Win32_Process`; D-13 gap-closure `39-06-PLAN.md` auto-triggers ONLY if PowerShell capture fails on the maintainer's Windows host.
 
 2. **What MC version / Yarn mappings does the fixture target?**
    - **What we know:** D-01 says clone upstream `fabric-example-mod` — by default master. CLAUDE.md Sources jar path notes show FabricModMCP handles both per-project (Loom 1.16+) and global cache layouts.
    - **What's unclear:** Whether maintainer prefers latest master (forward-looking) or a pinned tag (reproducible).
    - **Recommendation:** Plan 4 task explicitly says "clone master at fixture-creation time; record the commit SHA in 39-VERIFICATION.md env block". Don't pin in advance.
+   - **RESOLVED:** Plan 04 clones `fabric-example-mod` at master and records the commit SHA in 39-VERIFICATION.md's environment block.
 
 3. **Does the regression sweep (UNIX-03) require running on BOTH macOS and Linux, or can macOS-only suffice if no recent CI runs have happened on Linux?**
    - **What we know:** ROADMAP success criterion 3 says "macOS and Linux"; UNIX-03 in REQUIREMENTS.md says "all v1.5 tests pass unchanged after the refactor" (no explicit OS list).
    - **What's unclear:** Whether the maintainer has Linux access. CONTEXT.md doesn't gate on this.
    - **Recommendation:** Plan 5 task says "run `pnpm test` on macOS (developer's primary machine — verified via env). If Linux machine available, run there too and append second exit-0 verification. Otherwise document as 'Linux not verified in this phase' in 39-VERIFICATION.md." Aligns with D-15's spirit (genuinely-environmental edge case explicit-document escape valve).
+   - **RESOLVED:** Plan 05 requires macOS exit-0 as the primary UNIX-03 gate; Linux is best-effort with an explicit "Linux not verified in this phase" note allowed if the maintainer has no Linux machine accessible.
 
 4. **Should `docs/WINDOWS-SUPPORT.md` include a Troubleshooting section quoting the multi-line `JDT LS not found.` and `Java not found.` failure messages from Phase 37/38?**
    - **What we know:** D-11 lists "Java priority chain, JDT LS install locations, known limitations, installation pre-reqs". Doesn't mention troubleshooting.
    - **What's unclear:** Whether the section is in scope.
    - **Recommendation:** Add a short Troubleshooting section quoting the existing error-message format as a useful real-world artifact. Marginal cost (~10-15 lines). Pure win for discoverability. Falls under "Claude's Discretion: tone and length".
+   - **RESOLVED:** Plan 01 explicitly excludes a Troubleshooting section from `docs/WINDOWS-SUPPORT.md` (length budget 80-150 lines; the Phase 37/38 multi-line error messages already self-document the chain).
 
 ## Environment Availability
 
