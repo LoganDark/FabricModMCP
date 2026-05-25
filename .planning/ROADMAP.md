@@ -182,7 +182,7 @@
   - [x] 39-01-PLAN.md — Create `docs/WINDOWS-SUPPORT.md` with verbatim priority chains + known limitations + D-18 cross-reference footer (UNIX-03 / validation surface for WIN-* / JAVA-*)
   - [x] 39-02-PLAN.md — Insert `### Platform Support` subsection into `CLAUDE.md` `## Technology Stack` with verbatim priority chains + D-18 footer (UNIX-03 / validation surface for WIN-* / JAVA-*)
   - [x] 39-03-PLAN.md — Rewrite `.planning/ROADMAP.md` Phase 39 Plans subsection (replace stale Phase 36 copy-paste) (UNIX-03 housekeeping)
-  - [ ] 39-04-PLAN.md — Human-executed 4-row Java-discovery matrix on Windows + evidence capture in `39-VERIFICATION.md` (validation: WIN-01..WIN-07, JAVA-01..JAVA-05, UNIX-02)
+  - [x] 39-04-PLAN.md — Human-executed 4-row Java-discovery matrix on Windows + evidence capture in `39-VERIFICATION.md` (validation: WIN-01..WIN-07, JAVA-01..JAVA-05, UNIX-02)
   - [ ] 39-05-PLAN.md — UNIX-03 regression sweep: full vitest suite green on macOS (and Linux if accessible) (UNIX-03)
 
 ## Progress
@@ -199,4 +199,4 @@
 | 36 | v1.6 | 4/4 | Complete    | 2026-05-16 |
 | 37 | v1.6 | 5/5 | Complete    | 2026-05-17 |
 | 38 | v1.6 | 1/1 | Complete    | 2026-05-24 |
-| 39 | v1.6 | 3/5 | In Progress|  |
+| 39 | v1.6 | 4/5 | In Progress|  |
