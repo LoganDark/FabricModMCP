@@ -68,6 +68,40 @@ An MCP (Model Context Protocol) server that gives Claude Code deep access to Min
 | tsup | 8.x | Production bundling | Bundles TypeScript to single JS file for distribution. Based on esbuild. Fast. | HIGH |
 | vitest | 3.x | Testing | Fast, TypeScript-native test runner. Compatible with Node.js APIs. | HIGH |
 | @types/node | 22.x | Node.js type definitions | Match Node.js 22 LTS runtime. | HIGH |
+### Platform Support
+
+FabricModMCP runs on Linux, macOS, native Windows, and WSL2. The MCP server itself runs as a Node 22+ process; the JDT LS child process runs on Java 21+. The two priority chains below are the authoritative discovery contract — see the footer for the source-of-truth pointer.
+
+**Java Discovery Priority Chain**
+
+Slot order for `discoverJava`:
+
+1. `--java-home` (module-state `configuredJavaHome`)
+2. `org.gradle.java.home` from `<projectRoot>/gradle.properties`
+3. `JAVA_HOME` env var
+4. `java` on PATH (libuv handles PATH lookup + PATHEXT on Windows)
+5. Scan common install locations from `commonJavaLocations()` with vendor-aware layout map
+
+**JDT LS Install Locations (probed in priority order)**
+
+`JDTLS_HOME` env var heads each list — when set, `findJdtLs` validates it for the launcher jar BEFORE iterating the per-OS candidates below.
+
+**Windows:**
+
+1. `%LOCALAPPDATA%\jdtls`
+2. `%ProgramFiles%\jdtls`
+3. `%USERPROFILE%\jdtls`
+4. `%LOCALAPPDATA%\nvim-data\mason\packages\jdtls`
+
+**Linux / macOS:**
+
+1. `~/.local/share/jdtls`
+2. `/usr/local/share/jdtls`
+3. `~/jdtls`
+
+Source of truth for the contract: see REQUIREMENTS.md WIN-01/WIN-02/JAVA-01/JAVA-02.
+Implementation: `src/jdtls/java-discovery.ts` (Java) and `src/jdtls/client.ts` `findJdtLs` (JDT LS).
+
 ### Supporting Libraries
 | Library | Version | Purpose | When to Use | Confidence |
 |---------|---------|---------|-------------|------------|
