@@ -253,14 +253,61 @@
 - Most expensive phase: Phase 34 (documentation, 5min) — cross-referencing 28 tool files
 - Cheapest phase: Phase 32 (per-child filtering, 1min) — single function refactor
 
+## Milestone: v1.6 — Windows Support
+
+**Shipped:** 2026-05-25
+**Phases:** 5 (35-39) | **Plans:** 18 | **Commits:** 106
+
+### What Was Built
+- Cross-platform Java discovery (`src/jdtls/java-discovery.ts`) with async 5-slot priority chain (`--java-home` → `org.gradle.java.home` → `JAVA_HOME` → PATH → vendor-aware install scan), 3s per-candidate timeout
+- New `src/platform/index.ts` module with 5 platform-branched helpers (`isWindows`, `javaBinaryName`, `javaBinaryInHome`, `jdtlsCandidateDirs`, `commonJavaLocations`); every Unix branch returns v1.5 literals verbatim
+- `resolveJavaExecutable()` to fix libuv's PATHEXT-blindness on absolute Java paths — `child_process.spawn` now succeeds with `C:\…\bin\java.exe`
+- `findJdtLs()` extended with Windows install conventions (`%LOCALAPPDATA%\jdtls`, `%PROGRAMFILES%\jdtls`, `%USERPROFILE%\jdtls`, Mason package); `os.homedir()` replaces `process.env.HOME` everywhere
+- Wholesale URI / path migration to `pathToFileURL` / `fileURLToPath` across 7 forward + 2 reverse sites; drive-letter case-fold round-trip; ZIP entry split-and-spread; ZIP path-traversal guard; Windows-only EBUSY retry on temp-dir cleanup
+- 8.3 short-name URI canonicalization in `uri-mapper` so JDT LS's long-name `Location.uri` matches our prefix (Phase 39-06 gap closure)
+- `docs/WINDOWS-SUPPORT.md` + new `### Platform Support` subsection in `CLAUDE.md`, both inlining verbatim priority chains with D-18 cross-reference footer
+
+### What Worked
+- **Phase-35-as-foundation pattern.** A single `src/platform/index.ts` module owned every platform branch from one place; every subsequent Windows fix routed through it. Made the UNIX-01 byte-identical contract trivial to enforce (every Unix branch returned a v1.5 literal verbatim).
+- **The cross-host-safe `setPlatform + vi.resetModules + dynamic import` test pattern.** Let macOS contributors mock `process.platform = 'win32'` and exercise Windows code paths without a Windows host. Enabled Phases 35-38 to ship without a real Windows machine.
+- **Phase 39-04 maintainer matrix on a real Windows 11 host.** 4-row evidence (one row per Java-discovery slot) gave high-confidence proof the production stack works end-to-end, not just in mocked tests. Surfaced 2 real bugs (`withLspDocument` race + unbounded `find_references`) that mocked tests had missed.
+- **Plan-04 → 39-06 gap-closure loop.** The matrix found the 8.3 short-name URI mismatch on Windows; 39-06 closed it; re-verification confirmed the fix. Then code review caught CR-02 — the trailing-separator strip used `/\/+$/` (POSIX-only) and would have defeated its own Windows fix. The review-then-fix loop caught a real regression before milestone close.
+- **Sequential async candidate probes with per-candidate timeout.** Preserved priority semantics (no parallel race) while bounding worst-case startup time at `4 × 3s = 12s`.
+
+### What Was Inefficient
+- **`audit-open` false positives.** The CLI reports 22 quick-task slugs as "missing" despite the files being on disk with complete PLAN.md + SUMMARY.md. Wasted review time spot-checking; would be worth fixing upstream.
+- **Phase summary `key_files` frontmatter often empty.** Code-review scoping fell back from SUMMARY-tier to git-diff tier on Phase 39, then required manual `--files` override to focus on the actual source change. Plan executors could be more disciplined about populating `key_files.modified` in SUMMARY frontmatter.
+- **No CI matrix runner.** Linux UNIX-03 sweep was deferred to a future human test because the maintainer's primary host is macOS. A CI runner (GitHub Actions Linux + Windows) would have closed both human-UAT items automatically.
+- **`milestone.complete` CLI does not reorganize ROADMAP.md or update inline requirement checkboxes.** Created the archives, then left ROADMAP.md still showing "🚧 IN PROGRESS" and 2 unchecked requirements (WIN-01, UNIX-01) despite both being validated. Manual cleanup followed.
+
+### Patterns Established
+- **Platform helper module pattern.** A single `src/platform/index.ts` owns all `process.platform === 'win32'` branches; Unix branches return v1.5 literals byte-identical. New cross-platform work should add helpers here rather than scatter platform conditionals.
+- **`setPlatform + vi.resetModules + dynamic import` test pattern.** Lets any host run Windows-mocked tests deterministically; locked in by `tests/platform-helpers.test.ts` and reused across `tests/jdtls/client.test.ts` / `tests/jdtls/java-discovery.test.ts` / `tests/jdtls/uri-mapper.test.ts`.
+- **D-18 cross-reference footer for dual-published docs.** When the same content lives in `docs/WINDOWS-SUPPORT.md` and `CLAUDE.md`, both end with a footer pointing readers to REQUIREMENTS.md + the implementing source files. Keeps the two surfaces consistent under future edits.
+- **Re-export shim for renamed/relocated symbols.** `src/jdtls/client.ts` was collapsed to a re-export shim for `setJavaHome`/`detectJava`/`discoverJava`/`parseJavaVersion`/`resolveJavaExecutable`. Lets one milestone of importers migrate gracefully before removal.
+
+### Key Lessons
+- **Trailing-separator regexes are platform-specific.** `/\/+$/` only strips POSIX separators. Always use `/[\\/]+$/` for path canonicalization that runs on Windows — CR-02 was a real regression that defeated its own Windows fix, caught only by code review.
+- **Tests that pass on macOS can hide Windows-specific bugs.** Phase 39-04's real-Windows-host matrix surfaced 2 production bugs (`withLspDocument` race; unbounded `find_references`) that 869 unit tests had all greenlit. A maintainer-matrix step at milestone-close is high-leverage.
+- **JDT LS `Location.uri` replies use long-name paths even when the workspace was created at a 8.3 short-name tempDir.** Prefix matching against the original tempDir misses; canonicalize via `realpathSync.native` at mapper construction time.
+- **Code review catches what verification misses.** The verifier confirmed Phase 39-06's 8.3 fix was wired correctly; code review then noticed the trailing-separator regex defeated it on Windows-backslash inputs. Both gates are necessary.
+
+### Cost Observations
+- 5 phases, 18 plans, 106 commits over 10 days
+- Most expensive phase: Phase 37 (Smarter Java Discovery — 5 plans, async refactor + 23-test lockdown + retry-degraded-sessions sweep)
+- Cheapest phase: Phase 38 (single plan; new `findJdtLs` Windows paths + `os.homedir()` site)
+- Mock-Windows-from-macOS pattern (`setPlatform + vi.resetModules + dynamic import`) let 4/5 phases ship without a Windows host
+- Phase 39-04 maintainer matrix on a real Windows 11 host was the highest-leverage 15 minutes of the milestone — caught 2 bugs unit tests missed
+- Code review added 7 commits but caught CR-02, a regression that would have defeated the 39-06 Windows fix in production
+
 ## Cross-Milestone Trends
 
-| Metric | v1.0 | v1.1 | v1.2 | v1.3 | v1.4 | v1.5 |
-|--------|------|------|------|------|------|------|
-| Phases | 10 | 4 | 4 | 4 | 6 | 7 |
-| Plans | 22 | 8 | 7 | 9 | 15 | 7 |
-| Tasks | 41 | ~66 | 12 | 17 | 31 | 14 |
-| LOC | 5,336 | 6,030 | 6,863 | 7,281 | 8,250 | 8,542 |
-| Tests | 327 | 423 | 526 | 592 | 665 | 696 |
-| Timeline | 2 days | 1 day | 1 day | 1 day | 1 day | 1 day |
-| Requirements | 46/46 | 10/10 | 7/7 | 11/11 | 15/15 | 26/26 |
+| Metric | v1.0 | v1.1 | v1.2 | v1.3 | v1.4 | v1.5 | v1.6 |
+|--------|------|------|------|------|------|------|------|
+| Phases | 10 | 4 | 4 | 4 | 6 | 7 | 5 |
+| Plans | 22 | 8 | 7 | 9 | 15 | 7 | 18 |
+| Tasks | 41 | ~66 | 12 | 17 | 31 | 14 | 21 |
+| LOC (src) | 5,336 | 6,030 | 6,863 | 7,281 | 8,250 | 8,542 | 10,357 |
+| Tests | 327 | 423 | 526 | 592 | 665 | 696 | 872 |
+| Timeline | 2 days | 1 day | 1 day | 1 day | 1 day | 1 day | 10 days |
+| Requirements | 46/46 | 10/10 | 7/7 | 11/11 | 15/15 | 26/26 | 15/15 |
