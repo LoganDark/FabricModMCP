@@ -28,7 +28,7 @@
 
 - [ ] **UNIX-01**: Existing Unix `detectJava` / `findJdtLs` behavior is byte-identical for users who don't set `org.gradle.java.home` (no behavioral change on Linux/macOS).
 - [x] **UNIX-02**: URI round-trip output (`toFileUri` → `fromFileUri`) on Unix paths (including paths with spaces and `/private/var/folders/…` realpath cases) is byte-identical to v1.5.
-- [ ] **UNIX-03**: All v1.5 tests pass unchanged after the refactor (regression guard).
+- [x] **UNIX-03**: All v1.5 tests pass unchanged after the refactor (regression guard).
 
 ## Future Requirements (Deferred to v1.7+)
 
