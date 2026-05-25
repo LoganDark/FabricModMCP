@@ -1,0 +1,9 @@
+{
+  "row": 4,
+  "slotLabel": "PATH only",
+  "envRemove": [
+    "JAVA_HOME"
+  ],
+  "testModRoot": "C:\\Users\\LoganDark\\Downloads\\fabric-mod",
+  "reindexWaitMs": 150000
+}

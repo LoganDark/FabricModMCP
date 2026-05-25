@@ -1,0 +1,37 @@
+{
+	"_README": "Per-row configs for Phase 39 Plan 04 matrix execution. Each row drives ONE invocation of scripts/matrix-row.ts.",
+	"row1": {
+		"row": 1,
+		"slotLabel": "--java-home",
+		"javaHome": "C:\\Program Files\\Java\\jdk-21.0.11",
+		"envRemove": ["JAVA_HOME"],
+		"testModRoot": "C:\\Users\\LoganDark\\Downloads\\fabric-mod",
+		"reindexWaitMs": 150000
+	},
+	"row2": {
+		"row": 2,
+		"slotLabel": "org.gradle.java.home",
+		"envRemove": ["JAVA_HOME", "Path", "PATH"],
+		"envAdd": {
+			"Path": "C:\\Windows\\System32;C:\\Windows;C:\\Program Files\\nodejs"
+		},
+		"testModRoot": "C:\\Users\\LoganDark\\Downloads\\fabric-mod",
+		"reindexWaitMs": 150000
+	},
+	"row3": {
+		"row": 3,
+		"slotLabel": "JAVA_HOME",
+		"envAdd": {
+			"JAVA_HOME": "C:\\Program Files\\Java\\jdk-26.0.1"
+		},
+		"testModRoot": "C:\\Users\\LoganDark\\Downloads\\fabric-mod",
+		"reindexWaitMs": 150000
+	},
+	"row4": {
+		"row": 4,
+		"slotLabel": "PATH only",
+		"envRemove": ["JAVA_HOME"],
+		"testModRoot": "C:\\Users\\LoganDark\\Downloads\\fabric-mod",
+		"reindexWaitMs": 150000
+	}
+}

@@ -1,0 +1,9 @@
+{
+	"row": 1,
+	"slotLabel": "diagnostic",
+	"javaHome": "C:\\Program Files\\Java\\jdk-21.0.11",
+	"envRemove": ["JAVA_HOME"],
+	"testModRoot": "C:\\Users\\LoganDark\\Downloads\\fabric-mod",
+	"reindexWaitMs": 180000,
+	"skipFindReferences": true
+}

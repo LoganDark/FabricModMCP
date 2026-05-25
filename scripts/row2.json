@@ -1,0 +1,14 @@
+{
+  "row": 2,
+  "slotLabel": "org.gradle.java.home",
+  "envRemove": [
+    "JAVA_HOME",
+    "Path",
+    "PATH"
+  ],
+  "envAdd": {
+    "Path": "C:\\Windows\\System32;C:\\Windows;C:\\Program Files\\nodejs"
+  },
+  "testModRoot": "C:\\Users\\LoganDark\\Downloads\\fabric-mod",
+  "reindexWaitMs": 150000
+}
