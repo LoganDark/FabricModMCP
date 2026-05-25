@@ -81,7 +81,23 @@ function restoreEnv(): void {
 }
 
 function clearJavaFromPath(): void {
-	const filtered = ORIG_PATH.split(';').filter(p => !p.toLowerCase().includes('java')).join(';');
+	// Filter PATH entries by directory-segment match, not a naive substring.
+	// The original `.includes('java')` also removed unrelated entries like
+	// `C:\Tools\JavaScript-utils\bin` or any `Javadoc` / `Javascript` dirs,
+	// perturbing subprocesses the matrix expected to find on PATH (WR-03).
+	//
+	// An entry is considered a Java entry if any path segment is exactly
+	// `java` / `jre`, or starts with `jdk-` / `jdk_` / `jre-` / `jre_`
+	// (the common installer-layout names). Substring-only-because matches
+	// like `JavaScript` no longer trigger.
+	const filtered = ORIG_PATH.split(';').filter(p => {
+		const segs = p.toLowerCase().split(/[\\/]+/).filter(s => s.length > 0);
+		for (const s of segs) {
+			if (s === 'java' || s === 'jre') return false;
+			if (/^jdk[-_]/.test(s) || /^jre[-_]/.test(s)) return false;
+		}
+		return true;
+	}).join(';');
 	process.env.Path = filtered;
 	process.env.PATH = filtered;
 }
