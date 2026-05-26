@@ -103,8 +103,13 @@ export function registerReadSourceTool(server: McpServer): void {
 					},
 				});
 
+				const headerText = `Read ${className} from ${dep.id} (${sliced.totalLineCount} lines${sliced.truncated ? `, showing ${sliced.startLine}-${sliced.endLine}` : ''})`;
+
 				return {
-					content: [{ type: 'text' as const, text: `Read ${className} from ${dep.id} (${sliced.totalLineCount} lines${sliced.truncated ? `, showing ${sliced.startLine}-${sliced.endLine}` : ''})` }],
+					content: [
+						{ type: 'text' as const, text: headerText },
+						{ type: 'text' as const, text: sliced.source },
+					],
 					structuredContent: envelope,
 				};
 			}
@@ -158,8 +163,19 @@ export function registerReadSourceTool(server: McpServer): void {
 				},
 			});
 
+			const headerText = `Read ${className} from ${sources.length} jar${sources.length === 1 ? '' : 's'} (${sources[0].jar}${sources.length > 1 ? `, +${sources.length - 1} more` : ''})`;
+
+			// Emit one body block per matching jar. If multiple, prefix each body
+			// with a per-jar marker so the reader can tell them apart.
+			const bodyBlocks: { type: 'text'; text: string }[] = sources.length === 1
+				? [{ type: 'text' as const, text: sources[0].source }]
+				: sources.map(s => ({ type: 'text' as const, text: `--- ${s.jar} ---\n${s.source}` }));
+
 			return {
-				content: [{ type: 'text' as const, text: `Read ${className} from ${sources.length} jar${sources.length === 1 ? '' : 's'} (${sources[0].jar}${sources.length > 1 ? `, +${sources.length - 1} more` : ''})` }],
+				content: [
+					{ type: 'text' as const, text: headerText },
+					...bodyBlocks,
+				],
 				structuredContent: envelope,
 			};
 		},

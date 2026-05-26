@@ -532,4 +532,54 @@ describe.skipIf(!toolModuleAvailable)('read_member', () => {
 			}
 		});
 	});
+
+	describe('REGRESSION: empty-body bug (2026-05-26)', () => {
+		test('response content includes the member body, not just a header', async () => {
+			mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
+			mockDocumentSymbol.mockResolvedValue([
+				{
+					name: 'MinecraftClient',
+					kind: 5,
+					detail: '',
+					range: { start: { line: 0, character: 0 }, end: { line: 10, character: 1 } },
+					selectionRange: { start: { line: 0, character: 13 }, end: { line: 0, character: 28 } },
+					children: [
+						{
+							name: 'tick()',
+							kind: 6,
+							detail: 'void',
+							range: { start: { line: 5, character: 0 }, end: { line: 7, character: 1 } },
+							selectionRange: { start: { line: 5, character: 12 }, end: { line: 5, character: 16 } },
+						},
+					],
+				},
+			]);
+
+			const pair = await createTestPair();
+			try {
+				const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+				projectStore.set('test', fake);
+
+				const result = await pair.client.callTool({
+					name: 'read_member',
+					arguments: {
+						project: 'test',
+						jar: 'testmod/minecraft',
+						memberFqn: 'net.minecraft.client.MinecraftClient#tick()',
+					},
+				});
+
+				const r = result as any;
+				expect(Array.isArray(r.content)).toBe(true);
+				expect(r.content.length).toBeGreaterThanOrEqual(2);
+				expect(r.content[0].text).toMatch(/^Read .*#tick\(\)/);
+				// The body block must contain the actual method source
+				const bodyText = r.content.slice(1).map((c: any) => c.text).join('\n');
+				expect(bodyText).toContain('public void tick()');
+			} finally {
+				await pair.cleanup();
+				projectStore.clear();
+			}
+		});
+	});
 });

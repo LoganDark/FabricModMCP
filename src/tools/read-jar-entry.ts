@@ -80,7 +80,10 @@ export function registerReadJarEntryTool(server: McpServer): void {
 					);
 
 					return {
-						content: [{ type: 'text' as const, text: `Read ${path} from ${jar} [compiled] (${content.length} bytes)` }],
+						content: [
+							{ type: 'text' as const, text: `Read ${path} from ${jar} [compiled] (${content.length} bytes)` },
+							{ type: 'text' as const, text: content },
+						],
 						structuredContent: envelope,
 					};
 				} catch (err) {
@@ -127,7 +130,10 @@ export function registerReadJarEntryTool(server: McpServer): void {
 				);
 
 				return {
-					content: [{ type: 'text' as const, text: `Read ${path} from ${jar} (${content.length} bytes)` }],
+					content: [
+						{ type: 'text' as const, text: `Read ${path} from ${jar} (${content.length} bytes)` },
+						{ type: 'text' as const, text: content },
+					],
 					structuredContent: envelope,
 				};
 			} catch (err) {

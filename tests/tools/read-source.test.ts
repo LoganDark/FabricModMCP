@@ -551,4 +551,101 @@ describe('read_source tool', () => {
 			expect(src.truncated).toBe(false);
 		}
 	});
+
+	// --- Regression tests for empty-body bug (2026-05-26) ---
+	// These tests assert on result.content[*].text (NOT routed through
+	// parseEnvelope, which discards content) to ensure the rendered text
+	// blocks delivered to MCP clients actually contain the source body.
+	// Without these, a client that surfaces only content[].text (and not
+	// structuredContent) would see "Read X (N lines)" with no body —
+	// exactly the bug reported in FEEDBACK.txt 2026-05-26.
+
+	it('REGRESSION: response content includes the source body, not just a header', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', jar: 'testmod/minecraft', class: 'net.minecraft.client.MinecraftClient' },
+		});
+
+		const r = result as any;
+		expect(Array.isArray(r.content)).toBe(true);
+		// At least one content block must contain the source body
+		const allText = r.content.map((c: any) => c.text).join('\n');
+		expect(allText).toContain('public class MinecraftClient');
+		expect(allText).toContain('public static class Options');
+		expect(allText).toContain('public void run()');
+	});
+
+	it('REGRESSION: single-jar path emits header + body as separate content blocks', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', jar: 'testmod/minecraft', class: 'net.minecraft.client.MinecraftClient' },
+		});
+
+		const r = result as any;
+		expect(r.content.length).toBeGreaterThanOrEqual(2);
+		expect(r.content[0].text).toMatch(/^Read .* \(\d+ lines/);
+		// Second block must contain the actual source
+		expect(r.content[1].text).toContain('public class MinecraftClient');
+	});
+
+	it('REGRESSION: line-range read emits the sliced range in content body', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', jar: 'testmod/minecraft', class: 'net.minecraft.client.MinecraftClient', startLine: 3, lineCount: 2 },
+		});
+
+		const r = result as any;
+		const expectedSlice = MC_SOURCE_TEXT.split('\n').slice(2, 4).join('\n');
+		const bodyText = r.content.slice(1).map((c: any) => c.text).join('\n');
+		expect(bodyText).toBe(expectedSlice);
+	});
+
+	it('REGRESSION: all-jars search emits a body block per matching jar', async () => {
+		mockReadEntry.mockImplementation(async (jarPath: string, entryPath: string) => {
+			if (entryPath === 'net/minecraft/client/MinecraftClient.java') {
+				return Buffer.from(MC_SOURCE_TEXT, 'utf-8');
+			}
+			throw new Error(`Entry not found: ${entryPath}`);
+		});
+
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', class: 'net.minecraft.client.MinecraftClient' },
+		});
+
+		const r = result as any;
+		// Header + at least one body block per matching jar
+		const envelope = parseEnvelope(result);
+		expect(r.content.length).toBe(envelope.data.sources.length + 1);
+		// Every body block must contain the source class declaration
+		for (let i = 1; i < r.content.length; i++) {
+			expect(r.content[i].text).toContain('public class MinecraftClient');
+		}
+	});
+
+	it('REGRESSION: error responses still emit just an error message in content', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'read_source',
+			arguments: { project: 'test', class: 'com.nonexistent.FakeClass' },
+		});
+
+		const r = result as any;
+		expect(r.content.length).toBe(1);
+		expect(r.content[0].text).toMatch(/Error \[CLASS_NOT_FOUND\]/);
+	});
 });

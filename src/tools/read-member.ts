@@ -152,8 +152,15 @@ export function registerReadMemberTool(server: McpServer): void {
 					? `Read ${memberFqn} from ${sourceJarId} (${extractions[0].lineCount} lines)`
 					: `Read ${extractions.length} overloads of ${memberFqn} from ${sourceJarId}`;
 
+				const bodyBlocks: { type: 'text'; text: string }[] = extractions.length === 1
+					? [{ type: 'text' as const, text: extractions[0].source }]
+					: extractions.map(ext => ({ type: 'text' as const, text: `--- ${ext.memberFqn} (lines ${ext.startLine}-${ext.endLine}) ---\n${ext.source}` }));
+
 				return {
-					content: [{ type: 'text' as const, text: summary }],
+					content: [
+						{ type: 'text' as const, text: summary },
+						...bodyBlocks,
+					],
 					structuredContent: envelope,
 				};
 			});
