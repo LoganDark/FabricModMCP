@@ -808,9 +808,16 @@ public abstract class StoredUserEntry<T> {
 					{
 						name: 'tick()',
 						kind: 6, // method
-						detail: ' : void',
+						detail: 'void',
 						range: { start: { line: 5, character: 1 }, end: { line: 7, character: 2 } },
 						selectionRange: { start: { line: 5, character: 14 }, end: { line: 5, character: 18 } },
+					},
+					{
+						name: 'parseCommand(String)',
+						kind: 6, // method
+						detail: '(String) : boolean',
+						range: { start: { line: 10, character: 1 }, end: { line: 12, character: 2 } },
+						selectionRange: { start: { line: 10, character: 16 }, end: { line: 10, character: 28 } },
 					},
 				],
 			},
@@ -838,7 +845,14 @@ public abstract class StoredUserEntry<T> {
 			// Field renders with its resolved type, not `: undefined`.
 			expect(bodyText).toMatch(/LOGGER: Logger/);
 			// Method return type renders as `: void`, not `: undefined`.
-			expect(bodyText).toMatch(/tick.*: void/);
+			expect(bodyText).toMatch(/tick\(\): void/);
+			// Parametered method renders parameter types from the enriched
+			// payload, not the JDT-LS-encoded name suffix.
+			expect(bodyText).toMatch(/parseCommand\(String\): boolean/);
+			// JDT LS encodes params in the name (`parseCommand(String)`); we
+			// must not emit a second pair of parens on top of that, i.e. no
+			// `parseCommand(String)()`.
+			expect(bodyText).not.toMatch(/\)\(/);
 		} finally {
 			await pair.cleanup();
 			projectStore.clear();

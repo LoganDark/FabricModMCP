@@ -74,11 +74,15 @@ function renderMember(m: Record<string, unknown>, index: number, indent: string)
 
 	let signature: string;
 	if (parameters !== undefined && returnType !== undefined) {
+		// JDT LS already encodes parameter types into the symbol name as
+		// `name(Type1, Type2)`. Strip the trailing parens before reassembling
+		// from the enriched parameter list, otherwise we get `tick()()`.
+		const bareName = name.replace(/\(.*\)$/, '');
 		const params = parameters
 			.map(p => p.name !== null ? `${formatType(p.type)} ${p.name}` : formatType(p.type))
 			.join(', ');
 		const ret = returnType !== null ? `: ${formatType(returnType)}` : '';
-		signature = `${name}(${params})${ret}`;
+		signature = `${bareName}(${params})${ret}`;
 	} else if (fieldType !== undefined) {
 		signature = `${name}: ${formatType(fieldType)}`;
 	} else {
