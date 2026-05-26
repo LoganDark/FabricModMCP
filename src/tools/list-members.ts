@@ -5,6 +5,7 @@ import { logger } from '../logging/logger.js';
 import { classNameToEntryPath, handleClassSourceError, resolveProjectSafely, requireDependencies, returnError, withLspDocument, resolveClassSource, getDependenciesForTool, stripEnrichedSymbol, getRootPathForScope } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
 import type { TransformedSymbol } from '../browsing/types.js';
+import type { TypeReference } from '../browsing/member-types.js';
 import { enrichSymbols } from '../browsing/member-enrichment.js';
 import { getOrBuildIndex } from '../browsing/entry-index-cache.js';
 import { createSourceAdapter } from '../browsing/source-adapter.js';
@@ -49,24 +50,37 @@ function countClassBodyMembers(symbols: TransformedSymbol[]): number {
 	return sawContainer ? total : symbols.length;
 }
 
+function formatType(t: TypeReference): string {
+	switch (t.kind) {
+		case 'primitive': return t.name;
+		case 'class': return t.name;
+		case 'array': return `${formatType(t.elementType)}[]`;
+		case 'vararg': return `${formatType(t.elementType)}...`;
+		case 'void': return 'void';
+		case 'unresolved': return t.rawType;
+	}
+}
+
 function renderMember(m: Record<string, unknown>, index: number, indent: string): string {
 	const name = m.name as string;
 	const kind = m.kind as string;
 	const memberFqn = m.memberFqn as string | undefined;
 	const deprecated = m.deprecated as boolean | undefined;
 	const range = m.range as { start: { line: number }; end: { line: number } } | undefined;
-	const parameters = m.parameters as Array<{ name: string; type: { display: string } }> | undefined;
-	const returnType = m.returnType as { display: string } | null | undefined;
-	const fieldType = m.fieldType as { display: string } | undefined;
+	const parameters = m.parameters as Array<{ name: string | null; type: TypeReference }> | undefined;
+	const returnType = m.returnType as TypeReference | null | undefined;
+	const fieldType = m.fieldType as TypeReference | undefined;
 	const children = (m.children as Record<string, unknown>[] | undefined) ?? [];
 
 	let signature: string;
 	if (parameters !== undefined && returnType !== undefined) {
-		const params = parameters.map(p => `${p.type.display} ${p.name}`).join(', ');
-		const ret = returnType ? `: ${returnType.display}` : '';
+		const params = parameters
+			.map(p => p.name !== null ? `${formatType(p.type)} ${p.name}` : formatType(p.type))
+			.join(', ');
+		const ret = returnType !== null ? `: ${formatType(returnType)}` : '';
 		signature = `${name}(${params})${ret}`;
 	} else if (fieldType !== undefined) {
-		signature = `${name}: ${fieldType.display}`;
+		signature = `${name}: ${formatType(fieldType)}`;
 	} else {
 		signature = name;
 	}

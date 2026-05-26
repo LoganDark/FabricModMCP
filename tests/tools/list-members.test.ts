@@ -782,4 +782,66 @@ public abstract class StoredUserEntry<T> {
 			projectStore.clear();
 		}
 	});
+
+	// REGRESSION: type rendering (2026-05-26) — TypeReference is a tagged
+	// union (kind/name/elementType/rawType), not an object with a `display`
+	// field. The renderer used to cast it to `{ display: string }` and read
+	// `.display`, producing lines like `LOGGER: undefined` for every field
+	// and method. The rendered body must format types via the union shape.
+	test('REGRESSION: rendered body formats TypeReference union, no "undefined"', async () => {
+		mockListEntries.mockResolvedValue(['net/minecraft/server/level/ServerPlayer.java']);
+		mockDocumentSymbol.mockResolvedValue([
+			{
+				name: 'ServerPlayer',
+				kind: 5,
+				detail: '',
+				range: { start: { line: 2, character: 0 }, end: { line: 20, character: 1 } },
+				selectionRange: { start: { line: 2, character: 13 }, end: { line: 2, character: 25 } },
+				children: [
+					{
+						name: 'LOGGER',
+						kind: 14, // constant
+						detail: 'Logger',
+						range: { start: { line: 3, character: 1 }, end: { line: 3, character: 30 } },
+						selectionRange: { start: { line: 3, character: 20 }, end: { line: 3, character: 26 } },
+					},
+					{
+						name: 'tick()',
+						kind: 6, // method
+						detail: ' : void',
+						range: { start: { line: 5, character: 1 }, end: { line: 7, character: 2 } },
+						selectionRange: { start: { line: 5, character: 14 }, end: { line: 5, character: 18 } },
+					},
+				],
+			},
+		]);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'list_members',
+				arguments: {
+					project: 'test',
+					jar: 'testmod/minecraft',
+					class: 'net.minecraft.server.level.ServerPlayer',
+					details: { signatures: true },
+				},
+			});
+
+			const r = result as any;
+			const bodyText = r.content.slice(1).map((c: any) => c.text).join('\n');
+			// Most important: no literal "undefined" anywhere in the body.
+			expect(bodyText).not.toContain('undefined');
+			// Field renders with its resolved type, not `: undefined`.
+			expect(bodyText).toMatch(/LOGGER: Logger/);
+			// Method return type renders as `: void`, not `: undefined`.
+			expect(bodyText).toMatch(/tick.*: void/);
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
 });
