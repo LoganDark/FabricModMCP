@@ -127,8 +127,19 @@ export function registerSearchSymbolsTool(server: McpServer): void {
 			const endIndex = Math.min(effectiveOffset + page.length, total);
 			const summary = `Found ${total} symbol${total === 1 ? '' : 's'} matching '${query}' (showing ${effectiveOffset + 1}-${endIndex})`;
 
+			const content: { type: 'text'; text: string }[] = [{ type: 'text' as const, text: summary }];
+			if (transformed.length > 0) {
+				const body = transformed.map((s, i) => {
+					const label = s.memberFqn ?? (s.containerName ? `${s.containerName}.${s.name}` : s.name);
+					const deprecated = s.deprecated ? ' [deprecated]' : '';
+					const jar = s.location.jar ? `${s.location.jar}:${s.location.line}` : `${s.location.uri}:${s.location.line}`;
+					return `${effectiveOffset + i + 1}. ${s.kind} ${label}${deprecated} — ${jar}`;
+				}).join('\n');
+				content.push({ type: 'text' as const, text: body });
+			}
+
 			return {
-				content: [{ type: 'text' as const, text: summary }],
+				content,
 				structuredContent: envelope,
 			};
 		},

@@ -601,4 +601,61 @@ public class MinecraftClient {
 			projectStore.clear();
 		}
 	});
+
+	// REGRESSION: content body bug (2026-05-26) — list_members must render
+	// the member tree in content[] as a body block.
+	test('REGRESSION: content body renders the member tree', async () => {
+		mockListEntries.mockResolvedValue(['net/minecraft/client/MinecraftClient.java']);
+		mockDocumentSymbol.mockResolvedValue([
+			{
+				name: 'MinecraftClient',
+				kind: 5,
+				detail: '',
+				range: { start: { line: 2, character: 0 }, end: { line: 12, character: 1 } },
+				selectionRange: { start: { line: 2, character: 13 }, end: { line: 2, character: 28 } },
+				children: [
+					{
+						name: 'running',
+						kind: 8,
+						detail: 'boolean',
+						range: { start: { line: 3, character: 1 }, end: { line: 3, character: 25 } },
+						selectionRange: { start: { line: 3, character: 17 }, end: { line: 3, character: 24 } },
+					},
+					{
+						name: 'run()',
+						kind: 6,
+						detail: 'void',
+						range: { start: { line: 5, character: 1 }, end: { line: 7, character: 2 } },
+						selectionRange: { start: { line: 5, character: 13 }, end: { line: 5, character: 16 } },
+					},
+				],
+			},
+		]);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'list_members',
+				arguments: {
+					project: 'test',
+					jar: 'testmod/minecraft',
+					class: 'net.minecraft.client.MinecraftClient',
+				},
+			});
+
+			const r = result as any;
+			expect(r.content.length).toBeGreaterThanOrEqual(2);
+			expect(r.content[0].text).toMatch(/^Found \d+ top-level member/);
+			const bodyText = r.content.slice(1).map((c: any) => c.text).join('\n');
+			expect(bodyText).toContain('MinecraftClient');
+			expect(bodyText).toContain('running');
+			expect(bodyText).toContain('run()');
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
 });

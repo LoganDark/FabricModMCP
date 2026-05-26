@@ -277,4 +277,23 @@ describe('list_packages tool', () => {
 		const sorted = [...names].sort();
 		expect(names).toEqual(sorted);
 	});
+
+	// REGRESSION: content body bug (2026-05-26) — list_packages must list
+	// each package in content[] as a body block.
+	it('REGRESSION: content body lists matched packages', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'list_packages',
+			arguments: { project: 'test', package: 'net.minecraft' },
+		});
+
+		const r = result as any;
+		expect(r.content.length).toBeGreaterThanOrEqual(2);
+		expect(r.content[0].text).toMatch(/^Found \d+ package/);
+		const bodyText = r.content.slice(1).map((c: any) => c.text).join('\n');
+		expect(bodyText).toContain('net.minecraft.client');
+		expect(bodyText).toMatch(/\d+ class/);
+	});
 });

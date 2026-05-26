@@ -4,7 +4,7 @@ import { applyPagination } from './pagination.js';
 import { resolveSymbolPosition } from './resolve-symbol-position.js';
 import { createUriMapper } from '../jdtls/uri-mapper.js';
 import { logger } from '../logging/logger.js';
-import { handleSymbolPositionError, normalizeLocations, processNavigationLocations, resolveProjectSafely, requireDependencies, returnError, stripNavigationResult, withLspDocument } from './tool-helpers.js';
+import { handleSymbolPositionError, normalizeLocations, processNavigationLocations, renderNavigationList, resolveProjectSafely, requireDependencies, returnError, stripNavigationResult, withLspDocument } from './tool-helpers.js';
 import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
 
 export function registerFindReferencesTool(server: McpServer): void {
@@ -100,8 +100,13 @@ export function registerFindReferencesTool(server: McpServer): void {
 				} else {
 					summary = `Found ${paginated.total} reference${paginated.total === 1 ? '' : 's'} across ${uniqueFiles} file${uniqueFiles === 1 ? '' : 's'} (showing ${paginated.results.length} from offset ${paginated.offset})`;
 				}
+
+				const body = renderNavigationList(stripped);
+				const content: { type: 'text'; text: string }[] = [{ type: 'text' as const, text: summary }];
+				if (body !== null) content.push({ type: 'text' as const, text: body });
+
 				return {
-					content: [{ type: 'text' as const, text: summary }],
+					content,
 					structuredContent: envelope,
 				};
 			});

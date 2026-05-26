@@ -245,4 +245,26 @@ describe('get_member_info tool', () => {
 		expect(envelope.success).toBe(false);
 		expect(envelope.error.code).toBeDefined();
 	});
+
+	// REGRESSION: content body bug (2026-05-26) — get_member_info must
+	// render member details in content[] as a body block.
+	it('REGRESSION: content body renders fabric mod details', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'get_member_info',
+			arguments: { project: 'test', member: 'testmod' },
+		});
+
+		const r = result as any;
+		expect(r.content.length).toBeGreaterThanOrEqual(2);
+		expect(r.content[0].text).toMatch(/^Member 'testmod'/);
+		const bodyText = r.content.slice(1).map((c: any) => c.text).join('\n');
+		// Mod project info surfaces in body
+		expect(bodyText).toContain('1.21.11');
+		expect(bodyText).toContain('Test Mod');
+		// Jar inventory rendered with at least one jar id
+		expect(bodyText).toContain('testmod/minecraft');
+	});
 });

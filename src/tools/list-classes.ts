@@ -144,8 +144,24 @@ export function registerListClassesTool(server: McpServer): void {
 				},
 			});
 
+			const summary = `Found ${classes.length} class${classes.length === 1 ? '' : 'es'} in ${packageName}`;
+
+			const content: { type: 'text'; text: string }[] = [{ type: 'text' as const, text: summary }];
+			if (stripped.length > 0) {
+				const body = stripped.map((c, i) => {
+					const access = c.access ? `${c.access} ` : '';
+					const modifiers = c.modifiers && c.modifiers.length > 0 ? `${c.modifiers.join(' ')} ` : '';
+					const jars = c.jars.map(j => j.id).join(', ');
+					const inners = c.innerClasses && c.innerClasses.length > 0
+						? `\n   inner classes: ${c.innerClasses.map(ic => `${ic.name} (${ic.kind})`).join(', ')}`
+						: '';
+					return `${i + 1}. ${c.fqn} — ${access}${modifiers}${c.kind} [${jars}]${inners}`;
+				}).join('\n');
+				content.push({ type: 'text' as const, text: body });
+			}
+
 			return {
-				content: [{ type: 'text' as const, text: `Found ${classes.length} class${classes.length === 1 ? '' : 'es'} in ${packageName}` }],
+				content,
 				structuredContent: envelope,
 			};
 		},

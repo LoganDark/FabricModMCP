@@ -453,4 +453,71 @@ describe('locate_in_source tool', () => {
 			}
 		}
 	});
+
+	// REGRESSION: content body bug (2026-05-26) — locate_in_source must emit
+	// the located position (and context / steps when requested) in content[]
+	// as a body block, not only in structuredContent.
+
+	it('REGRESSION: success path renders the located position in content body', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'locate_in_source',
+			arguments: {
+				project: 'test',
+				jar: 'testmod/minecraft',
+				class: 'net.minecraft.client.MinecraftClient',
+				patterns: ['public class MinecraftClient'],
+			},
+		});
+
+		const r = result as any;
+		expect(r.content.length).toBeGreaterThanOrEqual(2);
+		expect(r.content[0].text).toMatch(/^Located in /);
+		expect(r.content[1].text).toContain('testmod/minecraft');
+		expect(r.content[1].text).toMatch(/line \d+, col \d+/);
+	});
+
+	it('REGRESSION: context parameter surfaces the source snippet in content body', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'locate_in_source',
+			arguments: {
+				project: 'test',
+				jar: 'testmod/minecraft',
+				class: 'net.minecraft.client.MinecraftClient',
+				patterns: ['public class MinecraftClient'],
+				context: { linesBefore: 0, linesAfter: 0 },
+			},
+		});
+
+		const r = result as any;
+		const bodyText = r.content.slice(1).map((c: any) => c.text).join('\n');
+		expect(bodyText).toContain('context');
+		expect(bodyText).toContain('public class MinecraftClient');
+	});
+
+	it('REGRESSION: details:{steps:true} surfaces the cascade trace in content body', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'locate_in_source',
+			arguments: {
+				project: 'test',
+				jar: 'testmod/minecraft',
+				class: 'net.minecraft.client.MinecraftClient',
+				patterns: ['public class MinecraftClient', 'MinecraftClient'],
+				details: { steps: true },
+			},
+		});
+
+		const r = result as any;
+		const bodyText = r.content.slice(1).map((c: any) => c.text).join('\n');
+		expect(bodyText).toContain('steps');
+		expect(bodyText).toContain('public class MinecraftClient');
+	});
 });

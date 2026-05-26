@@ -226,4 +226,22 @@ describe('search_classes tool', () => {
 		// modifiers: true alone should NOT include innerClasses
 		expect(match.innerClasses).toBeUndefined();
 	});
+
+	// REGRESSION: content body bug (2026-05-26) — search_classes must list
+	// matching classes in content[] as a body block, not only structuredContent.
+	it('REGRESSION: content body lists matching classes', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'search_classes',
+			arguments: { project: 'test', query: '*Client' },
+		});
+
+		const r = result as any;
+		expect(r.content.length).toBeGreaterThanOrEqual(2);
+		expect(r.content[0].text).toMatch(/^Found \d+ class/);
+		const bodyText = r.content.slice(1).map((c: any) => c.text).join('\n');
+		expect(bodyText).toContain('MinecraftClient');
+	});
 });

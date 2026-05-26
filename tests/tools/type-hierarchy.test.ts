@@ -421,4 +421,59 @@ describe.skipIf(!toolModuleAvailable)('type_hierarchy', () => {
 			projectStore.clear();
 		}
 	});
+
+	// REGRESSION: content body bug (2026-05-26) — type_hierarchy must render
+	// extends/implements/subtypes in content[] as a body block.
+	test('REGRESSION: content body lists extends, implements, and subtypes', async () => {
+		mockEndpointSend.mockImplementation(async (method: string, params: any) => {
+			if (method === 'textDocument/prepareTypeHierarchy') {
+				return [{
+					name: 'MinecraftClient',
+					kind: 5,
+					detail: 'net.minecraft.client',
+					uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
+					range: { start: { line: 2, character: 0 }, end: { line: 8, character: 1 } },
+					selectionRange: { start: { line: 2, character: 13 }, end: { line: 2, character: 28 } },
+				}];
+			}
+			if (method === 'typeHierarchy/supertypes') {
+				if (params.item.name === 'MinecraftClient') {
+					return [
+						{ name: 'Thread', kind: 5, detail: 'java.lang', uri: 'jdt://thread', range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, selectionRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } } },
+						{ name: 'Runnable', kind: 11, detail: 'java.lang', uri: 'jdt://runnable', range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, selectionRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } } },
+					];
+				}
+				return [];
+			}
+			if (method === 'typeHierarchy/subtypes') return [];
+			return null;
+		});
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'type_hierarchy',
+				arguments: {
+					project: 'test',
+					jar: 'testmod/minecraft',
+					class: 'net.minecraft.client.MinecraftClient',
+				},
+			});
+
+			const r = result as any;
+			expect(r.content.length).toBeGreaterThanOrEqual(2);
+			expect(r.content[0].text).toMatch(/^Type hierarchy/);
+			const bodyText = r.content.slice(1).map((c: any) => c.text).join('\n');
+			expect(bodyText).toContain('extends:');
+			expect(bodyText).toContain('Thread');
+			expect(bodyText).toContain('implements:');
+			expect(bodyText).toContain('Runnable');
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
 });

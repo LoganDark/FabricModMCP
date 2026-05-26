@@ -418,4 +418,42 @@ describe.skipIf(!toolModuleAvailable)('find_implementations', () => {
 			projectStore.clear();
 		}
 	});
+
+	// REGRESSION: content body bug (2026-05-26) — find_implementations must
+	// render located implementations in content[] as a body block.
+	test('REGRESSION: content body contains located implementations', async () => {
+		mockEndpointSend.mockResolvedValue([
+			{
+				uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/render/GameRenderer.java',
+				range: { start: { line: 3, character: 13 }, end: { line: 3, character: 19 } },
+			},
+		]);
+		mockReadFile.mockResolvedValue(FAKE_IMPL_SOURCE);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'find_implementations',
+				arguments: {
+					project: 'test',
+					jar: 'testmod/minecraft',
+					class: 'net.minecraft.client.MinecraftClient',
+					patterns: ['public void run\\('],
+				},
+			});
+
+			const r = result as any;
+			expect(r.content.length).toBeGreaterThanOrEqual(2);
+			expect(r.content[0].text).toMatch(/^Found \d+ implementation/);
+			const bodyText = r.content.slice(1).map((c: any) => c.text).join('\n');
+			expect(bodyText).toContain('GameRenderer');
+			expect(bodyText).toMatch(/line \d+, col \d+/);
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
 });

@@ -183,8 +183,17 @@ export function registerTypeHierarchyTool(server: McpServer): void {
 
 				const summary = `Type hierarchy for ${className}: extends ${extendsChain.length} type${extendsChain.length === 1 ? '' : 's'}, implements ${implementsList.length} interface${implementsList.length === 1 ? '' : 's'}, ${subtypes.length} direct subtype${subtypes.length === 1 ? '' : 's'}`;
 
+				const renderRef = (r: ClassReference) => `  - ${r.fqn} (${r.kind}${r.jar ? `, ${r.jar}` : ''})`;
+				const bodySections: string[] = [];
+				if (extendsChain.length > 0) bodySections.push(`extends:\n${extendsChain.map(renderRef).join('\n')}`);
+				if (implementsList.length > 0) bodySections.push(`implements:\n${implementsList.map(renderRef).join('\n')}`);
+				if (subtypes.length > 0) bodySections.push(`subtypes (depth ${subtypeDepth}):\n${subtypes.map(renderRef).join('\n')}`);
+
+				const content: { type: 'text'; text: string }[] = [{ type: 'text' as const, text: summary }];
+				if (bodySections.length > 0) content.push({ type: 'text' as const, text: bodySections.join('\n\n') });
+
 				return {
-					content: [{ type: 'text' as const, text: summary }],
+					content,
 					structuredContent: envelope,
 				};
 			});

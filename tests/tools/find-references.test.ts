@@ -557,4 +557,44 @@ describe.skipIf(!toolModuleAvailable)('find_references', () => {
 			projectStore.clear();
 		}
 	});
+
+	// REGRESSION: content body bug (2026-05-26) — find_references must
+	// render located references in content[] as a body block, and surface
+	// per-reference line content when details.lineContent is requested.
+	test('REGRESSION: content body lists references and includes line content with details', async () => {
+		mockReferences.mockResolvedValue([
+			{
+				uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
+				range: { start: { line: 5, character: 13 }, end: { line: 5, character: 16 } },
+			},
+		]);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { jarIdToDirName: new Map([['testmod/minecraft', 'minecraft']]) }) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'find_references',
+				arguments: {
+					project: 'test',
+					jar: 'testmod/minecraft',
+					class: 'net.minecraft.client.MinecraftClient',
+					patterns: ['public void run\\('],
+					details: { lineContent: true },
+				},
+			});
+
+			const r = result as any;
+			expect(r.content.length).toBeGreaterThanOrEqual(2);
+			expect(r.content[0].text).toMatch(/^Found \d+ reference/);
+			const bodyText = r.content.slice(1).map((c: any) => c.text).join('\n');
+			expect(bodyText).toContain('MinecraftClient');
+			// lineContent should surface a context snippet in the body
+			expect(bodyText.toLowerCase()).toContain('context');
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
 });

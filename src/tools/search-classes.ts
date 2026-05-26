@@ -54,8 +54,21 @@ export function registerSearchClassesTool(server: McpServer): void {
 				},
 			});
 
+			const summary = `Found ${response.results.length} class${response.results.length === 1 ? '' : 'es'} matching '${query}' (${response.total} total, showing ${response.offset}-${response.offset + response.results.length})`;
+
+			const content: { type: 'text'; text: string }[] = [{ type: 'text' as const, text: summary }];
+			if (strippedResults.length > 0) {
+				const body = strippedResults.map((c, i) => {
+					const access = c.access ? `${c.access} ` : '';
+					const modifiers = c.modifiers && c.modifiers.length > 0 ? `${c.modifiers.join(' ')} ` : '';
+					const jars = c.jars.map(j => j.id).join(', ');
+					return `${response.offset + i + 1}. ${c.fqn} — ${access}${modifiers}${c.kind} [${jars}]`;
+				}).join('\n');
+				content.push({ type: 'text' as const, text: body });
+			}
+
 			return {
-				content: [{ type: 'text' as const, text: `Found ${response.results.length} class${response.results.length === 1 ? '' : 'es'} matching '${query}' (${response.total} total, showing ${response.offset}-${response.offset + response.results.length})` }],
+				content,
 				structuredContent: envelope,
 			};
 		},

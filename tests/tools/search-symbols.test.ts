@@ -450,4 +450,32 @@ describe.skipIf(!toolModuleAvailable)('search_symbols', () => {
 			projectStore.clear();
 		}
 	});
+
+	// REGRESSION: content body bug (2026-05-26) — search_symbols must list
+	// matching symbols in content[] as a body block.
+	test('REGRESSION: content body lists matching symbols', async () => {
+		mockEndpointSend.mockResolvedValue(SAMPLE_SYMBOLS);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient(), { endpoint: { send: mockEndpointSend } as any }) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'search_symbols',
+				arguments: { project: 'test', query: 'MinecraftClient' },
+			});
+
+			const r = result as any;
+			expect(r.content.length).toBeGreaterThanOrEqual(2);
+			expect(r.content[0].text).toMatch(/^Found \d+ symbol/);
+			const bodyText = r.content.slice(1).map((c: any) => c.text).join('\n');
+			expect(bodyText).toContain('MinecraftClient');
+			// SAMPLE_SYMBOLS includes a deprecated entry — body should flag it
+			expect(bodyText).toContain('deprecated');
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
 });

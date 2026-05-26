@@ -589,3 +589,29 @@ export function stripClassInfo(
 
 	return result;
 }
+
+/**
+ * Render a single NavigationResult (find_definition / find_implementations / find_references)
+ * as a human/agent-readable text block. Includes the optional context snippet when present
+ * (i.e. when the tool was called with details.lineContent=true).
+ */
+export function renderNavigationResult(r: NavigationResult, index: number): string {
+	const lines: string[] = [];
+	lines.push(`${index + 1}. ${r.className} (${r.jar}) — line ${r.line}, col ${r.column}`);
+	if (r.entryPath) lines.push(`   path: ${r.entryPath}`);
+	if (r.context) {
+		lines.push(`   context (${r.context.kind}, lines ${r.context.startLine}-${r.context.endLine}):`);
+		const indented = r.context.snippet.split('\n').map(l => `     ${l}`).join('\n');
+		lines.push(indented);
+	}
+	return lines.join('\n');
+}
+
+/**
+ * Render a list of NavigationResults as a single text block (numbered list).
+ * Returns null when the list is empty so callers can skip the body block.
+ */
+export function renderNavigationList(results: NavigationResult[]): string | null {
+	if (results.length === 0) return null;
+	return results.map((r, i) => renderNavigationResult(r, i)).join('\n');
+}

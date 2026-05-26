@@ -81,8 +81,19 @@ export function registerListPackagesTool(server: McpServer): void {
 				},
 			});
 
+			const summary = `Found ${packages.length} package${packages.length === 1 ? '' : 's'}${packageName ? ` under '${packageName}'` : ''}`;
+
+			const content: { type: 'text'; text: string }[] = [{ type: 'text' as const, text: summary }];
+			if (packages.length > 0) {
+				const body = packages.map((p, i) => {
+					const jars = p.jars.join(', ');
+					return `${i + 1}. ${p.name} (${p.classCount} class${p.classCount === 1 ? '' : 'es'}) [${jars}]`;
+				}).join('\n');
+				content.push({ type: 'text' as const, text: body });
+			}
+
 			return {
-				content: [{ type: 'text' as const, text: `Found ${packages.length} package${packages.length === 1 ? '' : 's'}${packageName ? ` under '${packageName}'` : ''}` }],
+				content,
 				structuredContent: envelope,
 			};
 		},

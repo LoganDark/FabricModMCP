@@ -398,4 +398,40 @@ describe.skipIf(!toolModuleAvailable)('find_definition', () => {
 			projectStore.clear();
 		}
 	});
+
+	// REGRESSION: content body bug (2026-05-26) — find_definition must
+	// render the located definition(s) in content[] as a body block, not
+	// only in structuredContent.
+	test('REGRESSION: content body contains the located definition', async () => {
+		mockDefinition.mockResolvedValue({
+			uri: 'file:///tmp/test-jdtls/minecraft/net/minecraft/client/MinecraftClient.java',
+			range: { start: { line: 5, character: 13 }, end: { line: 5, character: 16 } },
+		});
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'find_definition',
+				arguments: {
+					project: 'test',
+					jar: 'testmod/minecraft',
+					class: 'net.minecraft.client.MinecraftClient',
+					patterns: ['public void run\\('],
+				},
+			});
+
+			const r = result as any;
+			expect(r.content.length).toBeGreaterThanOrEqual(2);
+			expect(r.content[0].text).toMatch(/^Found definition/);
+			const bodyText = r.content.slice(1).map((c: any) => c.text).join('\n');
+			expect(bodyText).toContain('net.minecraft.client.MinecraftClient');
+			expect(bodyText).toMatch(/line \d+, col \d+/);
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
 });

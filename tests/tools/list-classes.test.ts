@@ -279,4 +279,22 @@ describe('list_classes tool', () => {
 		const sorted = [...names].sort();
 		expect(names).toEqual(sorted);
 	});
+
+	// REGRESSION: content body bug (2026-05-26) — list_classes must list
+	// each class in content[] as a body block.
+	it('REGRESSION: content body lists matched classes', async () => {
+		const fake = makeFakeProject();
+		projectStore.set('test', fake);
+
+		const result = await pair.client.callTool({
+			name: 'list_classes',
+			arguments: { project: 'test', package: 'net.minecraft.client' },
+		});
+
+		const r = result as any;
+		expect(r.content.length).toBeGreaterThanOrEqual(2);
+		expect(r.content[0].text).toMatch(/^Found \d+ class/);
+		const bodyText = r.content.slice(1).map((c: any) => c.text).join('\n');
+		expect(bodyText).toContain('MinecraftClient');
+	});
 });

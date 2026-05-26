@@ -11,6 +11,40 @@ import { TOOL_DESCRIPTIONS, PARAMS, DETAIL_PARAMS } from './descriptions.js';
 import { resolveJarId } from '../project/namespace-resolver.js';
 import type { LocateFailure } from './tool-helpers.js';
 import type { LocateResult, LocateResultContext } from '../browsing/types.js';
+import type { CascadeStep } from '../browsing/cascading-regex.js';
+
+function renderLocateContext(ctx: LocateResultContext, indent: string): string {
+	const header = `${indent}context (lines ${ctx.startLine}-${ctx.endLine}):`;
+	const body = ctx.text.split('\n').map(l => `${indent}  ${l}`).join('\n');
+	return `${header}\n${body}`;
+}
+
+function renderLocateSteps(steps: CascadeStep[] | undefined, indent: string): string | null {
+	if (!steps || steps.length === 0) return null;
+	const head = `${indent}steps (${steps.length}):`;
+	const lines = steps.map(s => {
+		const where = s.status === 'success' && s.offset !== undefined
+			? ` @ offset ${s.offset}${s.matched ? ` matched "${s.matched.length > 60 ? s.matched.slice(0, 60) + '…' : s.matched}"` : ''}`
+			: '';
+		return `${indent}  ${s.step}. ${s.pattern} — ${s.status}${where}`;
+	}).join('\n');
+	return `${head}\n${lines}`;
+}
+
+function renderLocateResult(r: LocateResult, index: number): string {
+	const head = `${index}. ${r.jar} — line ${r.line}, col ${r.column} (offset ${r.offset})`;
+	const parts: string[] = [head];
+	if (r.context) parts.push(renderLocateContext(r.context, '   '));
+	const stepsBlock = renderLocateSteps(r.steps, '   ');
+	if (stepsBlock) parts.push(stepsBlock);
+	return parts.join('\n');
+}
+
+function renderLocateFailure(f: LocateFailure, index: number): string {
+	const head = `${index}. ${f.jar} — failed at step ${f.failedStep + 1}${f.error ? `: ${f.error}` : ''}`;
+	const stepsBlock = renderLocateSteps(f.steps, '   ');
+	return stepsBlock ? `${head}\n${stepsBlock}` : head;
+}
 
 function extractContext(
 	source: string,
@@ -108,8 +142,12 @@ export function registerLocateInSourceTool(server: McpServer): void {
 						}
 						const stripped = stripLocateResult(locateResult, details);
 						const envelope = makeSuccess({ results: [stripped], failures: [] }, { provenance });
+						const summary = `Located in ${className} (${dep.id}) at line ${result.line}, col ${result.column}`;
+						const bodyContent: { type: 'text'; text: string }[] = [{ type: 'text' as const, text: summary }];
+						const body = renderLocateResult(stripped, 1);
+						if (body !== summary) bodyContent.push({ type: 'text' as const, text: body });
 						return {
-							content: [{ type: 'text' as const, text: `Located in ${className} (${dep.id}) at line ${result.line}, col ${result.column}` }],
+							content: bodyContent,
 							structuredContent: envelope,
 						};
 					} else {
@@ -121,9 +159,14 @@ export function registerLocateInSourceTool(server: McpServer): void {
 							failedStep: result.failedStep,
 							error: result.error,
 						};
-						const envelope = makeSuccess({ results: [], failures: [stripLocateFailure(locateFailure, details)] }, { provenance });
+						const strippedFailure = stripLocateFailure(locateFailure, details);
+						const envelope = makeSuccess({ results: [], failures: [strippedFailure] }, { provenance });
+						const summary = `Cascade failed at step ${result.failedStep + 1} in ${className} (${dep.id})`;
+						const content: { type: 'text'; text: string }[] = [{ type: 'text' as const, text: summary }];
+						const body = renderLocateFailure(strippedFailure, 1);
+						if (body.includes('\n')) content.push({ type: 'text' as const, text: body });
 						return {
-							content: [{ type: 'text' as const, text: `Cascade failed at step ${result.failedStep + 1} in ${className} (${dep.id})` }],
+							content,
 							structuredContent: envelope,
 						};
 					}
@@ -199,13 +242,28 @@ export function registerLocateInSourceTool(server: McpServer): void {
 			const envelope = makeSuccess({ results: strippedResults, failures: strippedFailures }, { provenance });
 			if (results.length > 0) {
 				const first = results[0];
+				const summary = `Located in ${className} (${first.jar}) at line ${first.line}, col ${first.column}${results.length > 1 ? ` (+${results.length - 1} more)` : ''}${failures.length > 0 ? `, ${failures.length} failed` : ''}`;
+				const content: { type: 'text'; text: string }[] = [{ type: 'text' as const, text: summary }];
+				const bodyParts: string[] = [];
+				bodyParts.push(...strippedResults.map((r, i) => renderLocateResult(r, i + 1)));
+				if (strippedFailures.length > 0) {
+					bodyParts.push(`failures (${strippedFailures.length}):`);
+					bodyParts.push(...strippedFailures.map((f, i) => renderLocateFailure(f, i + 1)));
+				}
+				content.push({ type: 'text' as const, text: bodyParts.join('\n\n') });
 				return {
-					content: [{ type: 'text' as const, text: `Located in ${className} (${first.jar}) at line ${first.line}, col ${first.column}${results.length > 1 ? ` (+${results.length - 1} more)` : ''}${failures.length > 0 ? `, ${failures.length} failed` : ''}` }],
+					content,
 					structuredContent: envelope,
 				};
 			}
+			const summary = `Cascade failed in ${failures.length} jar${failures.length === 1 ? '' : 's'} for ${className}`;
+			const content: { type: 'text'; text: string }[] = [{ type: 'text' as const, text: summary }];
+			if (strippedFailures.length > 0) {
+				const body = strippedFailures.map((f, i) => renderLocateFailure(f, i + 1)).join('\n\n');
+				content.push({ type: 'text' as const, text: body });
+			}
 			return {
-				content: [{ type: 'text' as const, text: `Cascade failed in ${failures.length} jar${failures.length === 1 ? '' : 's'} for ${className}` }],
+				content,
 				structuredContent: envelope,
 			};
 		},

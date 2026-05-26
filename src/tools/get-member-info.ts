@@ -126,8 +126,53 @@ export function registerGetMemberInfoTool(server: McpServer): void {
 				},
 			});
 
+			const summary = `Member '${member}' in project '${loadedProject.name}' (kind: ${child.kind})`;
+			const bodyLines: string[] = [];
+			if (child.kind === 'fabric-mod') {
+				const projInfo = data.projectInfo as Record<string, unknown>;
+				const modInfo = data.modInfo as Record<string, unknown>;
+				const jars = data.jarInventory as Record<string, unknown>[];
+				bodyLines.push(`Fabric mod project`);
+				bodyLines.push(`  minecraft: ${projInfo.minecraftVersion}`);
+				bodyLines.push(`  mapping era: ${projInfo.mappingEra}`);
+				if (projInfo.yarnMappings) bodyLines.push(`  yarn mappings: ${projInfo.yarnMappings}`);
+				if (projInfo.loaderVersion) bodyLines.push(`  loader: ${projInfo.loaderVersion}`);
+				if (projInfo.fabricApiVersion) bodyLines.push(`  fabric API: ${projInfo.fabricApiVersion}`);
+				const declared = projInfo.declaredDependencies as unknown[];
+				bodyLines.push(`  declared dependencies: ${declared.length}`);
+				bodyLines.push('');
+				bodyLines.push(`fabric.mod.json:`);
+				bodyLines.push(`  id: ${modInfo.id}`);
+				bodyLines.push(`  version: ${modInfo.version}`);
+				if (modInfo.name) bodyLines.push(`  name: ${modInfo.name}`);
+				if (modInfo.description) bodyLines.push(`  description: ${modInfo.description}`);
+				if (modInfo.environment) bodyLines.push(`  environment: ${modInfo.environment}`);
+				if (Array.isArray(modInfo.authors) && modInfo.authors.length > 0) bodyLines.push(`  authors: ${modInfo.authors.join(', ')}`);
+				if (Array.isArray(modInfo.mixins) && modInfo.mixins.length > 0) bodyLines.push(`  mixins: ${(modInfo.mixins as unknown[]).length}`);
+				bodyLines.push('');
+				bodyLines.push(`jar inventory (${jars.length}):`);
+				for (const j of jars) {
+					const available = j.available ? '' : ' [unavailable]';
+					const compiled = j.hasCompiledJar ? '' : ' (no compiled jar)';
+					const size = j.sizeBytes != null ? ` ${j.sizeBytes} bytes` : '';
+					bodyLines.push(`  - ${j.id} (${j.category})${available}${compiled}${size}`);
+				}
+			} else if (child.kind === 'study-jar') {
+				const stats = data.stats as Record<string, unknown>;
+				bodyLines.push(`Study jar`);
+				bodyLines.push(`  path: ${data.jarPath}`);
+				if (data.compiledJarPath) bodyLines.push(`  compiled jar: ${data.compiledJarPath}`);
+				bodyLines.push(`  size: ${data.size} bytes`);
+				bodyLines.push(`  mtime: ${data.mtime}`);
+				bodyLines.push(`  auto-include: ${data.autoInclude}`);
+				bodyLines.push(`  classes: ${stats.classCount}, packages: ${stats.packageCount}`);
+			}
+
+			const content: { type: 'text'; text: string }[] = [{ type: 'text' as const, text: summary }];
+			if (bodyLines.length > 0) content.push({ type: 'text' as const, text: bodyLines.join('\n') });
+
 			return {
-				content: [{ type: 'text' as const, text: `Member '${member}' in project '${loadedProject.name}'` }],
+				content,
 				structuredContent: envelope,
 			};
 		},
