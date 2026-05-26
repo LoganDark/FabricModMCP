@@ -11,6 +11,44 @@ import { createSourceAdapter } from '../browsing/source-adapter.js';
 import { jarReader } from './shared-jar-reader.js';
 import { transformSymbolResponse } from '../browsing/symbol-transform.js';
 
+/**
+ * Top-level kinds that contain user-facing class members. JDT LS returns Java
+ * source files with a hierarchical outline whose top level is typically
+ * `[Package, Class]` — the package declaration is syntactic noise from the
+ * user's perspective, and counting it as a "member" produced misleading
+ * "Found 2 top-level members" summaries even for classes with dozens of
+ * methods (see debug session list-members-only-two). We drop the package
+ * symbol from both the structured payload and the rendered body, and report
+ * the count of CLASS BODY members in the summary instead of the raw LSP
+ * top-level count.
+ */
+const CLASS_CONTAINER_KINDS = new Set(['class', 'interface', 'enum', 'struct']);
+
+function isPackageSymbol(sym: TransformedSymbol): boolean {
+	return sym.kind === 'package';
+}
+
+/**
+ * Compute a user-meaningful "member count" for the summary string.
+ * For a file with one class container, this is the count of that class's
+ * direct children (fields, constructors, methods, inner classes). For a
+ * multi-class file (rare in Java), this is the sum across all class
+ * containers. If the top level contains no class container (e.g. a stray
+ * package-only response), fall back to the raw top-level count so the
+ * summary is at least non-zero.
+ */
+function countClassBodyMembers(symbols: TransformedSymbol[]): number {
+	let total = 0;
+	let sawContainer = false;
+	for (const sym of symbols) {
+		if (CLASS_CONTAINER_KINDS.has(sym.kind)) {
+			sawContainer = true;
+			total += sym.children.length;
+		}
+	}
+	return sawContainer ? total : symbols.length;
+}
+
 function renderMember(m: Record<string, unknown>, index: number, indent: string): string {
 	const name = m.name as string;
 	const kind = m.kind as string;
@@ -101,8 +139,12 @@ export function registerListMembersTool(server: McpServer): void {
 					textDocument: { uri: fileUri },
 				});
 
-				// Transform response
-				const members = transformSymbolResponse(symbolResult);
+				// Transform response and drop the syntactic package symbol so the
+				// structured payload, summary count, and rendered body all reflect
+				// the user-facing member set rather than the raw LSP outline shape.
+				const rawMembers = transformSymbolResponse(symbolResult);
+				const members = rawMembers.filter(s => !isPackageSymbol(s));
+				const memberCount = countClassBodyMembers(members);
 
 				// Build resolvePackage that searches all loaded jar indices
 				const allDeps = getDependenciesForTool(loadedProject, undefined, scope);
@@ -133,7 +175,7 @@ export function registerListMembersTool(server: McpServer): void {
 					{ provenance },
 				);
 
-				const summary = `Found ${members.length} top-level member${members.length === 1 ? '' : 's'} in ${className}`;
+				const summary = `Found ${memberCount} member${memberCount === 1 ? '' : 's'} in ${className}`;
 
 				const content: { type: 'text'; text: string }[] = [{ type: 'text' as const, text: summary }];
 				if (stripped.length > 0) {

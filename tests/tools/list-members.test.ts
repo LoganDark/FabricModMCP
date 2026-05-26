@@ -648,11 +648,135 @@ public class MinecraftClient {
 
 			const r = result as any;
 			expect(r.content.length).toBeGreaterThanOrEqual(2);
-			expect(r.content[0].text).toMatch(/^Found \d+ top-level member/);
+			expect(r.content[0].text).toMatch(/^Found \d+ member/);
 			const bodyText = r.content.slice(1).map((c: any) => c.text).join('\n');
 			expect(bodyText).toContain('MinecraftClient');
 			expect(bodyText).toContain('running');
 			expect(bodyText).toContain('run()');
+		} finally {
+			await pair.cleanup();
+			projectStore.clear();
+		}
+	});
+
+	// REGRESSION: list-members-only-two (2026-05-26) — JDT LS returns Java
+	// files with a hierarchical outline whose top level is `[Package, Class]`
+	// (the package declaration is a top-level DocumentSymbol of kind=4).
+	// list_members must (a) drop the package symbol from the structured payload
+	// and the rendered body, and (b) report the count of CLASS BODY members
+	// in the summary — NOT the raw count of LSP top-level entries. Pre-fix,
+	// users on lifesteal saw "Found 2 top-level members" for classes with
+	// 100+ methods (ServerPlayer, StoredUserEntry, StoredUserList) because
+	// the count reflected `[Package, Class]` and not the actual member set.
+	test('REGRESSION: drops top-level package symbol and counts class-body members', async () => {
+		mockListEntries.mockResolvedValue(['net/minecraft/server/players/StoredUserEntry.java']);
+		mockReadEntry.mockResolvedValue(Buffer.from(`package net.minecraft.server.players;
+
+public abstract class StoredUserEntry<T> {
+	private final T user;
+
+	public StoredUserEntry(T user) { this.user = user; }
+	public T getUser() { return this.user; }
+	public boolean hasExpired() { return false; }
+	protected abstract void serialize(Object o);
+}
+`));
+		// Mirror the actual live JDT LS reply shape for StoredUserEntry.java,
+		// captured via scripts/diagnose-list-members.ts (see debug session
+		// list-members-only-two evidence-1).
+		mockDocumentSymbol.mockResolvedValue([
+			{
+				name: 'net.minecraft.server.players',
+				kind: 4, // package
+				detail: '',
+				range: { start: { line: 0, character: 0 }, end: { line: 0, character: 37 } },
+				selectionRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 37 } },
+			},
+			{
+				name: 'StoredUserEntry<T>',
+				kind: 5, // class
+				detail: '',
+				range: { start: { line: 2, character: 0 }, end: { line: 9, character: 1 } },
+				selectionRange: { start: { line: 2, character: 22 }, end: { line: 2, character: 37 } },
+				children: [
+					{
+						name: 'user',
+						kind: 8, // field
+						detail: '',
+						range: { start: { line: 3, character: 1 }, end: { line: 3, character: 22 } },
+						selectionRange: { start: { line: 3, character: 17 }, end: { line: 3, character: 21 } },
+					},
+					{
+						name: 'StoredUserEntry(T)',
+						kind: 9, // constructor
+						detail: '',
+						range: { start: { line: 5, character: 1 }, end: { line: 5, character: 50 } },
+						selectionRange: { start: { line: 5, character: 8 }, end: { line: 5, character: 23 } },
+					},
+					{
+						name: 'getUser()',
+						kind: 6, // method
+						detail: ' : T',
+						range: { start: { line: 6, character: 1 }, end: { line: 6, character: 40 } },
+						selectionRange: { start: { line: 6, character: 10 }, end: { line: 6, character: 17 } },
+					},
+					{
+						name: 'hasExpired()',
+						kind: 6, // method
+						detail: ' : boolean',
+						range: { start: { line: 7, character: 1 }, end: { line: 7, character: 45 } },
+						selectionRange: { start: { line: 7, character: 16 }, end: { line: 7, character: 26 } },
+					},
+					{
+						name: 'serialize(Object)',
+						kind: 6, // method
+						detail: ' : void',
+						range: { start: { line: 8, character: 1 }, end: { line: 8, character: 50 } },
+						selectionRange: { start: { line: 8, character: 25 }, end: { line: 8, character: 34 } },
+					},
+				],
+			},
+		]);
+
+		const pair = await createTestPair();
+		try {
+			const fake = makeFakeProject({ jdtls: makeJdtlsSession(makeMockClient()) });
+			projectStore.set('test', fake);
+
+			const result = await pair.client.callTool({
+				name: 'list_members',
+				arguments: {
+					project: 'test',
+					jar: 'testmod/minecraft',
+					class: 'net.minecraft.server.players.StoredUserEntry',
+				},
+			});
+
+			const envelope = parseEnvelope(result);
+			expect(envelope.success).toBe(true);
+
+			// Structured payload: only the class, package symbol is filtered.
+			expect(envelope.data.members).toHaveLength(1);
+			const cls = envelope.data.members[0];
+			expect(cls.kind).toBe('class');
+			expect(cls.name).toBe('StoredUserEntry<T>');
+			expect(cls.children).toHaveLength(5);
+
+			// Summary: counts the 5 class-body members, NOT the raw 2 LSP top
+			// level entries.
+			const r = result as any;
+			expect(r.content[0].text).toMatch(/^Found 5 members in /);
+
+			// Body block: renders the class and its children — and does NOT
+			// include the dropped package symbol.
+			const bodyText = r.content.slice(1).map((c: any) => c.text).join('\n');
+			expect(bodyText).toContain('StoredUserEntry');
+			expect(bodyText).toContain('getUser()');
+			expect(bodyText).toContain('hasExpired()');
+			expect(bodyText).toContain('serialize');
+			// The package symbol's name is the dotted package path — it must
+			// NOT appear as a rendered top-level entry.
+			expect(bodyText).not.toMatch(/^1\. package net\.minecraft/);
 		} finally {
 			await pair.cleanup();
 			projectStore.clear();
